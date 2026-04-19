@@ -1,0 +1,30 @@
+name: Keep Supabase alive
+
+# Chống Supabase auto-pause sau 7 ngày idle.
+# Chạy 1 query SELECT rất nhẹ mỗi thứ Hai 2h UTC (9h VN).
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping via REST
+        env:
+          SUPABASE_URL:      ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Missing SUPABASE_URL / SUPABASE_ANON_KEY secrets"
+            exit 1
+          fi
+          curl -sSf \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/exercise?select=exercise_id&limit=1" \
+            -o /tmp/ping.json
+          echo "Ping OK:"
+          cat /tmp/ping.json

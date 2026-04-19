@@ -1,0 +1,35 @@
+# Seed config. Toàn bộ volume / date range / probabilities ở đây.
+# Chạy: python seed.py --mode=full (hoặc --mode=append)
+
+seed: 42                      # random seed cho deterministic
+
+dates:
+  start:       "2024-02-01"
+  end:         "2024-04-30"
+  sale_days:   ["2024-03-03", "2024-04-04"]   # 5-5 ở tháng 5, không trong range
+  payday:      [25]                           # ngày 25 hàng tháng = payday
+  holidays:    ["2024-02-10", "2024-02-11", "2024-02-12", "2024-02-13", "2024-02-14",  # Tết
+                "2024-04-18"]                  # Giỗ Tổ
+
+volumes:
+  customers:              25000
+  sellers:                 3000
+  products:               15000
+  orders_per_day_normal:   1500
+  orders_per_day_sale:     6000
+  items_per_order_mean:     2.0
+  ad_campaigns:              50
+  vouchers:                 500
+  tickets_rate:            0.03   # 3% đơn có ticket CS
+
+shopee_context:
+  carriers:    [spx, ghn, jnt, viettel_post, ninja_van, grab]
+  devices:     [ios, android, web]
+  statuses:    [pending, to_ship, shipping, completed, cancelled, returned, refunded]
+  payment:     [cod, shopeepay, credit_card, bank_transfer, installment]
+
+# Probabilities tạo edge case (dạy data quality)
+anomalies:
+  cancelled_with_paid_at_pct:    0.05   # 5% đơn cancel vẫn có paid_at
+  completed_no_delivered_pct:    0.02   # 2% completed thiếu delivered_at
+  amount_rounding_lost_pct:      0.01   # 1% lệch vài đồng

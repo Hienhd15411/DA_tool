@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+.env.local
+
+# Node
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Seed output (CSVs)
+seed/data/*.csv
+seed/data/*.tsv
+!seed/data/.gitkeep
+
+# Supabase local
+.supabase/
+supabase/.temp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
