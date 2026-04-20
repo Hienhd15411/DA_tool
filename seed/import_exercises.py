@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Parse docs/exercises/*.md, extract exercises, upsert into learning.exercise.
+"""Parse docs/exercises/*.md, extract exercises, upsert into public.exercise.
 
 Run:
   python import_exercises.py
@@ -53,9 +53,9 @@ def main():
     conn = get_conn()
     with conn.cursor() as cur:
         # upsert: xoá rồi insert lại (đề bài có thể đã sửa)
-        cur.execute("TRUNCATE learning.exercise RESTART IDENTITY CASCADE;")
+        cur.execute("TRUNCATE public.exercise RESTART IDENTITY CASCADE;")
         bulk_insert(
-            cur, "learning.exercise",
+            cur, "public.exercise",
             ["exercise_id","theme","title","level","description_md"],
             all_rows,
             on_conflict="(exercise_id) DO NOTHING",

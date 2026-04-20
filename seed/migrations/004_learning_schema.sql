@@ -1,24 +1,39 @@
 -- 004_learning_schema.sql
--- Schema `learning`: query log, exercises, student progress.
--- Tách riêng để update dataset không ảnh hưởng data học viên.
+-- learning.query_log + learning.attempt: internal, không expose API.
+-- public.exercise: user-facing (Supabase PostgREST chỉ expose public).
+-- Migration an toàn: nếu DB đã có learning.exercise từ version cũ → MOVE sang public.
 
-CREATE TABLE IF NOT EXISTS learning.exercise (
-  exercise_id    TEXT PRIMARY KEY,             -- 'A1', 'B3', ...
-  theme          TEXT NOT NULL,                -- 'A' (Revenue), 'B', ...
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'learning' AND table_name = 'exercise'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'exercise'
+  ) THEN
+    EXECUTE 'ALTER TABLE learning.exercise SET SCHEMA public';
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.exercise (
+  exercise_id    TEXT PRIMARY KEY,
+  theme          TEXT NOT NULL,
   title          TEXT NOT NULL,
   level          SMALLINT NOT NULL CHECK (level BETWEEN 1 AND 4),
-  description_md TEXT NOT NULL,                -- markdown đề bài
-  expected_sql   TEXT,                         -- đáp án mẫu (không show học viên)
+  description_md TEXT NOT NULL,
+  expected_sql   TEXT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS learning.query_log (
   id              BIGSERIAL PRIMARY KEY,
-  user_id         UUID NOT NULL,                          -- auth.users.id
-  exercise_id     TEXT REFERENCES learning.exercise(exercise_id),
+  user_id         UUID NOT NULL,
+  exercise_id     TEXT REFERENCES public.exercise(exercise_id),
   sql_text        TEXT NOT NULL,
-  status          TEXT NOT NULL,                          -- 'ok' | 'error' | 'timeout'
-  error_code      TEXT,                                   -- SQLSTATE
+  status          TEXT NOT NULL,
+  error_code      TEXT,
   error_message   TEXT,
   row_count       INT,
   exec_ms         INT,
@@ -31,7 +46,7 @@ CREATE INDEX IF NOT EXISTS ix_query_log_exercise  ON learning.query_log (exercis
 CREATE TABLE IF NOT EXISTS learning.attempt (
   id             BIGSERIAL PRIMARY KEY,
   user_id        UUID NOT NULL,
-  exercise_id    TEXT NOT NULL REFERENCES learning.exercise(exercise_id),
+  exercise_id    TEXT NOT NULL REFERENCES public.exercise(exercise_id),
   is_correct     BOOLEAN NOT NULL,
   submitted_sql  TEXT NOT NULL,
   attempted_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -40,7 +55,6 @@ CREATE TABLE IF NOT EXISTS learning.attempt (
 
 CREATE INDEX IF NOT EXISTS ix_attempt_user ON learning.attempt (user_id, exercise_id);
 
--- View tổng hợp để giảng viên xem
 CREATE OR REPLACE VIEW learning.v_student_summary AS
 SELECT
   user_id,

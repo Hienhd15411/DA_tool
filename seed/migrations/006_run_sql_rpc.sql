@@ -1,14 +1,17 @@
 -- 006_run_sql_rpc.sql
--- RPC function run_sql(): entry point cho học viên chạy query.
--- Chạy với quyền student_ro, enforce timeout, ghi log.
+-- RPC public.run_sql(): entry point cho học viên chạy query.
+-- Ở public để Supabase PostgREST expose qua REST API.
 
-CREATE OR REPLACE FUNCTION learning.run_sql(
+-- Cleanup nếu còn function cũ ở learning
+DROP FUNCTION IF EXISTS learning.run_sql(TEXT, TEXT);
+
+CREATE OR REPLACE FUNCTION public.run_sql(
   query_text     TEXT,
   exercise_id_in TEXT DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
-SECURITY DEFINER            -- chạy với quyền owner (để set role + ghi log)
+SECURITY DEFINER
 SET search_path = shopee, public
 AS $$
 DECLARE
@@ -20,12 +23,10 @@ DECLARE
   v_err_msg  TEXT;
   v_uid      UUID := auth.uid();
 BEGIN
-  -- Bắt buộc login
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '28000';
   END IF;
 
-  -- Chặn câu lệnh không phải SELECT/WITH (chống DDL/DML phá hoại)
   IF NOT (
     upper(btrim(query_text)) LIKE 'SELECT%'
     OR upper(btrim(query_text)) LIKE 'WITH%'
@@ -34,7 +35,6 @@ BEGIN
     RAISE EXCEPTION 'Only SELECT/WITH/EXPLAIN are allowed' USING ERRCODE = '42501';
   END IF;
 
-  -- Giới hạn tài nguyên trong transaction
   SET LOCAL statement_timeout = '5s';
   SET LOCAL work_mem = '16MB';
   SET LOCAL ROLE student_ro;
@@ -51,12 +51,10 @@ BEGIN
     v_err_msg  := SQLERRM;
   END;
 
-  -- Reset role để ghi log được
   RESET ROLE;
 
   v_exec_ms := EXTRACT(MILLISECONDS FROM (clock_timestamp() - v_start))::INT;
 
-  -- Ghi log (luôn ghi dù ok hay lỗi)
   INSERT INTO learning.query_log
     (user_id, exercise_id, sql_text, status, error_code, error_message, row_count, exec_ms)
   VALUES
@@ -83,9 +81,8 @@ BEGIN
 END;
 $$;
 
--- Cho phép user đã login gọi
-REVOKE ALL ON FUNCTION learning.run_sql(TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION learning.run_sql(TEXT, TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.run_sql(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.run_sql(TEXT, TEXT) TO authenticated;
 
-COMMENT ON FUNCTION learning.run_sql IS
-  'Execute read-only SQL from students. Enforces 5s timeout, 500-row limit, logs to query_log.';
+COMMENT ON FUNCTION public.run_sql IS
+  'Execute read-only SQL from students. Enforces 5s timeout, 500-row limit, logs to learning.query_log.';

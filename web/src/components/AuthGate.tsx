@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../supabase";
 
-export function AuthGate({ children }: { children: (session: Session) => React.ReactNode }) {
+export function AuthGate({ children }: { children: (session: Session) => ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
@@ -18,7 +18,7 @@ export function AuthGate({ children }: { children: (session: Session) => React.R
     return () => data.subscription.unsubscribe();
   }, []);
 
-  async function signIn(e: React.FormEvent) {
+  async function signIn(e: FormEvent) {
     e.preventDefault();
     setError(null);
     const { error } = await supabase.auth.signInWithOtp({
