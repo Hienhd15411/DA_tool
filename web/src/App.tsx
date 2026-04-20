@@ -7,6 +7,7 @@ import { ExerciseList, type Exercise } from "./components/ExerciseList";
 import { SqlEditor } from "./components/SqlEditor";
 import { ResultTable } from "./components/ResultTable";
 import { runSql, type RunSqlResult } from "./lib/runSql";
+import { envError } from "./supabase";
 
 const INITIAL_SQL = `-- Thử query mẫu
 SELECT
@@ -20,6 +21,17 @@ GROUP BY 1
 ORDER BY 1;`;
 
 export default function App() {
+  if (envError) {
+    return (
+      <div style={{ maxWidth: 520, margin: "10vh auto", padding: 24, background: "var(--panel)", borderRadius: 8 }}>
+        <h2 className="error">⚠️ Config chưa sẵn sàng</h2>
+        <p>{envError}</p>
+        <p className="muted">
+          Sau khi set env vars, vào Netlify → <b>Deploys</b> → <b>Trigger deploy</b> → <b>Clear cache and deploy site</b>.
+        </p>
+      </div>
+    );
+  }
   return (
     <AuthGate>
       {(session) => <Workbench email={session.user.email} />}
