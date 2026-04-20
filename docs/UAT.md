@@ -84,6 +84,8 @@ Nếu bất kỳ dòng nào sai → re-run `python seed.py --mode=migrate` hoặ
 | 3.A.8 | Query JOIN dim_date + fact_orders group theo tuần | status=ok, có data |
 | 3.A.9 | `SELECT * FROM shopee.fact_orders` (600k+ rows) | status=ok, truncated=true, row_count=500, exec_ms < 3000 |
 | 3.A.10 | Chạy query cố tình nặng: `SELECT pg_sleep(10)` | status=error, error_code=57014 (statement_timeout) sau ~5s |
+| 3.A.11 | `SELECT generate_series(1,600) AS n` | truncated=true, row_count=500, banner cam hiển thị "⚠️ Đã cắt tại 500/500 dòng" |
+| 3.A.12 | `SELECT generate_series(1,500) AS n, repeat('x', 10000) AS big` (5MB payload) | truncated=true, row_count < 500, notice panel cam hiển thị "💡 Kết quả ... KB vượt ngưỡng 2048 KB" |
 
 ### 3.B Security cases (phải CHẶN)
 

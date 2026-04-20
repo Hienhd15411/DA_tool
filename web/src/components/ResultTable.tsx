@@ -29,16 +29,40 @@ export function ResultTable({ result, loading }: { result: RunSqlResult | null; 
 
   return (
     <div style={{ padding: 8 }}>
-      <div style={{ marginBottom: 8, display: "flex", gap: 16 }}>
+      <div style={{ marginBottom: 8, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
         <span className="success">✓ OK</span>
         <span className="muted">{result.row_count} dòng</span>
         <span className="muted">{result.exec_ms} ms</span>
         {result.truncated && (
-          <span className="muted" style={{ color: "var(--accent)" }}>
-            (đã cắt ở 500 dòng — thêm LIMIT để xem đủ)
+          <span
+            style={{
+              background: "var(--accent-dim)",
+              color: "#fff",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            ⚠️ Đã cắt tại {result.row_count}/{result.max_rows} dòng
           </span>
         )}
       </div>
+      {result.notice && (
+        <div
+          style={{
+            marginBottom: 8,
+            padding: "8px 12px",
+            background: "rgba(249, 115, 22, 0.1)",
+            border: "1px solid var(--accent)",
+            borderRadius: 4,
+            fontSize: 12,
+            color: "var(--accent)",
+          }}
+        >
+          💡 {result.notice}
+        </div>
+      )}
       <div style={{ overflowX: "auto" }}>
         <table>
           <thead>

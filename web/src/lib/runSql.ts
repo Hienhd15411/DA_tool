@@ -7,6 +7,8 @@ export type RunSqlResult =
       row_count: number;
       exec_ms: number;
       truncated: boolean;
+      notice: string | null;
+      max_rows: number;
     }
   | {
       status: "error";

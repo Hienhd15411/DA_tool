@@ -88,7 +88,7 @@ function Workbench({ email }: { email: string | undefined }) {
               Xoá
             </button>
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>
-              Schema: <code>shopee</code> · read-only · timeout 5s · max 500 rows
+              Schema: <code>shopee</code> · read-only · timeout 5s · max 500 rows / 2 MB
             </span>
           </div>
           <div style={{ flex: 1, minHeight: 200 }}>
