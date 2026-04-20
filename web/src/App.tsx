@@ -11,21 +11,21 @@ import { envError } from "./supabase";
 
 const INITIAL_SQL = `-- Query mẫu: GMV theo tuần 3 tháng qua
 SELECT
-  DATE_TRUNC('week', d.full_date)::date AS week_start,
-  SUM(o.total_amount) AS gmv,
-  COUNT(*)            AS orders
+    DATE_TRUNC('week', d.full_date)::date AS week_start
+  , SUM(o.total_amount)                   AS gmv
+  , COUNT(*)                              AS orders
 FROM shopee.fact_orders o
-JOIN shopee.dim_date    d ON d.date_key = o.order_date_key
+JOIN shopee.dim_date d ON d.date_key = o.order_date_key
 WHERE o.payment_status = 'paid'
 GROUP BY 1
-ORDER BY 1;`;
+ORDER BY 1`;
 
 const TABS_STORAGE_KEY = "datool.tabs.v1";
+const COLLAPSE_KEY = "datool.schema.collapsed";
 
 type StoredState = { tabs: QueryTab[]; activeId: string };
 
 function uuid(): string {
-  // crypto.randomUUID không có trên 1 số webview cũ → fallback.
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
@@ -67,23 +67,26 @@ function Workbench({ email }: { email: string | undefined }) {
   const initial = loadState();
   const [tabs, setTabs] = useState<QueryTab[]>(initial.tabs);
   const [activeId, setActiveId] = useState<string>(initial.activeId);
-  // Result per-tab, không persist (sau reload là query lại)
   const [results, setResults] = useState<Record<string, RunSqlResult | null>>({});
   const [loadingTabId, setLoadingTabId] = useState<string | null>(null);
+  const [schemaCollapsed, setSchemaCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(COLLAPSE_KEY) === "1"; } catch { return false; }
+  });
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const activeResult = results[active.id] ?? null;
   const loading = loadingTabId === active.id;
 
-  // Persist tabs + activeId (không persist result)
   useEffect(() => {
     try {
       localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify({ tabs, activeId } satisfies StoredState));
-    } catch {
-      /* quota / private mode */
-    }
+    } catch {/* quota */}
   }, [tabs, activeId]);
+
+  useEffect(() => {
+    try { localStorage.setItem(COLLAPSE_KEY, schemaCollapsed ? "1" : "0"); } catch {/* quota */}
+  }, [schemaCollapsed]);
 
   function setActiveSql(next: string) {
     setTabs((ts) => ts.map((t) => (t.id === activeId ? { ...t, sql: next } : t)));
@@ -91,8 +94,6 @@ function Workbench({ email }: { email: string | undefined }) {
 
   async function run() {
     const tabId = active.id;
-    // Nếu user bôi đen (select) một đoạn trong editor → chỉ chạy đoạn đó,
-    // giống Supabase/DBeaver. Không có selection → chạy toàn bộ tab.
     const ed = editorRef.current;
     let sql = active.sql;
     if (ed) {
@@ -109,6 +110,29 @@ function Workbench({ email }: { email: string | undefined }) {
       setResults((prev) => ({ ...prev, [tabId]: r }));
     } finally {
       setLoadingTabId((cur) => (cur === tabId ? null : cur));
+    }
+  }
+
+  async function formatActive() {
+    try {
+      // Lazy load sql-formatter (~80KB gzipped) — chỉ tải khi user bấm lần đầu
+      const { format } = await import("sql-formatter");
+      const formatted = format(active.sql, {
+        language: "postgresql",
+        keywordCase: "upper",
+        dataTypeCase: "upper",
+        functionCase: "upper",
+        identifierCase: "preserve",
+        indentStyle: "standard",
+        logicalOperatorNewline: "before",
+        expressionWidth: 80,
+        linesBetweenQueries: 2,
+        tabWidth: 2,
+        useTabs: false,
+      });
+      setActiveSql(formatted);
+    } catch (e) {
+      alert("Format fail — SQL có thể còn syntax error:\n" + (e instanceof Error ? e.message : String(e)));
     }
   }
 
@@ -135,11 +159,6 @@ function Workbench({ email }: { email: string | undefined }) {
     setTabs((ts) => ts.map((t) => (t.id === id ? { ...t, title } : t)));
   }
 
-  function clearActive() {
-    setActiveSql("");
-    setResults((prev) => ({ ...prev, [active.id]: null }));
-  }
-
   function insertAtCursor(text: string) {
     const ed = editorRef.current;
     if (!ed) {
@@ -156,7 +175,11 @@ function Workbench({ email }: { email: string | undefined }) {
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       <Header email={email} />
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <SchemaBrowser onInsert={insertAtCursor} />
+        <SchemaBrowser
+          onInsert={insertAtCursor}
+          collapsed={schemaCollapsed}
+          onToggleCollapsed={() => setSchemaCollapsed((v) => !v)}
+        />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <TabBar
             tabs={tabs}
@@ -169,20 +192,24 @@ function Workbench({ email }: { email: string | undefined }) {
           <div
             style={{
               display: "flex",
-              padding: "0.5rem 1rem",
+              padding: "0.4rem 1rem",
               gap: 12,
               alignItems: "center",
               borderBottom: "1px solid var(--border)",
+              fontSize: 12,
             }}
           >
-            <button onClick={run} disabled={loading}>
-              {loading ? "Đang chạy…" : "▶ Chạy (Ctrl+Enter)"}
+            <button
+              className="secondary"
+              onClick={formatActive}
+              title="Auto-format SQL: UPPERCASE keywords, comma-leading, 2-space indent"
+              style={{ padding: "4px 12px", fontSize: 12 }}
+            >
+              ✨ Format
             </button>
-            <button className="secondary" onClick={clearActive}>
-              Xoá
-            </button>
-            <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>
-              Schema: <code>shopee</code> · read-only · timeout 5s · max 500 rows / 2 MB · bôi đen để chạy 1 đoạn
+            {loading && <span className="muted">Đang chạy…</span>}
+            <span className="muted" style={{ marginLeft: "auto" }}>
+              <b>Ctrl+Enter</b> chạy · bôi đen để chạy 1 đoạn · <b>Ctrl+Space</b> gợi ý · max 1000 rows / 2 MB
             </span>
           </div>
           <div style={{ flex: 1, minHeight: 200 }}>

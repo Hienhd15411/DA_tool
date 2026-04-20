@@ -13,9 +13,9 @@
 --   4. Resource caps (HARD):
 --        • statement_timeout = 5s   → chặn slow query
 --        • work_mem          = 16MB → chặn memory-intensive sort/hash
---        • MAX_ROWS = 500           → wrap LIMIT 500 kể cả user SELECT *
---        • MAX_RESULT_BYTES = 2 MB  → chặn wide SELECT * tràn payload (≈500 rows
---                                     × 4KB/row); vượt → truncated + warning.
+--        • MAX_ROWS = 1000          → wrap LIMIT 1000 kể cả user SELECT *
+--        • MAX_RESULT_BYTES = 2 MB  → chặn wide SELECT * tràn payload; vượt
+--                                     → halving rows đến khi < 2 MB + warning.
 --   5. EXPLAIN chạy qua `EXPLAIN (FORMAT JSON)` riêng, không subquery.
 
 -- Cleanup nếu còn function cũ
@@ -33,7 +33,7 @@ SET search_path = shopee, public
 AS $$
 DECLARE
   -- Resource caps: chỉnh ở đây nếu cần tune
-  MAX_ROWS         CONSTANT INT := 500;
+  MAX_ROWS         CONSTANT INT := 1000;
   MAX_RESULT_BYTES CONSTANT INT := 2 * 1024 * 1024;   -- 2 MB
 
   v_start      TIMESTAMPTZ := clock_timestamp();

@@ -82,10 +82,10 @@ Nếu bất kỳ dòng nào sai → re-run `python seed.py --mode=migrate` hoặ
 | 3.A.6 | `SELECT 1 -- inline` (trailing comment) | status=ok |
 | 3.A.7 | `EXPLAIN SELECT * FROM shopee.dim_customer` | status=ok, rows chứa plan |
 | 3.A.8 | Query JOIN dim_date + fact_orders group theo tuần | status=ok, có data |
-| 3.A.9 | `SELECT * FROM shopee.fact_orders` (600k+ rows) | status=ok, truncated=true, row_count=500, exec_ms < 3000 |
+| 3.A.9 | `SELECT * FROM shopee.fact_orders` (600k+ rows) | status=ok, truncated=true, row_count=1000, exec_ms < 3000 |
 | 3.A.10 | Chạy query cố tình nặng: `SELECT pg_sleep(10)` | status=error, error_code=57014 (statement_timeout) sau ~5s |
-| 3.A.11 | `SELECT generate_series(1,600) AS n` | truncated=true, row_count=500, banner cam hiển thị "⚠️ Đã cắt tại 500/500 dòng" |
-| 3.A.12 | `SELECT generate_series(1,500) AS n, repeat('x', 10000) AS big` (5MB payload) | truncated=true, row_count < 500, notice panel cam hiển thị "💡 Kết quả ... KB vượt ngưỡng 2048 KB" |
+| 3.A.11 | `SELECT generate_series(1,1500) AS n` | truncated=true, row_count=1000, banner cam hiển thị "⚠️ Đã cắt tại 1000/1000 dòng" |
+| 3.A.12 | `SELECT generate_series(1,1000) AS n, repeat('x', 10000) AS big` (10MB payload) | truncated=true, row_count < 1000, notice panel cam hiển thị "💡 Kết quả ... KB vượt ngưỡng 2048 KB" |
 
 ### 3.B Security cases (phải CHẶN)
 
@@ -141,6 +141,18 @@ Nếu bất kỳ dòng nào sai → re-run `python seed.py --mode=migrate` hoặ
 | 4.23 | Double-click tên tab | Prompt đổi tên | |
 | 4.24 | Click `×` trên tab | Confirm → đóng tab, chuyển sang tab kế | Không đóng được nếu chỉ còn 1 tab |
 | 4.25 | Reload browser (F5) | Tabs giữ nguyên (localStorage), nhưng result trống (phải run lại) | |
+| 4.26 | Click nút **◂ Ẩn** trên Dataset browser | Sidebar co lại thành strip mỏng 32px với nút "▸ Dataset" | |
+| 4.27 | Click **▸ Dataset** trên strip | Sidebar mở lại full 300px | Trạng thái nhớ sau reload (localStorage) |
+| 4.28 | Click nút **✨ Format** với query xấu | SQL được format: keyword UPPERCASE, comma leading, indent 2 space | Nếu SQL syntax error → alert |
+| 4.29 | Bôi đen đoạn SQL → Ctrl+Enter | Chỉ đoạn đó chạy | Hint hiện ở status bar |
+| 4.30 | Gõ `SELECT * FROM ` trong editor → Ctrl+Space | Popup gợi ý hiện các table `shopee.*` | Monaco autocomplete |
+| 4.31 | Gõ tên 1 column → Ctrl+Space | Popup gợi ý column names + type | |
+| 4.32 | Gõ `SEL` → popup hiện snippets như "SELECT …" | Snippet skeleton insert được | |
+| 4.33 | Click header cột trong result | Toggle sort: click 1 = ASC, click 2 = DESC, click 3 = no sort | Mũi tên ▲/▼ hiện bên cạnh tên cột |
+| 4.34 | Gõ vào ô filter dưới header | Rows lọc real-time, chỉ giữ row chứa substring (case-insensitive) | "Lọc X/Y" hiện ở header |
+| 4.35 | Click vào 1 cell bất kỳ trong bảng | Giá trị cell copied vào clipboard, cell flash cam | Paste vào đâu đó verify |
+| 4.36 | Click **📋 Copy all** | Toàn bộ rows đã filter+sort copy sang clipboard (TSV) | Paste vào Excel giữ cột |
+| 4.37 | Click **⬇ Download CSV** | File .csv tải về với BOM, mở bằng Excel OK Unicode | |
 
 ### 4.x Cross-browser smoke test (ít nhất 2 browser)
 

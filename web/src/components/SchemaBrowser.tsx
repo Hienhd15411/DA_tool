@@ -1,24 +1,44 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../supabase";
+import { useState } from "react";
+import { useSchema, type SchemaTable } from "../lib/useSchema";
 
-type Column = { name: string; type: string; nullable: boolean; position: number };
-type Table = { table_name: string; group: "dim" | "fact" | "other"; row_count: number; columns: Column[] };
-
-export function SchemaBrowser({ onInsert }: { onInsert: (text: string) => void }) {
-  const [tables, setTables] = useState<Table[] | null>(null);
+export function SchemaBrowser({
+  onInsert,
+  collapsed,
+  onToggleCollapsed,
+}: {
+  onInsert: (text: string) => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+}) {
+  const { tables, error } = useSchema();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
-  useEffect(() => {
-    supabase.rpc("get_schema_info").then(({ data, error }) => {
-      if (error) {
-        setError(error.message);
-      } else {
-        setTables((data ?? []) as Table[]);
-      }
-    });
-  }, []);
+  // Collapsed state: chỉ hiện 1 strip nhỏ với nút mở lại
+  if (collapsed) {
+    return (
+      <div
+        style={{
+          width: 32,
+          borderRight: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: 8,
+          background: "var(--bg)",
+        }}
+      >
+        <button
+          onClick={onToggleCollapsed}
+          title="Mở Dataset browser"
+          className="secondary"
+          style={{ padding: "4px 6px", fontSize: 14, writingMode: "vertical-rl" }}
+        >
+          ▸ Dataset
+        </button>
+      </div>
+    );
+  }
 
   const toggle = (name: string) => {
     setExpanded((prev) => {
@@ -37,8 +57,8 @@ export function SchemaBrowser({ onInsert }: { onInsert: (text: string) => void }
   );
 
   const byGroup = {
-    fact: filtered?.filter((t) => t.group === "fact") ?? [],
-    dim:  filtered?.filter((t) => t.group === "dim")  ?? [],
+    fact:  filtered?.filter((t) => t.group === "fact")  ?? [],
+    dim:   filtered?.filter((t) => t.group === "dim")   ?? [],
     other: filtered?.filter((t) => t.group === "other") ?? [],
   };
 
@@ -53,8 +73,18 @@ export function SchemaBrowser({ onInsert }: { onInsert: (text: string) => void }
       }}
     >
       <div style={{ padding: "0.7rem", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
-          🗂️ Dataset · schema <code>shopee</code>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>
+            🗂️ Dataset · <code>shopee</code>
+          </div>
+          <button
+            onClick={onToggleCollapsed}
+            title="Ẩn Dataset browser"
+            className="secondary"
+            style={{ padding: "2px 8px", fontSize: 11 }}
+          >
+            ◂ Ẩn
+          </button>
         </div>
         <input
           placeholder="Tìm bảng hoặc cột..."
@@ -69,7 +99,7 @@ export function SchemaBrowser({ onInsert }: { onInsert: (text: string) => void }
           <div className="error" style={{ padding: 8, fontSize: 12 }}>
             ❌ {error}
             <div className="muted" style={{ marginTop: 4 }}>
-              Có thể chưa chạy migration 009. Chạy lại workflow "Seed database" mode=migrate.
+              Chạy lại workflow migrate để apply migration 009.
             </div>
           </div>
         )}
@@ -129,7 +159,7 @@ function TableNode({
   onToggle,
   onInsert,
 }: {
-  table: Table;
+  table: SchemaTable;
   expanded: boolean;
   onToggle: () => void;
   onInsert: (text: string) => void;

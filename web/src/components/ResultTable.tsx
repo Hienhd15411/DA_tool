@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { RunSqlResult } from "../lib/runSql";
 
 type OkResult = Extract<RunSqlResult, { status: "ok" }>;
+type SortState = { col: string; dir: "asc" | "desc" } | null;
 
 export function ResultTable({ result, loading }: { result: RunSqlResult | null; loading: boolean }) {
   if (loading) return <div style={{ padding: 12 }} className="muted">Đang chạy…</div>;
@@ -33,19 +34,55 @@ export function ResultTable({ result, loading }: { result: RunSqlResult | null; 
 
 function OkTable({ result }: { result: OkResult }) {
   const [copied, setCopied] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortState>(null);
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const cols = Object.keys(result.rows[0]);
 
-  async function copy(fmt: "tsv" | "csv" | "json" | "md") {
-    const text =
-      fmt === "json" ? toJson(result.rows)
-      : fmt === "md"  ? toMarkdown(cols, result.rows)
-      : toDelimited(cols, result.rows, fmt === "csv" ? "," : "\t");
+  const processed = useMemo(() => {
+    let rows = result.rows;
+    // filter
+    const activeFilters = Object.entries(filters).filter(([, q]) => q.trim());
+    if (activeFilters.length > 0) {
+      rows = rows.filter((r) =>
+        activeFilters.every(([col, q]) => {
+          const v = r[col];
+          const s = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+          return s.toLowerCase().includes(q.toLowerCase());
+        }),
+      );
+    }
+    // sort
+    if (sort) {
+      rows = [...rows].sort((a, b) => {
+        const va = a[sort.col], vb = b[sort.col];
+        if (va === vb) return 0;
+        if (va === null || va === undefined) return 1;
+        if (vb === null || vb === undefined) return -1;
+        let cmp: number;
+        if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+        else cmp = String(va).localeCompare(String(vb), undefined, { numeric: true });
+        return sort.dir === "asc" ? cmp : -cmp;
+      });
+    }
+    return rows;
+  }, [result.rows, filters, sort]);
+
+  function toggleSort(col: string) {
+    setSort((s) => {
+      if (!s || s.col !== col) return { col, dir: "asc" };
+      if (s.dir === "asc") return { col, dir: "desc" };
+      return null; // 3rd click clears sort
+    });
+  }
+
+  function setFilter(col: string, q: string) {
+    setFilters((prev) => ({ ...prev, [col]: q }));
+  }
+
+  async function writeClipboard(text: string, key: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(fmt);
-      setTimeout(() => setCopied(null), 1800);
     } catch {
-      // Fallback: tạo textarea tạm để copy (trường hợp clipboard API bị block)
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.style.position = "fixed";
@@ -54,13 +91,17 @@ function OkTable({ result }: { result: OkResult }) {
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
-      setCopied(fmt);
-      setTimeout(() => setCopied(null), 1800);
     }
+    setCopied(key);
+    setTimeout(() => setCopied((c) => (c === key ? null : c)), 1600);
+  }
+
+  function copyAll() {
+    writeClipboard(toDelimited(cols, processed, "\t"), "all");
   }
 
   function download() {
-    const csv = toDelimited(cols, result.rows, ",");
+    const csv = toDelimited(cols, processed, ",");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -70,23 +111,23 @@ function OkTable({ result }: { result: OkResult }) {
     URL.revokeObjectURL(url);
   }
 
-  const btn = (fmt: "tsv" | "csv" | "json" | "md", label: string, title: string) => (
-    <button
-      key={fmt}
-      className="secondary"
-      onClick={() => copy(fmt)}
-      title={title}
-      style={{ fontSize: 11, padding: "2px 8px" }}
-    >
-      {copied === fmt ? "✓ Copied" : `📋 ${label}`}
-    </button>
-  );
+  function copyCell(v: unknown, cellKey: string) {
+    const s = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+    writeClipboard(s, cellKey);
+  }
+
+  const filteredNote =
+    processed.length !== result.rows.length
+      ? ` (lọc ${processed.length}/${result.rows.length})`
+      : "";
 
   return (
     <div style={{ padding: 8 }}>
       <div style={{ marginBottom: 8, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <span className="success">✓ OK</span>
-        <span className="muted">{result.row_count} dòng</span>
+        <span className="muted">
+          {result.row_count} dòng{filteredNote}
+        </span>
         <span className="muted">{result.exec_ms} ms</span>
         {result.truncated && (
           <span
@@ -103,17 +144,21 @@ function OkTable({ result }: { result: OkResult }) {
           </span>
         )}
         <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-          {btn("tsv", "TSV", "Copy tab-separated — dán vào Excel / Google Sheets")}
-          {btn("csv", "CSV", "Copy comma-separated")}
-          {btn("md", "MD", "Copy Markdown table")}
-          {btn("json", "JSON", "Copy JSON array")}
+          <button
+            className="secondary"
+            onClick={copyAll}
+            title="Copy toàn bộ kết quả (TSV — paste vào Excel/Sheets)"
+            style={{ fontSize: 12, padding: "3px 10px" }}
+          >
+            {copied === "all" ? "✓ Copied" : "📋 Copy all"}
+          </button>
           <button
             className="secondary"
             onClick={download}
-            title="Tải xuống file .csv"
-            style={{ fontSize: 11, padding: "2px 8px" }}
+            title="Download file CSV"
+            style={{ fontSize: 12, padding: "3px 10px" }}
           >
-            ⬇ CSV
+            ⬇ Download CSV
           </button>
         </div>
       </div>
@@ -132,28 +177,72 @@ function OkTable({ result }: { result: OkResult }) {
           💡 {result.notice}
         </div>
       )}
-      <div style={{ overflowX: "auto", userSelect: "text" }}>
-        <table className="result-table">
-          <thead>
+      <div style={{ overflow: "auto", maxHeight: "calc(100% - 40px)" }}>
+        <table className="result-table" style={{ width: "100%" }}>
+          <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
+            <tr>
+              {cols.map((c) => {
+                const s = sort?.col === c ? sort.dir : null;
+                return (
+                  <th
+                    key={c}
+                    onClick={() => toggleSort(c)}
+                    style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                    title="Click để sort · click lại để đảo chiều · click lần 3 để bỏ sort"
+                  >
+                    {c}
+                    {s === "asc" && <span style={{ color: "var(--accent)" }}> ▲</span>}
+                    {s === "desc" && <span style={{ color: "var(--accent)" }}> ▼</span>}
+                  </th>
+                );
+              })}
+            </tr>
             <tr>
               {cols.map((c) => (
-                <th key={c}>{c}</th>
+                <th key={c} style={{ padding: "2px 4px", background: "var(--panel)" }}>
+                  <input
+                    placeholder="Filter…"
+                    value={filters[c] ?? ""}
+                    onChange={(e) => setFilter(c, e.target.value)}
+                    style={{ width: "100%", fontSize: 11, padding: "2px 4px" }}
+                  />
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {result.rows.map((row, i) => (
+            {processed.map((row, i) => (
               <tr key={i}>
-                {cols.map((c) => (
-                  <td key={c}>{formatCell(row[c])}</td>
-                ))}
+                {cols.map((c) => {
+                  const key = `${i}-${c}`;
+                  return (
+                    <td
+                      key={c}
+                      onClick={() => copyCell(row[c], key)}
+                      title="Click để copy giá trị ô này"
+                      style={{
+                        cursor: "cell",
+                        background: copied === key ? "var(--accent-dim)" : undefined,
+                        color: copied === key ? "#fff" : undefined,
+                        transition: "background 0.15s",
+                      }}
+                    >
+                      {formatCell(row[c])}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
+        {processed.length === 0 && (
+          <div className="muted" style={{ padding: 12, textAlign: "center" }}>
+            Filter không match dòng nào — clear filter để xem lại.
+          </div>
+        )}
       </div>
       <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-        💡 Kéo chuột để chọn ô → Ctrl+C paste vào Excel/Sheets (giữ đúng cột). Hoặc dùng nút 📋 TSV để copy toàn bộ.
+        💡 Click cell để copy giá trị · click header để sort · dùng ô filter để lọc · kéo chuột để chọn vùng
       </div>
     </div>
   );
@@ -165,12 +254,9 @@ function formatCell(v: unknown): string {
   return String(v);
 }
 
-// --- Export formatters --------------------------------------------------
-
 function cellForDelimited(v: unknown, delim: string): string {
   if (v === null || v === undefined) return "";
   const s = typeof v === "object" ? JSON.stringify(v) : String(v);
-  // Quote nếu chứa delim, newline, hoặc dấu nháy kép. Escape `"` → `""`.
   if (s.includes(delim) || s.includes("\n") || s.includes("\r") || s.includes('"')) {
     return '"' + s.replace(/"/g, '""') + '"';
   }
@@ -181,20 +267,4 @@ function toDelimited(cols: string[], rows: Record<string, unknown>[], delim: str
   const header = cols.map((c) => cellForDelimited(c, delim)).join(delim);
   const body = rows.map((r) => cols.map((c) => cellForDelimited(r[c], delim)).join(delim)).join("\n");
   return header + "\n" + body;
-}
-
-function toJson(rows: Record<string, unknown>[]): string {
-  return JSON.stringify(rows, null, 2);
-}
-
-function toMarkdown(cols: string[], rows: Record<string, unknown>[]): string {
-  const esc = (v: unknown) => {
-    if (v === null || v === undefined) return "";
-    const s = typeof v === "object" ? JSON.stringify(v) : String(v);
-    return s.replace(/\|/g, "\\|").replace(/\n/g, " ");
-  };
-  const header = "| " + cols.join(" | ") + " |";
-  const sep    = "| " + cols.map(() => "---").join(" | ") + " |";
-  const body   = rows.map((r) => "| " + cols.map((c) => esc(r[c])).join(" | ") + " |").join("\n");
-  return [header, sep, body].join("\n");
 }
