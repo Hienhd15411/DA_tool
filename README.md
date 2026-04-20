@@ -49,27 +49,36 @@ Web tool cho lớp học DA: học viên mở browser, login, gõ SQL PostgreSQL
 3. Set password strong → **Create**.
 4. Chờ ~2 phút DB khởi tạo.
 
-### 2. Chạy migrations + seed data (20–30 phút)
+### 2. Chạy migrations + seed data (20-30 phút)
 
-**Yêu cầu local:**
-- Python 3.10+
-- Postgres client (`psql`) — không bắt buộc nhưng tiện
+**2 cách — chọn 1:**
+
+#### Cách A — Qua GitHub Actions (khuyến nghị, không cần cài local)
+
+1. **Add secret:** GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**
+   - Name: `DATABASE_URL`
+   - Value: `postgresql://postgres:YOUR_PASS@db.YOUR_PROJECT.supabase.co:5432/postgres`
+     (lấy từ Supabase → **Connect** button → Connection string → URI, nhớ thay password)
+2. Repo → tab **Actions** → chọn workflow **Seed database** → **Run workflow**
+3. Chọn mode `full` + check `import_exercises` → **Run**
+4. Chờ ~20 phút → kết thúc sẽ in bảng thống kê row counts cho mỗi table
+
+Dùng lại workflow này khi nào bạn muốn update dataset (mode `data` hoặc `reset`).
+
+#### Cách B — Chạy local
+
+**Yêu cầu:** Python 3.10+
 
 ```bash
-# Clone repo, vào thư mục
-git clone <repo-url> && cd DA_tool
-
-# Python deps
-cd seed
+git clone <repo-url> && cd DA_tool/seed
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # Copy env template, điền DATABASE_URL từ Supabase
-# (Supabase dashboard → Project Settings → Database → Connection string → URI,
-#  nhớ thay [YOUR-PASSWORD])
 cp .env.example .env
 nano .env
 
-# Chạy migrations + sinh data (15-20 phút tuỳ máy)
+# Apply migrations + sinh data (15-20 phút)
 python seed.py --mode=full
 
 # Import 87 bài tập vào bảng learning.exercise

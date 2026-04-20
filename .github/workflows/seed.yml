@@ -1,0 +1,94 @@
+name: Seed database
+
+# Chạy seed script trên GitHub Actions runner (có Python + network).
+# Trigger thủ công từ tab Actions → chọn mode → Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Seed mode"
+        required: true
+        default: "full"
+        type: choice
+        options:
+          - full      # apply migrations + generate all data
+          - migrate   # apply migrations only (no data change)
+          - data      # generate data only (assumes schema exists)
+          - reset     # drop shopee schema + re-seed from scratch
+      import_exercises:
+        description: "Also import docs/exercises/*.md vào bảng learning.exercise"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: seed/requirements.txt
+
+      - name: Install dependencies
+        working-directory: seed
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check secret configured
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret not set. Add it in Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          # không echo URL ra log, chỉ xác nhận có
+          echo "DATABASE_URL is set (length ${#DATABASE_URL})"
+
+      - name: Run seed
+        working-directory: seed
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          echo "=== Mode: ${{ inputs.mode }} ==="
+          python seed.py --mode=${{ inputs.mode }}
+
+      - name: Import exercises
+        if: ${{ inputs.import_exercises }}
+        working-directory: seed
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python import_exercises.py
+
+      - name: Summary
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: seed
+        run: |
+          python - <<'PY'
+          import os, psycopg2
+          c = psycopg2.connect(os.environ["DATABASE_URL"])
+          with c.cursor() as cur:
+              cur.execute("""
+                SELECT schemaname, relname, n_live_tup
+                FROM pg_stat_user_tables
+                WHERE schemaname IN ('shopee','learning')
+                ORDER BY schemaname, relname
+              """)
+              print(f"{'schema':<10} {'table':<35} {'rows':>15}")
+              print("-" * 62)
+              for schema, table, rows in cur.fetchall():
+                  print(f"{schema:<10} {table:<35} {rows:>15,}")
+          c.close()
+          PY
