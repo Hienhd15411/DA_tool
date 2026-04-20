@@ -41,7 +41,8 @@ BEGIN
 
   SET LOCAL statement_timeout = '5s';
   SET LOCAL work_mem = '16MB';
-  SET LOCAL ROLE student_ro;
+  -- Note: không SET LOCAL ROLE được trong SECURITY DEFINER func.
+  -- Security dựa vào regex check ở trên + statement_timeout + chỉ cho SELECT.
 
   BEGIN
     EXECUTE format(
@@ -54,8 +55,6 @@ BEGIN
     v_err_code := SQLSTATE;
     v_err_msg  := SQLERRM;
   END;
-
-  RESET ROLE;
 
   v_exec_ms := EXTRACT(MILLISECONDS FROM (clock_timestamp() - v_start))::INT;
 
