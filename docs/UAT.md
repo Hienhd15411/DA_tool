@@ -129,6 +129,18 @@ Nếu bất kỳ dòng nào sai → re-run `python seed.py --mode=migrate` hoặ
 | 4.11 | Thử query lỗi: `SELECT * FROM nonexistent` | Panel dưới hiện error đỏ, query vẫn được log | |
 | 4.12 | Click "Xoá" | Editor empty, panel kết quả reset | |
 | 4.13 | Click "Đăng xuất" | Về lại form login | |
+| 4.14 | Sau khi chạy query OK, header kết quả có 5 nút: **📋 TSV**, **📋 CSV**, **📋 MD**, **📋 JSON**, **⬇ CSV** | Đủ 5 nút | |
+| 4.15 | Click **📋 TSV** → paste (Ctrl+V) vào Excel / Google Sheets | Dữ liệu rơi đúng cột | Clipboard API có thể bị block trên HTTP, Netlify luôn HTTPS nên OK |
+| 4.16 | Click **📋 CSV** → paste vào notepad | Dữ liệu comma-separated, có quote cho cell chứa `,` hoặc `\n` | |
+| 4.17 | Click **📋 MD** → paste vào GitHub comment hoặc Notion | Hiển thị thành table Markdown | |
+| 4.18 | Click **📋 JSON** → paste vào editor | JSON array đẹp, indent 2 space | |
+| 4.19 | Click **⬇ CSV** → download file | File `query_result_YYYY-MM-DD-HH-MM-SS.csv` tải xuống, mở bằng Excel hiển thị Unicode đúng (BOM) | |
+| 4.20 | Kéo chuột chọn vài ô → Ctrl+C → paste vào Excel | Chỉ ô chọn paste vào, giữ đúng cột | Nếu paste text joined tab → normal; nếu cột lộn → bug selection |
+| 4.21 | Click nút **+ Tab** ở trên editor | Tab mới "Query 2" hiện, editor trống, tab cũ vẫn còn | |
+| 4.22 | Switch qua lại giữa tabs | Mỗi tab giữ SQL + kết quả riêng | |
+| 4.23 | Double-click tên tab | Prompt đổi tên | |
+| 4.24 | Click `×` trên tab | Confirm → đóng tab, chuyển sang tab kế | Không đóng được nếu chỉ còn 1 tab |
+| 4.25 | Reload browser (F5) | Tabs giữ nguyên (localStorage), nhưng result trống (phải run lại) | |
 
 ### 4.x Cross-browser smoke test (ít nhất 2 browser)
 

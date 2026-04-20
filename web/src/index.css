@@ -58,6 +58,14 @@ th, td { padding: 0.4rem 0.8rem; border: 1px solid var(--border); text-align: le
 th { background: var(--panel-light); }
 tr:nth-child(even) { background: rgba(255,255,255,0.02); }
 
+.result-table, .result-table th, .result-table td {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+.result-table tr:hover td { background: rgba(249, 115, 22, 0.08); }
+.result-table ::selection { background: var(--accent); color: #fff; }
+
 code {
   background: var(--panel);
   padding: 2px 4px;

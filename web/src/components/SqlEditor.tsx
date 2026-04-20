@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
@@ -12,6 +13,13 @@ export function SqlEditor({
   onRun: () => void;
   onReady?: (ed: editor.IStandaloneCodeEditor) => void;
 }) {
+  // Ref giữ callback mới nhất. Monaco's addCommand() chỉ register 1 lần
+  // lúc mount → nếu dùng onRun trực tiếp sẽ capture closure cũ với sql cũ.
+  const onRunRef = useRef(onRun);
+  useEffect(() => {
+    onRunRef.current = onRun;
+  }, [onRun]);
+
   return (
     <div style={{ height: "100%", position: "relative" }}>
       <Editor
@@ -29,7 +37,7 @@ export function SqlEditor({
           tabSize: 2,
         }}
         onMount={(ed, monaco) => {
-          ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, onRun);
+          ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => onRunRef.current());
           onReady?.(ed);
         }}
       />
