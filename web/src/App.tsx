@@ -1,15 +1,14 @@
-import { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { useRef, useState } from "react";
+import type { editor } from "monaco-editor";
 import { AuthGate } from "./components/AuthGate";
 import { Header } from "./components/Header";
-import { ExerciseList, type Exercise } from "./components/ExerciseList";
+import { SchemaBrowser } from "./components/SchemaBrowser";
 import { SqlEditor } from "./components/SqlEditor";
 import { ResultTable } from "./components/ResultTable";
 import { runSql, type RunSqlResult } from "./lib/runSql";
 import { envError } from "./supabase";
 
-const INITIAL_SQL = `-- Thử query mẫu
+const INITIAL_SQL = `-- Query mẫu: GMV theo tuần 3 tháng qua
 SELECT
   DATE_TRUNC('week', d.full_date)::date AS week_start,
   SUM(o.total_amount) AS gmv,
@@ -40,85 +39,70 @@ export default function App() {
 }
 
 function Workbench({ email }: { email: string | undefined }) {
-  const [selected, setSelected] = useState<Exercise | null>(null);
   const [sql, setSql] = useState(INITIAL_SQL);
   const [result, setResult] = useState<RunSqlResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   async function run() {
     setLoading(true);
     try {
-      const r = await runSql(sql, selected?.exercise_id ?? null);
+      const r = await runSql(sql, null);
       setResult(r);
     } finally {
       setLoading(false);
     }
   }
 
+  function insertAtCursor(text: string) {
+    const ed = editorRef.current;
+    if (!ed) {
+      setSql((prev) => prev + text);
+      return;
+    }
+    const sel = ed.getSelection();
+    if (!sel) return;
+    ed.executeEdits("insert", [
+      { range: sel, text, forceMoveMarkers: true },
+    ]);
+    ed.focus();
+  }
+
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       <Header email={email} />
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <ExerciseList
-          selected={selected?.exercise_id ?? null}
-          onSelect={(ex) => {
-            setSelected(ex);
-            if (ex) setSql(`-- ${ex.exercise_id}: ${ex.title}\n\n`);
-          }}
-        />
+        <SchemaBrowser onInsert={insertAtCursor} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          {selected && (
-            <div
-              style={{
-                padding: "0.8rem 1.2rem",
-                borderBottom: "1px solid var(--border)",
-                maxHeight: "35%",
-                overflowY: "auto",
-                background: "var(--panel)",
+          <div style={{ display: "flex", padding: "0.5rem 1rem", gap: 12, alignItems: "center", borderBottom: "1px solid var(--border)" }}>
+            <button onClick={run} disabled={loading}>
+              {loading ? "Đang chạy…" : "▶ Chạy (Ctrl+Enter)"}
+            </button>
+            <button
+              className="secondary"
+              onClick={() => {
+                setSql("");
+                setResult(null);
               }}
             >
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                {selected.exercise_id} — {selected.title}{" "}
-                <span className="muted">(Level {selected.level})</span>
-              </div>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {selected.description_md}
-              </ReactMarkdown>
-            </div>
-          )}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", padding: "0.5rem 1rem", gap: 12, alignItems: "center", borderBottom: "1px solid var(--border)" }}>
-              <button onClick={run} disabled={loading}>
-                {loading ? "Đang chạy…" : "▶ Chạy (Ctrl+Enter)"}
-              </button>
-              <button
-                className="secondary"
-                onClick={() => {
-                  setSql("");
-                  setResult(null);
-                }}
-              >
-                Xoá
-              </button>
-              {selected && (
-                <span className="muted" style={{ fontSize: 12 }}>
-                  → Log gắn với bài {selected.exercise_id}
-                </span>
-              )}
-            </div>
-            <div style={{ flex: 1, minHeight: 200 }}>
-              <SqlEditor value={sql} onChange={setSql} onRun={run} />
-            </div>
-            <div
-              style={{
-                height: "40%",
-                overflow: "auto",
-                borderTop: "1px solid var(--border)",
-                background: "var(--panel)",
-              }}
-            >
-              <ResultTable result={result} loading={loading} />
-            </div>
+              Xoá
+            </button>
+            <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>
+              Schema: <code>shopee</code> · read-only · timeout 5s · max 500 rows
+            </span>
+          </div>
+          <div style={{ flex: 1, minHeight: 200 }}>
+            <SqlEditor value={sql} onChange={setSql} onRun={run} onReady={(ed) => (editorRef.current = ed)} />
+          </div>
+          <div
+            style={{
+              height: "45%",
+              overflow: "auto",
+              borderTop: "1px solid var(--border)",
+              background: "var(--panel)",
+            }}
+          >
+            <ResultTable result={result} loading={loading} />
           </div>
         </div>
       </div>

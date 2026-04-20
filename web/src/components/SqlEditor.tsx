@@ -1,13 +1,16 @@
 import Editor from "@monaco-editor/react";
+import type { editor } from "monaco-editor";
 
 export function SqlEditor({
   value,
   onChange,
   onRun,
+  onReady,
 }: {
   value: string;
   onChange: (v: string) => void;
   onRun: () => void;
+  onReady?: (ed: editor.IStandaloneCodeEditor) => void;
 }) {
   return (
     <div style={{ height: "100%", position: "relative" }}>
@@ -25,11 +28,9 @@ export function SqlEditor({
           wordWrap: "on",
           tabSize: 2,
         }}
-        onMount={(editor, monaco) => {
-          editor.addCommand(
-            monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-            onRun,
-          );
+        onMount={(ed, monaco) => {
+          ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, onRun);
+          onReady?.(ed);
         }}
       />
       <div
