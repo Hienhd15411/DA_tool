@@ -52,18 +52,23 @@ def main():
 
     conn = get_conn()
     with conn.cursor() as cur:
-        # upsert: xoá rồi insert lại (đề bài có thể đã sửa)
-        cur.execute("TRUNCATE public.exercise RESTART IDENTITY CASCADE;")
+        # UPSERT (không TRUNCATE vì query_log/attempt có FK → cascade sẽ xoá log học viên).
         bulk_insert(
             cur, "public.exercise",
             ["exercise_id","theme","title","level","description_md"],
             all_rows,
-            on_conflict="(exercise_id) DO NOTHING",
+            on_conflict=(
+                "(exercise_id) DO UPDATE SET "
+                "theme=EXCLUDED.theme, "
+                "title=EXCLUDED.title, "
+                "level=EXCLUDED.level, "
+                "description_md=EXCLUDED.description_md"
+            ),
             page_size=200,
         )
     conn.commit()
     conn.close()
-    print("✅ Imported.")
+    print("✅ Imported / updated.")
 
 
 if __name__ == "__main__":

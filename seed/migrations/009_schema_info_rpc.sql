@@ -11,11 +11,21 @@ AS $$
   WITH tables AS (
     SELECT
       t.table_name,
-      COALESCE(
-        (SELECT n_live_tup FROM pg_stat_user_tables s
-         WHERE s.schemaname = 'shopee' AND s.relname = t.table_name),
-        0
-      ) AS row_count,
+      -- GREATEST(n_live_tup, reltuples) — cả 2 đều approximate nhưng khác nguồn.
+      -- reltuples update ngay khi insert+commit lớn; n_live_tup cần ANALYZE.
+      GREATEST(
+        COALESCE(
+          (SELECT n_live_tup FROM pg_stat_user_tables s
+           WHERE s.schemaname = 'shopee' AND s.relname = t.table_name),
+          0
+        ),
+        COALESCE(
+          (SELECT c.reltuples::BIGINT FROM pg_class c
+           JOIN pg_namespace n ON n.oid = c.relnamespace
+           WHERE n.nspname = 'shopee' AND c.relname = t.table_name),
+          0
+        )
+      )::BIGINT AS row_count,
       CASE
         WHEN t.table_name LIKE 'dim_%'  THEN 'dim'
         WHEN t.table_name LIKE 'fact_%' THEN 'fact'
@@ -39,13 +49,16 @@ AS $$
     WHERE c.table_schema = 'shopee'
     GROUP BY c.table_name
   )
-  SELECT jsonb_agg(
-    jsonb_build_object(
-      'table_name', t.table_name,
-      'group',      t.group_name,
-      'row_count',  t.row_count,
-      'columns',    COALESCE(c.columns, '[]'::jsonb)
-    ) ORDER BY t.group_name DESC, t.table_name
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'table_name', t.table_name,
+        'group',      t.group_name,
+        'row_count',  t.row_count,
+        'columns',    COALESCE(c.columns, '[]'::jsonb)
+      ) ORDER BY t.group_name DESC, t.table_name
+    ),
+    '[]'::jsonb
   )
   FROM tables t
   LEFT JOIN cols c USING (table_name);
@@ -55,4 +68,4 @@ REVOKE ALL ON FUNCTION public.get_schema_info() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_schema_info() TO authenticated, anon;
 
 COMMENT ON FUNCTION public.get_schema_info IS
-  'Return all tables+columns in shopee schema, with live row counts, for frontend schema browser.';
+  'Return all tables+columns in shopee schema (with live row counts) for frontend schema browser.';
