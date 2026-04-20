@@ -22,15 +22,19 @@ DECLARE
   v_err_code TEXT;
   v_err_msg  TEXT;
   v_uid      UUID := auth.uid();
+  v_head     TEXT;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '28000';
   END IF;
 
+  -- Strip leading whitespace, newlines, và SQL line comments trước khi check
+  v_head := upper(regexp_replace(query_text, E'^(\\s+|--[^\\n]*\\n?)+', ''));
+
   IF NOT (
-    upper(btrim(query_text)) LIKE 'SELECT%'
-    OR upper(btrim(query_text)) LIKE 'WITH%'
-    OR upper(btrim(query_text)) LIKE 'EXPLAIN%'
+    v_head LIKE 'SELECT%'
+    OR v_head LIKE 'WITH%'
+    OR v_head LIKE 'EXPLAIN%'
   ) THEN
     RAISE EXCEPTION 'Only SELECT/WITH/EXPLAIN are allowed' USING ERRCODE = '42501';
   END IF;
