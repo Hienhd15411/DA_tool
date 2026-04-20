@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { RunSqlResult } from "../lib/runSql";
+import { ColumnMenu, type ColFilter, type SortDir } from "./ColumnMenu";
 
 type OkResult = Extract<RunSqlResult, { status: "ok" }>;
-type SortState = { col: string; dir: "asc" | "desc" } | null;
+type SortState = { col: string; dir: SortDir } | null;
 
 export function ResultTable({ result, loading }: { result: RunSqlResult | null; loading: boolean }) {
   if (loading) return <div style={{ padding: 12 }} className="muted">Đang chạy…</div>;
@@ -35,19 +36,21 @@ export function ResultTable({ result, loading }: { result: RunSqlResult | null; 
 function OkTable({ result }: { result: OkResult }) {
   const [copied, setCopied] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState>(null);
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, ColFilter>>({});
+  const [openMenu, setOpenMenu] = useState<{ col: string; rect: DOMRect | null } | null>(null);
   const cols = Object.keys(result.rows[0]);
 
   const processed = useMemo(() => {
     let rows = result.rows;
     // filter
-    const activeFilters = Object.entries(filters).filter(([, q]) => q.trim());
+    const activeFilters = Object.entries(filters).filter(([, f]) => f.text || f.allowedValues);
     if (activeFilters.length > 0) {
       rows = rows.filter((r) =>
-        activeFilters.every(([col, q]) => {
-          const v = r[col];
-          const s = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
-          return s.toLowerCase().includes(q.toLowerCase());
+        activeFilters.every(([col, f]) => {
+          const s = stringify(r[col]);
+          if (f.text && !s.toLowerCase().includes(f.text.toLowerCase())) return false;
+          if (f.allowedValues && !f.allowedValues.has(s)) return false;
+          return true;
         }),
       );
     }
@@ -67,16 +70,25 @@ function OkTable({ result }: { result: OkResult }) {
     return rows;
   }, [result.rows, filters, sort]);
 
-  function toggleSort(col: string) {
-    setSort((s) => {
-      if (!s || s.col !== col) return { col, dir: "asc" };
-      if (s.dir === "asc") return { col, dir: "desc" };
-      return null; // 3rd click clears sort
+  function applySort(col: string, dir: SortDir) {
+    setSort({ col, dir });
+  }
+
+  function applyFilter(col: string, next: ColFilter) {
+    setFilters((prev) => {
+      const copy = { ...prev };
+      if (!next.text && !next.allowedValues) delete copy[col];
+      else copy[col] = next;
+      return copy;
     });
   }
 
-  function setFilter(col: string, q: string) {
-    setFilters((prev) => ({ ...prev, [col]: q }));
+  function clearCol(col: string) {
+    setFilters((prev) => {
+      const { [col]: _gone, ...rest } = prev;
+      return rest;
+    });
+    setSort((s) => (s?.col === col ? null : s));
   }
 
   async function writeClipboard(text: string, key: string) {
@@ -93,11 +105,24 @@ function OkTable({ result }: { result: OkResult }) {
       document.body.removeChild(ta);
     }
     setCopied(key);
-    setTimeout(() => setCopied((c) => (c === key ? null : c)), 1600);
+    setTimeout(() => setCopied((c) => (c === key ? null : c)), 1400);
   }
 
   function copyAll() {
     writeClipboard(toDelimited(cols, processed, "\t"), "all");
+  }
+
+  function copyRow(r: Record<string, unknown>, idx: number) {
+    writeClipboard(cols.map((c) => cellForDelimited(r[c], "\t")).join("\t"), `row-${idx}`);
+  }
+
+  function copyColumn(col: string) {
+    const lines = [col, ...processed.map((r) => stringify(r[col]))];
+    writeClipboard(lines.join("\n"), `col-${col}`);
+  }
+
+  function copyCell(v: unknown, key: string) {
+    writeClipboard(stringify(v), key);
   }
 
   function download() {
@@ -111,15 +136,16 @@ function OkTable({ result }: { result: OkResult }) {
     URL.revokeObjectURL(url);
   }
 
-  function copyCell(v: unknown, cellKey: string) {
-    const s = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
-    writeClipboard(s, cellKey);
-  }
-
   const filteredNote =
     processed.length !== result.rows.length
       ? ` (lọc ${processed.length}/${result.rows.length})`
       : "";
+
+  const allValuesByCol = useMemo(() => {
+    const m: Record<string, unknown[]> = {};
+    for (const c of cols) m[c] = result.rows.map((r) => r[c]);
+    return m;
+  }, [cols, result.rows]);
 
   return (
     <div style={{ padding: 8 }}>
@@ -147,7 +173,7 @@ function OkTable({ result }: { result: OkResult }) {
           <button
             className="secondary"
             onClick={copyAll}
-            title="Copy toàn bộ kết quả (TSV — paste vào Excel/Sheets)"
+            title="Copy toàn bộ (TSV — paste vào Excel/Sheets)"
             style={{ fontSize: 12, padding: "3px 10px" }}
           >
             {copied === "all" ? "✓ Copied" : "📋 Copy all"}
@@ -178,41 +204,49 @@ function OkTable({ result }: { result: OkResult }) {
         </div>
       )}
       <div style={{ overflow: "auto", maxHeight: "calc(100% - 40px)" }}>
-        <table className="result-table" style={{ width: "100%" }}>
+        <table className="result-table" style={{ width: "auto" }}>
           <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
             <tr>
-              {cols.map((c) => {
-                const s = sort?.col === c ? sort.dir : null;
-                return (
-                  <th
-                    key={c}
-                    onClick={() => toggleSort(c)}
-                    style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
-                    title="Click để sort · click lại để đảo chiều · click lần 3 để bỏ sort"
-                  >
-                    {c}
-                    {s === "asc" && <span style={{ color: "var(--accent)" }}> ▲</span>}
-                    {s === "desc" && <span style={{ color: "var(--accent)" }}> ▼</span>}
-                  </th>
-                );
-              })}
-            </tr>
-            <tr>
+              <th
+                className="rownum-header"
+                title="Cột số thứ tự"
+                style={{ background: "var(--panel-light)", textAlign: "center", width: 44, userSelect: "none" }}
+              >
+                #
+              </th>
               {cols.map((c) => (
-                <th key={c} style={{ padding: "2px 4px", background: "var(--panel)" }}>
-                  <input
-                    placeholder="Filter…"
-                    value={filters[c] ?? ""}
-                    onChange={(e) => setFilter(c, e.target.value)}
-                    style={{ width: "100%", fontSize: 11, padding: "2px 4px" }}
-                  />
-                </th>
+                <HeaderCell
+                  key={c}
+                  col={c}
+                  sortDir={sort?.col === c ? sort.dir : null}
+                  hasFilter={!!filters[c]}
+                  onOpenMenu={(rect) => setOpenMenu({ col: c, rect })}
+                  onCopyCol={() => copyColumn(c)}
+                  copyKey={`col-${c}`}
+                  copiedKey={copied}
+                />
               ))}
             </tr>
           </thead>
           <tbody>
             {processed.map((row, i) => (
-              <tr key={i}>
+              <tr key={i} className={copied === `row-${i}` ? "row-copied" : undefined}>
+                <td
+                  className="rownum"
+                  title="Click để copy cả dòng"
+                  onClick={() => copyRow(row, i)}
+                  style={{
+                    textAlign: "center",
+                    background: copied === `row-${i}` ? "var(--accent-dim)" : "var(--panel-light)",
+                    color: copied === `row-${i}` ? "#fff" : "var(--text-dim)",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    fontWeight: 600,
+                    fontSize: 11,
+                  }}
+                >
+                  {i + 1}
+                </td>
                 {cols.map((c) => {
                   const key = `${i}-${c}`;
                   return (
@@ -242,10 +276,93 @@ function OkTable({ result }: { result: OkResult }) {
         )}
       </div>
       <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-        💡 Click cell để copy giá trị · click header để sort · dùng ô filter để lọc · kéo chuột để chọn vùng
+        💡 Click cell / số dòng / tên cột để copy · click ▾ để sort + filter · kéo chuột để chọn vùng tuỳ ý
       </div>
+
+      {openMenu && (
+        <ColumnMenu
+          col={openMenu.col}
+          values={allValuesByCol[openMenu.col]}
+          currentFilter={filters[openMenu.col] ?? {}}
+          currentSort={sort?.col === openMenu.col ? sort.dir : null}
+          anchorRect={openMenu.rect}
+          onSort={(dir) => applySort(openMenu.col, dir)}
+          onApplyFilter={(next) => applyFilter(openMenu.col, next)}
+          onClear={() => clearCol(openMenu.col)}
+          onClose={() => setOpenMenu(null)}
+        />
+      )}
     </div>
   );
+}
+
+function HeaderCell({
+  col,
+  sortDir,
+  hasFilter,
+  onOpenMenu,
+  onCopyCol,
+  copyKey,
+  copiedKey,
+}: {
+  col: string;
+  sortDir: SortDir | null;
+  hasFilter: boolean;
+  onOpenMenu: (rect: DOMRect) => void;
+  onCopyCol: () => void;
+  copyKey: string;
+  copiedKey: string | null;
+}) {
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const isCopied = copiedKey === copyKey;
+  return (
+    <th
+      style={{
+        whiteSpace: "nowrap",
+        background: isCopied ? "var(--accent-dim)" : undefined,
+        color: isCopied ? "#fff" : undefined,
+        transition: "background 0.15s",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span
+          onClick={onCopyCol}
+          style={{ cursor: "pointer", flex: 1, userSelect: "none" }}
+          title="Click tên cột để copy toàn bộ cột"
+        >
+          {col}
+          {sortDir === "asc" && <span style={{ color: "var(--accent)" }}> ▲</span>}
+          {sortDir === "desc" && <span style={{ color: "var(--accent)" }}> ▼</span>}
+          {hasFilter && <span style={{ color: "var(--accent)", fontSize: 10 }}> ⚑</span>}
+        </span>
+        <button
+          ref={btnRef}
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = btnRef.current?.getBoundingClientRect() ?? null;
+            onOpenMenu(rect!);
+          }}
+          title="Mở menu sort / filter"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--text-dim)",
+            padding: "0 4px",
+            cursor: "pointer",
+            fontSize: 12,
+          }}
+        >
+          ▾
+        </button>
+      </div>
+    </th>
+  );
+}
+
+function stringify(v: unknown): string {
+  if (v === null || v === undefined) return "NULL";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
 }
 
 function formatCell(v: unknown): string {
