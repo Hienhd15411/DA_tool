@@ -91,7 +91,18 @@ function Workbench({ email }: { email: string | undefined }) {
 
   async function run() {
     const tabId = active.id;
-    const sql = active.sql;
+    // Nếu user bôi đen (select) một đoạn trong editor → chỉ chạy đoạn đó,
+    // giống Supabase/DBeaver. Không có selection → chạy toàn bộ tab.
+    const ed = editorRef.current;
+    let sql = active.sql;
+    if (ed) {
+      const sel = ed.getSelection();
+      const model = ed.getModel();
+      if (sel && !sel.isEmpty() && model) {
+        const picked = model.getValueInRange(sel);
+        if (picked.trim()) sql = picked;
+      }
+    }
     setLoadingTabId(tabId);
     try {
       const r = await runSql(sql, null);
@@ -171,7 +182,7 @@ function Workbench({ email }: { email: string | undefined }) {
               Xoá
             </button>
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>
-              Schema: <code>shopee</code> · read-only · timeout 5s · max 500 rows / 2 MB
+              Schema: <code>shopee</code> · read-only · timeout 5s · max 500 rows / 2 MB · bôi đen để chạy 1 đoạn
             </span>
           </div>
           <div style={{ flex: 1, minHeight: 200 }}>
