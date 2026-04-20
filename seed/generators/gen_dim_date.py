@@ -10,8 +10,9 @@ DAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sund
 
 def run(conn, cfg):
     start = date.fromisoformat(cfg["dates"]["start"])
-    end   = date.fromisoformat(cfg["dates"]["end"]) + timedelta(days=90)  # buffer cho join
-    start = start - timedelta(days=30)                                     # buffer quá khứ
+    end   = date.fromisoformat(cfg["dates"]["end"]) + timedelta(days=90)   # buffer tương lai
+    # Buffer quá khứ đủ rộng để cover customer signup (730 days) + seller join (1200 days)
+    start = start - timedelta(days=1500)
 
     sale_days = {date.fromisoformat(s) for s in cfg["dates"]["sale_days"]}
     holidays  = {date.fromisoformat(s) for s in cfg["dates"]["holidays"]}
