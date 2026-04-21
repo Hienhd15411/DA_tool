@@ -64,7 +64,10 @@ tr:nth-child(even) { background: rgba(255,255,255,0.02); }
   cursor: text;
 }
 .result-table tr:hover td { background: rgba(249, 115, 22, 0.08); }
-.result-table tr.row-copied td { background: rgba(249, 115, 22, 0.25); }
+.result-table tr.row-copied td { background: rgba(249, 115, 22, 0.35); }
+.result-table tr.row-selected td {
+  background: rgba(249, 115, 22, 0.28) !important;
+}
 .result-table ::selection { background: var(--accent); color: #fff; }
 .result-table td.rownum, .result-table th.rownum-header {
   cursor: pointer !important;

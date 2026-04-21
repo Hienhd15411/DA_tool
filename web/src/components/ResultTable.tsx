@@ -1,9 +1,13 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RunSqlResult } from "../lib/runSql";
 import { ColumnMenu, type ColFilter, type SortDir } from "./ColumnMenu";
 
 type OkResult = Extract<RunSqlResult, { status: "ok" }>;
 type SortState = { col: string; dir: SortDir } | null;
+// Persistent selection sau khi user click header/rownum (giống Excel)
+type Selection = { type: "col"; name: string } | { type: "row"; idx: number } | null;
+
+const DRAG_THRESHOLD = 4; // px — movement > ngưỡng này = drag, không phải click
 
 export function ResultTable({ result, loading }: { result: RunSqlResult | null; loading: boolean }) {
   if (loading) return <div style={{ padding: 12 }} className="muted">Đang chạy…</div>;
@@ -35,14 +39,17 @@ export function ResultTable({ result, loading }: { result: RunSqlResult | null; 
 
 function OkTable({ result }: { result: OkResult }) {
   const [copied, setCopied] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Selection>(null);
   const [sort, setSort] = useState<SortState>(null);
   const [filters, setFilters] = useState<Record<string, ColFilter>>({});
   const [openMenu, setOpenMenu] = useState<{ col: string; rect: DOMRect | null } | null>(null);
   const cols = Object.keys(result.rows[0]);
 
+  // Drag detection: lưu toạ độ mousedown để phân biệt click vs drag
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+
   const processed = useMemo(() => {
     let rows = result.rows;
-    // filter
     const activeFilters = Object.entries(filters).filter(([, f]) => f.text || f.allowedValues);
     if (activeFilters.length > 0) {
       rows = rows.filter((r) =>
@@ -54,7 +61,6 @@ function OkTable({ result }: { result: OkResult }) {
         }),
       );
     }
-    // sort
     if (sort) {
       rows = [...rows].sort((a, b) => {
         const va = a[sort.col], vb = b[sort.col];
@@ -69,6 +75,16 @@ function OkTable({ result }: { result: OkResult }) {
     }
     return rows;
   }, [result.rows, filters, sort]);
+
+  // Click outside table → clear persistent selection
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      const t = e.target as HTMLElement;
+      if (!t.closest(".result-table")) setSelected(null);
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
 
   function applySort(col: string, dir: SortDir) {
     setSort({ col, dir });
@@ -127,13 +143,43 @@ function OkTable({ result }: { result: OkResult }) {
 
   function download() {
     const csv = toDelimited(cols, processed, ",");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    // ﻿ = UTF-8 BOM → Excel đọc Unicode đúng
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `query_result_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // Helpers: chặn copy khi user đang drag-select hoặc vừa drag xong.
+  function wasDrag(e: React.MouseEvent): boolean {
+    const start = dragStart.current;
+    if (!start) return false;
+    const dx = Math.abs(e.clientX - start.x);
+    const dy = Math.abs(e.clientY - start.y);
+    return dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD;
+  }
+
+  function hasTextSel(): boolean {
+    const s = window.getSelection();
+    return !!s && !s.isCollapsed && s.toString().length > 0;
+  }
+
+  function onCellMouseDown(e: React.MouseEvent) {
+    dragStart.current = { x: e.clientX, y: e.clientY };
+  }
+
+  function onCellClick(
+    e: React.MouseEvent,
+    handler: () => void,
+    clearSel = true,
+  ) {
+    if (wasDrag(e)) return; // drag → không override, để native selection
+    if (hasTextSel()) return; // có selection text → không override
+    if (clearSel) setSelected(null);
+    handler();
   }
 
   const filteredNote =
@@ -214,59 +260,99 @@ function OkTable({ result }: { result: OkResult }) {
               >
                 #
               </th>
-              {cols.map((c) => (
-                <HeaderCell
-                  key={c}
-                  col={c}
-                  sortDir={sort?.col === c ? sort.dir : null}
-                  hasFilter={!!filters[c]}
-                  onOpenMenu={(rect) => setOpenMenu({ col: c, rect })}
-                  onCopyCol={() => copyColumn(c)}
-                  copyKey={`col-${c}`}
-                  copiedKey={copied}
-                />
-              ))}
+              {cols.map((c) => {
+                const isSelected = selected?.type === "col" && selected.name === c;
+                return (
+                  <HeaderCell
+                    key={c}
+                    col={c}
+                    sortDir={sort?.col === c ? sort.dir : null}
+                    hasFilter={!!filters[c]}
+                    isSelected={isSelected}
+                    onOpenMenu={(rect) => setOpenMenu({ col: c, rect })}
+                    onSelectCol={(e) => {
+                      if (wasDrag(e) || hasTextSel()) return;
+                      // Toggle: click lần 2 trên cùng col → deselect
+                      if (isSelected) {
+                        setSelected(null);
+                      } else {
+                        setSelected({ type: "col", name: c });
+                        copyColumn(c);
+                      }
+                    }}
+                    onMouseDown={onCellMouseDown}
+                  />
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {processed.map((row, i) => (
-              <tr key={i} className={copied === `row-${i}` ? "row-copied" : undefined}>
-                <td
-                  className="rownum"
-                  title="Click để copy cả dòng"
-                  onClick={() => copyRow(row, i)}
-                  style={{
-                    textAlign: "center",
-                    background: copied === `row-${i}` ? "var(--accent-dim)" : "var(--panel-light)",
-                    color: copied === `row-${i}` ? "#fff" : "var(--text-dim)",
-                    cursor: "pointer",
-                    userSelect: "none",
-                    fontWeight: 600,
-                    fontSize: 11,
-                  }}
+            {processed.map((row, i) => {
+              const isRowSelected = selected?.type === "row" && selected.idx === i;
+              const isRowFlash = copied === `row-${i}`;
+              return (
+                <tr
+                  key={i}
+                  className={isRowSelected ? "row-selected" : isRowFlash ? "row-copied" : undefined}
                 >
-                  {i + 1}
-                </td>
-                {cols.map((c) => {
-                  const key = `${i}-${c}`;
-                  return (
-                    <td
-                      key={c}
-                      onClick={() => copyCell(row[c], key)}
-                      title="Click để copy giá trị ô này"
-                      style={{
-                        cursor: "cell",
-                        background: copied === key ? "var(--accent-dim)" : undefined,
-                        color: copied === key ? "#fff" : undefined,
-                        transition: "background 0.15s",
-                      }}
-                    >
-                      {formatCell(row[c])}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+                  <td
+                    className="rownum"
+                    title="Click để chọn + copy cả dòng. Click lại để bỏ chọn."
+                    onMouseDown={onCellMouseDown}
+                    onClick={(e) => {
+                      if (wasDrag(e) || hasTextSel()) return;
+                      if (isRowSelected) {
+                        setSelected(null);
+                      } else {
+                        setSelected({ type: "row", idx: i });
+                        copyRow(row, i);
+                      }
+                    }}
+                    style={{
+                      textAlign: "center",
+                      background: isRowSelected
+                        ? "var(--accent)"
+                        : isRowFlash
+                          ? "var(--accent-dim)"
+                          : "var(--panel-light)",
+                      color: isRowSelected || isRowFlash ? "#fff" : "var(--text-dim)",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      fontWeight: 600,
+                      fontSize: 11,
+                    }}
+                  >
+                    {i + 1}
+                  </td>
+                  {cols.map((c) => {
+                    const key = `${i}-${c}`;
+                    const isCellCopied = copied === key;
+                    const isInSelectedCol = selected?.type === "col" && selected.name === c;
+                    const isInSelectedRow = isRowSelected;
+                    return (
+                      <td
+                        key={c}
+                        onMouseDown={onCellMouseDown}
+                        onClick={(e) => onCellClick(e, () => copyCell(row[c], key))}
+                        title="Click copy ô · bôi đen nhiều ô để chọn vùng rồi Ctrl+C"
+                        style={{
+                          cursor: "cell",
+                          background: isCellCopied
+                            ? "var(--accent-dim)"
+                            : isInSelectedCol || isInSelectedRow
+                              ? "rgba(249, 115, 22, 0.22)"
+                              : undefined,
+                          color: isCellCopied ? "#fff" : undefined,
+                          transition: "background 0.12s",
+                        }}
+                      >
+                        {formatCell(row[c])}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {processed.length === 0 && (
@@ -276,7 +362,9 @@ function OkTable({ result }: { result: OkResult }) {
         )}
       </div>
       <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-        💡 Click cell / số dòng / tên cột để copy · click ▾ để sort + filter · kéo chuột để chọn vùng tuỳ ý
+        💡 Click số dòng / tên cột để <b>chọn + copy</b> cả row/column (click lại bỏ chọn) ·
+        Click ô để copy giá trị · Kéo chuột để chọn vùng tự do rồi <b>Ctrl+C</b> ·
+        Click ▾ để sort / filter
       </div>
 
       {openMenu && (
@@ -300,40 +388,40 @@ function HeaderCell({
   col,
   sortDir,
   hasFilter,
+  isSelected,
   onOpenMenu,
-  onCopyCol,
-  copyKey,
-  copiedKey,
+  onSelectCol,
+  onMouseDown,
 }: {
   col: string;
   sortDir: SortDir | null;
   hasFilter: boolean;
+  isSelected: boolean;
   onOpenMenu: (rect: DOMRect) => void;
-  onCopyCol: () => void;
-  copyKey: string;
-  copiedKey: string | null;
+  onSelectCol: (e: React.MouseEvent) => void;
+  onMouseDown: (e: React.MouseEvent) => void;
 }) {
   const btnRef = useRef<HTMLButtonElement | null>(null);
-  const isCopied = copiedKey === copyKey;
   return (
     <th
       style={{
         whiteSpace: "nowrap",
-        background: isCopied ? "var(--accent-dim)" : undefined,
-        color: isCopied ? "#fff" : undefined,
-        transition: "background 0.15s",
+        background: isSelected ? "var(--accent)" : undefined,
+        color: isSelected ? "#fff" : undefined,
+        transition: "background 0.12s",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
         <span
-          onClick={onCopyCol}
+          onMouseDown={onMouseDown}
+          onClick={onSelectCol}
           style={{ cursor: "pointer", flex: 1, userSelect: "none" }}
-          title="Click tên cột để copy toàn bộ cột"
+          title="Click tên cột để chọn + copy cả cột. Click lại để bỏ chọn."
         >
           {col}
-          {sortDir === "asc" && <span style={{ color: "var(--accent)" }}> ▲</span>}
-          {sortDir === "desc" && <span style={{ color: "var(--accent)" }}> ▼</span>}
-          {hasFilter && <span style={{ color: "var(--accent)", fontSize: 10 }}> ⚑</span>}
+          {sortDir === "asc" && <span style={{ color: isSelected ? "#fff" : "var(--accent)" }}> ▲</span>}
+          {sortDir === "desc" && <span style={{ color: isSelected ? "#fff" : "var(--accent)" }}> ▼</span>}
+          {hasFilter && <span style={{ color: isSelected ? "#fff" : "var(--accent)", fontSize: 10 }}> ⚑</span>}
         </span>
         <button
           ref={btnRef}
@@ -346,7 +434,7 @@ function HeaderCell({
           style={{
             background: "transparent",
             border: "none",
-            color: "var(--text-dim)",
+            color: isSelected ? "#fff" : "var(--text-dim)",
             padding: "0 4px",
             cursor: "pointer",
             fontSize: 12,
