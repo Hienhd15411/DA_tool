@@ -153,6 +153,35 @@ Nếu bất kỳ dòng nào sai → re-run `python seed.py --mode=migrate` hoặ
 | 4.35 | Click vào 1 cell bất kỳ trong bảng | Giá trị cell copied vào clipboard, cell flash cam | Paste vào đâu đó verify |
 | 4.36 | Click **📋 Copy all** | Toàn bộ rows đã filter+sort copy sang clipboard (TSV) | Paste vào Excel giữ cột |
 | 4.37 | Click **⬇ Download CSV** | File .csv tải về với BOM, mở bằng Excel OK Unicode | |
+| 4.38 | Click **🕑 History** ở header | Drawer bên phải mở, hiển thị query history (tối đa 50) | |
+| 4.39 | Click 1 entry trong history | Tạo tab mới với SQL đó, drawer đóng | |
+| 4.40 | Kéo thanh ngang giữa editor và result | 2 panel resize, % lưu vào localStorage | |
+| 4.41 | Reload trang | Tabs, schema collapsed, split % giữ nguyên | |
+
+---
+
+## 3.D Teacher dashboard
+
+**Điều kiện:** email của user phải trong `public.teacher_emails`. Admin setup:
+
+```sql
+-- Supabase SQL Editor
+INSERT INTO public.teacher_emails (email) VALUES ('teacher@your-school.com');
+```
+
+Sau đó teacher login, nút **👨‍🏫 Teacher** xuất hiện ở header.
+
+| # | Step | Kỳ vọng |
+|---|---|---|
+| 3.D.1 | Student login (email chưa add whitelist) | Không thấy nút 👨‍🏫 Teacher |
+| 3.D.2 | Student gọi `SELECT public.is_teacher()` trong editor | Trả `false` |
+| 3.D.3 | Teacher login | Thấy nút 👨‍🏫 Teacher ở header |
+| 3.D.4 | Click 👨‍🏫 Teacher | Modal mở, hiển thị 5 stats cards + filters + query log list + panel detail bên phải |
+| 3.D.5 | Filter "Email" gõ 1 phần email học viên | Bảng chỉ còn query của học viên match |
+| 3.D.6 | Filter "Status" chọn "Error" | Chỉ còn query status=error |
+| 3.D.7 | Click 1 row trong bảng | Panel phải hiện full SQL + error (nếu có) + nút Copy SQL |
+| 3.D.8 | Click ✕ hoặc click ngoài modal | Modal đóng |
+| 3.D.9 | Thử gọi `teacher_query_log()` từ tab SQL editor với user non-teacher | RPC lỗi "Not authorized (need teacher role)" |
 
 ### 4.x Cross-browser smoke test (ít nhất 2 browser)
 
