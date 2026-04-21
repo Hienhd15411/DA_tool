@@ -23,6 +23,12 @@ COMMENT ON TABLE public.teacher_emails IS
 -- Không grant SELECT cho authenticated — bảng này chỉ admin quản lý.
 REVOKE ALL ON public.teacher_emails FROM PUBLIC;
 
+-- Seed admin / project owner. Idempotent nhờ ON CONFLICT.
+-- Thêm email khác: INSERT INTO public.teacher_emails (email) VALUES ('abc@xyz.com');
+INSERT INTO public.teacher_emails (email, added_note)
+VALUES ('hienhd15411@gmail.com', 'Admin / project owner')
+ON CONFLICT (email) DO NOTHING;
+
 -- -------------------------------------------------------------------
 -- 2. is_teacher() — check user hiện tại có trong whitelist không
 -- -------------------------------------------------------------------
