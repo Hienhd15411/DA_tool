@@ -16,7 +16,8 @@ def run(conn, cfg, rng):
         cur.execute("SELECT customer_id FROM shopee.dim_customer")
         cust_ids = [r[0] for r in cur.fetchall()]
 
-    sample = cust_ids[: int(len(cust_ids) * 0.30)]  # subset for realistic sampling
+    # Random 30% — không phải 30% đầu (tránh deterministic bias).
+    sample = rng.sample(cust_ids, k=int(len(cust_ids) * 0.30))
 
     rows = []
     sid = 1
