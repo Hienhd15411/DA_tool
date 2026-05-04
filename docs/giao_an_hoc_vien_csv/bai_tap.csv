@@ -1,0 +1,232 @@
+﻿ID,Theme,Title,Level,Skills,Est,Business context,Approach (hint),Expected shape,Common mistakes
+A1,A — Revenue / GMV trending,"GMV theo tuần 3 tháng qua, tuần nào cao/thấp nhất?",L1,"`DATE_TRUNC`, `SUM`, `GROUP BY`, `ORDER BY`",10 phút,"GMV (Gross Merchandise Value) là chỉ số top-line của sàn. Theo tuần cho thấy pattern ổn định hơn theo ngày (giảm noise), và đủ chi tiết để thấy spike do campaign. Đây là câu hỏi mở đầu mọi WBR (Weekly Business Review).","1. ""Tuần"" = gộp các ngày về thứ Hai đầu tuần → DATE_TRUNC('week', full_date).
+2. Chỉ tính GMV trên đơn đã paid (chuẩn business).
+3. GROUP BY tuần, SUM(total_amount).
+4. ORDER BY gmv DESC để thấy top/bottom.","| week_start | gmv | order_cnt |
+|---|---|---|
+| 2024-04-01 | 3,214,500,000 | 14,230 |
+| 2024-03-04 | 2,890,300,000 | 12,980 |
+| 2024-02-12 | 1,105,200,000 | 5,430 *(tuần Tết)* |","- Quên WHERE payment_status = 'paid' → GMV phồng 15–20%.
+- Dùng EXTRACT(WEEK FROM ...) trả về số tuần, khó dùng để sort theo thời gian.
+- Group theo created_at (timestamp) → mỗi mili-giây là 1 group, sai hoàn toàn."
+A2,A — Revenue / GMV trending,"Doanh thu tháng này vs tháng trước, tăng/giảm bao nhiêu %?",L2,"`LAG`, window, pivot bằng `FILTER`",15 phút,Month-over-month (MoM) growth là KPI cơ bản báo cho leadership. Biết cách dùng LAG là chìa khoá để không phải self-join thủ công.,"1. Aggregate GMV theo tháng.
+2. Dùng LAG(gmv) OVER (ORDER BY month) để lấy tháng trước trên cùng dòng.
+3. Tính (this - prev) / prev * 100.","| month | gmv | gmv_prev | mom_pct |
+|---|---|---|---|
+| 2024-02-01 | 8,900,000,000 | NULL | NULL |
+| 2024-03-01 | 12,400,000,000 | 8,900,000,000 | 39.33 |
+| 2024-04-01 | 10,800,000,000 | 12,400,000,000 | -12.90 |","- Thiếu ORDER BY trong window → kết quả không xác định.
+- Chia cho 0 nếu gmv_prev = 0 → dùng NULLIF(gmv_prev, 0) phòng xa.
+- Dùng LAG(gmv, 12) khi muốn YoY nhưng dataset chỉ 3 tháng → lúc nào cũng NULL."
+A3,A — Revenue / GMV trending,**CASE: Tại sao GMV tháng 3 giảm 15% vs tháng 2?**,L4,"multi-CTE, decomposition",45–60 phút,"Đây là câu hỏi ""tại sao"" điển hình mà PM / BOD sẽ hỏi analyst. Phải biết phân rã thay vì trả lời một con số. Decomposition tree:","1. Xác nhận chênh lệch GMV thật sự bao nhiêu.
+2. Tách GMV = orders × AOV. Số nào drop?
+3. Nếu orders drop: customers × orders_per_customer. Mất khách hay khách mua ít?
+4. Nếu AOV drop: do category shift (khách mua món rẻ hơn) hay discount rate tăng?
+5. So theo cat1 để thấy ngành nào đóng góp nhất.",,"- Chỉ trả lời top-level mà không phân rã — mất điểm với PM.
+- Dùng AVG(total_amount) để tính AOV theo tháng nhưng quên filter paid.
+- Nhầm số: khi cat1 có mom_pct giảm nhiều nhất không đồng nghĩa đóng góp nhiều nhất về giá trị tuyệt đối. Dùng cả mom_pct và gmv_delta."
+A4,A — Revenue / GMV trending,Daily GMV + 7-day moving average,L2,window frame `ROWS BETWEEN`,15 phút,MA7 làm phẳng noise cuối tuần vs ngày thường → nhìn trend thực tế rõ hơn. Luôn xuất hiện trên dashboard.,"1. Aggregate GMV ngày.
+2. AVG(gmv) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW).","| dt | gmv | ma7 |
+|---|---|---|
+| 2024-02-01 | 280M | 280M |
+| 2024-02-07 | 320M | 295M |
+| 2024-03-03 | 820M | 410M *(Mega Sale spike)* |","- Quên ORDER BY → frame không xác định.
+- Dùng RANGE BETWEEN '6 days' PRECEDING — chạy được nhưng phức tạp hơn ROWS."
+A5,A — Revenue / GMV trending,Weekday vs weekend: GMV trung bình khác nhau ra sao?,L1,"JOIN dim_date, GROUP BY boolean",8 phút,"Dùng để plan stock, CS staffing, campaign timing.","GROUP BY is_weekend, tính GMV/ngày trung bình (chứ không phải tổng — để công bằng vì weekday có 5 ngày/tuần còn weekend có 2).","| is_weekend | n_days | avg_gmv_per_day |
+|---|---|---|
+| false | 64 | 285,000,000 |
+| true  | 26 | 410,000,000 |","- So tổng thay vì trung bình → sai kết luận.
+- Quên trừ holiday ra — holiday rơi vào weekday có thể lệch số."
+A6,A — Revenue / GMV trending,Giờ nào trong ngày bán chạy nhất?,L2,"`EXTRACT(hour)`, timezone conversion",15 phút,"Peak hour quyết định: (1) push notification timing, (2) flash sale window, (3) CS staffing, (4) warehouse picking wave.","1. Convert created_at UTC → Asia/Ho_Chi_Minh trước khi lấy giờ.
+2. EXTRACT(hour FROM ...) lấy 0–23.
+3. GROUP BY giờ.","| hour_vn | orders | gmv | aov |
+|---|---|---|---|
+| 0 | 420 | 89M | 212k |
+| 9 | 1,200 | 280M | 233k |
+| 12 | 1,850 | 420M | 227k *(lunch peak)* |
+| 21 | 2,900 | 680M | 234k *(prime time)* |","- Quên convert timezone → peak lệch.
+- EXTRACT(hour) trên DATE sẽ báo lỗi — phải dùng timestamp."
+A7,A — Revenue / GMV trending,YoY growth từng ngày (so với 3 tháng trước),L3,self-join theo date offset,25 phút,"Ở dataset 3 tháng không có YoY thực, nhưng bạn có thể thay bằng ""so với X ngày trước"" — kỹ năng giống hệt.","1. Aggregate daily GMV.
+2. Self-join với offset 84 ngày (12 tuần) để so ngày ""cùng thứ"".
+3. Tính % growth, lấy top 5.",,"- Subtract date - integer trả về date (OK), nhưng timestamp - integer lỗi — phải dùng INTERVAL.
+- Chia cho 0 khi gmv cũ = 0."
+A8,A — Revenue / GMV trending,**CASE: Báo cáo GMV đột biến (anomaly detection)**,L4,"statistical window, `STDDEV`, `AVG`",40 phút,"Business cần alert sớm khi GMV bất thường (có thể do bug tracking, sale không plan, hoặc outage). Analyst build rule đơn giản: |GMV - MA7| > 2 × STDDEV7 = spike/dip.","1. Tính GMV daily.
+2. Cửa sổ 7 ngày: AVG và STDDEV.
+3. Flag nếu lệch > 2σ, phân loại spike vs dip.
+4. Join với dim_date để giải thích (sale day? holiday?).","| dt | gmv | ma7 | sd7 | z_score | anomaly | is_sale_day | is_holiday |
+|---|---|---|---|---|---|---|---|
+| 2024-02-10 | 95M | 250M | 22M | -7.05 | DIP | false | true *(Tết)* |
+| 2024-03-03 | 820M | 310M | 30M | 17.0 | SPIKE | true | false |","- Window include ngày hiện tại → spike làm tăng mean, giảm độ nhạy detection.
+- Dùng STDDEV (sample) vs STDDEV_POP — trong 7 điểm không khác biệt nhiều, chọn STDDEV mặc định.
+- 2σ quá rộng với n=7 → thực tế nên dùng 2.5σ hoặc n=14. Đây là trade-off sensitivity vs noise."
+B1,B — Customer lifecycle,Bao nhiêu khách mới (first_order) mỗi tháng?,L1,filter + GROUP BY,8 phút,New buyer count là KPI marketing. Growth team luôn cần biết kênh mới có kéo khách không.,"Filter is_first_order = TRUE, GROUP BY tháng.","| month | new_buyers |
+|---|---|
+| 2024-02-01 | 4,200 |
+| 2024-03-01 | 5,800 |
+| 2024-04-01 | 4,900 |","- Không dùng DISTINCT customer_id — nếu 1 khách có nhiều is_first_order=TRUE (bug ETL) thì đếm sai.
+- Filter paid quan trọng: khách ""đặt đơn đầu rồi huỷ"" không tính là new buyer thật."
+B2,B — Customer lifecycle,Top 10 khách chi tiêu nhiều nhất 3 tháng,L1,"GROUP BY, ORDER BY, LIMIT",5 phút,"VIP list cho CRM team (gửi voucher sinh nhật, tặng gift).",,,"- Dùng DISTINCT ON sai — ở đây không cần.
+- Quên LIMIT → trả 50k dòng."
+B3,B — Customer lifecycle,**RFM segmentation** (Recency / Frequency / Monetary),L3,"`NTILE`, nested CTE, `CASE`",40 phút,"RFM là framework kinh điển nhất để segment khách. Output 11 segment (Champion, Loyal, Potential Loyalist, At Risk, Can't Lose, Lost, ...) dùng ngay cho CRM campaign.","1. Với mỗi khách, tính 3 số: recency (ngày từ đơn gần nhất đến ""hôm nay""), frequency (số đơn), monetary (tổng chi).
+2. Phân vị hoá bằng NTILE(5) — chia đều khách thành 5 nhóm mỗi chiều.
+3. Dùng CASE map combination (R, F, M) → tên segment.","| segment | cnt | avg_monetary |
+|---|---|---|
+| Champion | 1,200 | 4.8M |
+| Loyal | 3,400 | 2.1M |
+| At Risk | 2,100 | 1.9M |
+| Lost | 5,800 | 420k |","- Thứ tự NTILE ngược: Recency ngày càng mới càng tốt → ORDER BY last_order_date DESC, không phải ASC.
+- Lấy ""hôm nay"" động (CURRENT_DATE) trong demo sẽ ra khác lúc chạy lại — fix cứng DATE '2024-04-30' cho đúng dataset.
+- Chỉ tính khách từng mua — khách chưa bao giờ mua không trong fact_orders."
+B4,B — Customer lifecycle,**Cohort retention** (ma trận),L3,"cohort, self-join, pivot",50 phút,"Retention là chỉ số sống còn. Cohort = nhóm khách ký sign-up trong cùng tháng. Ma trận retention cho thấy % khách của cohort M0 còn mua ở M1, M2.","1. Xác định cohort của mỗi khách = tháng đơn đầu tiên.
+2. Đếm số tháng khách còn active từ cohort đó (gap = order_month - cohort_month).
+3. Pivot: hàng = cohort month, cột = gap (M0, M1, M2), giá trị = distinct customer.","| cohort_month | m0 | m1 | m2 | m1_ret_pct | m2_ret_pct |
+|---|---|---|---|---|---|
+| 2024-02-01 | 4,200 | 1,300 | 820 | 31.0 | 19.5 |
+| 2024-03-01 | 5,800 | 1,600 | NULL | 27.6 | NULL |
+| 2024-04-01 | 4,900 | NULL | NULL | NULL | NULL |","- Tính cohort sai: dùng signup_date (có trong dim_customer) vs first order — khác nhau. RFM thường dùng first-order cohort.
+- Quên DISTINCT customer_id → mỗi khách có nhiều đơn → đếm trùng."
+B5,B — Customer lifecycle,Khoảng cách trung bình giữa 2 đơn liên tiếp,L2,"`LAG`, date diff",15 phút,"Đo ""tần suất mua"" trung bình → set re-engagement cadence. Khách hay mua mỗi 14 ngày, ngày 20 chưa mua → bật push.",,,"- Thiếu PARTITION BY → lag nhảy sang customer khác, sai hoàn toàn.
+- Tính trên khách chỉ có 1 đơn → prev_order luôn NULL → phải filter."
+B6,B — Customer lifecycle,% khách chỉ mua đúng 1 lần (one-time buyer),L2,"`HAVING COUNT=1`, nested aggregate",15 phút,One-time buyer ratio là thước đo hiệu quả retention. Nếu >70% khách chỉ mua 1 lần → sàn phải review onboarding.,,,
+B7,B — Customer lifecycle,**CASE: Churn analysis — khách nào 60 ngày chưa quay lại?**,L4,"anti-pattern, multi-join, segmentation",45 phút,"Win-back campaign muốn biết: ai lapsed (60+ ngày không mua), họ thường mua ngành gì (để recommend voucher chuẩn).","1. Tìm khách có MAX(created_at) < 2024-04-30 - 60 days.
+2. Với mỗi khách, lấy top cat1 họ từng mua nhiều nhất → làm voucher hint.
+3. Join dim_customer lấy tier + city.",,"- DISTINCT ON phải có ORDER BY khớp prefix — dễ sai.
+- Không filter payment_status làm lapsed tính sai (khách đặt rồi huỷ vẫn tính là active).
+- Lấy CURRENT_DATE thay vì fix 2024-04-30 → số ngày lệch."
+B8,B — Customer lifecycle,LTV 90 ngày trung bình của cohort tháng đầu,L3,cohort + aggregation,25 phút,LTV90 = tổng chi tiêu của khách mới trong 90 ngày kể từ đơn đầu. Benchmark CAC: nếu LTV90 > 2×CAC → acquisition channel lãi.,,,
+B9,B — Customer lifecycle,Khách mua trên ≥2 device_type khác nhau (multi-device),L2,`HAVING COUNT(DISTINCT)`,10 phút,"Multi-device user thường là power user, giá trị cao. Biết % của họ giúp decide investment vào cross-device tracking.",,,
+C1,C — Campaign / Sale day,"GMV các ngày sale (3/3, 4/4, 5/5) vs ngày thường cùng tuần",L2,"JOIN `is_sale_day`, conditional aggregation",15 phút,So sale day với baseline ngày thường cùng tuần → thấy được uplift của campaign (loại bỏ seasonality).,"1. Lấy các ngày có is_sale_day = TRUE trong dim_date.
+2. Với mỗi sale day, so GMV với trung bình 6 ngày còn lại cùng tuần.","| week_of_year | gmv_sale_day | avg_gmv_normal | uplift_ratio |
+|---|---|---|---|
+| 10 (có 3/3) | 820M | 280M | 2.93× |
+| 14 (có 4/4) | 650M | 310M | 2.10× |
+| 18 (có 5/5) | 580M | 325M | 1.78× |","- Baseline sai: so với trung bình 90 ngày thay vì tuần đó.
+- Quên filter paid → GMV phồng."
+C2,C — Campaign / Sale day,Campaign nào ROI cao nhất,L3,"Multi-fact join, ratio",30 phút,ROAS (Return On Ad Spend) = GMV attributed / spend. Đây là KPI quyết định nên rót budget vào campaign nào.,,,"- JOIN spend trực tiếp với fact_orders qua campaign_id và quên dùng subquery → nhân đôi row gây tổng spend sai (fan-out).
+- Không filter paid → GMV có cả đơn huỷ.
+- Quy GMV top-line vào campaign attribution — đáng lẽ chỉ attribution 1 phần."
+C3,C — Campaign / Sale day,**CASE: Sale day nào trong tháng tốt nhất?** (3/3 vs 4/4 vs 5/5),L4,"multi-dim comparison, pivot",60 phút,"Đây là câu bạn nhắc đích danh. Category team + marketing cần biết sale day nào ""work best"" để decide budget + category focus cho 6/6, 7/7...
+
+So sánh 6 chiều: #orders, GMV, AOV, unique buyers, new buyer %, voucher used.",,"| sale_date | mth | orders | gmv | aov | unique_buyers | new_buyer_pct | total_voucher_value | pct_with_voucher |
+|---|---|---|---|---|---|---|---|---|
+| 2024-03-03 | 3 | 18,400 | 820M | 44,565 | 15,200 | 22.3 | 120M | 68.0 |
+| 2024-04-04 | 4 | 14,200 | 650M | 45,775 | 12,100 | 18.5 | 95M | 62.3 |
+| 2024-05-05 | 5 | 12,800 | 580M | 45,312 | 10,800 | 16.8 | 88M | 60.5 |","- Lẫn ""sale day"" với cả ngày khác trong campaign period — phải filter chính xác ngày đôi (3/3, 4/4, ...).
+- So GMV tuyệt đối mà không tính vs baseline — tháng 3 GMV tổng vốn đã cao hơn tháng 4."
+C4,C — Campaign / Sale day,Campaign MoM growth (4/4 vs 3/3),L3,pivot với LAG,25 phút,"MoM growth giữa các sale day cùng format. Nếu growth âm → dấu hiệu khó, phải đổi chiến lược.",,,
+C5,C — Campaign / Sale day,Tỷ lệ khách mới trong campaign day vs bình thường,L2,segment filter + ratio,15 phút,"Mega sale có nhiệm vụ kéo khách mới. Nếu new-buyer % không cao hơn bình thường → campaign chỉ đang chuyển khách cũ sang thời điểm khác, không tạo acquisition.",,,
+C6,C — Campaign / Sale day,Pre-sale warm-up: 3 ngày trước sale day có tăng?,L3,"date offset, rolling compare",30 phút,Mega Sale thường teaser bằng voucher nhỏ 1–3 ngày trước. Biết được warm-up có effect không giúp plan budget teaser.,,,
+C7,C — Campaign / Sale day,Hậu sale: 7 ngày sau sale day có dip?,L3,rolling window around event,25 phút,"Câu hỏi marketing: sale day có ""ăn trộm"" GMV của các ngày sau không? Nếu dip lớn → tổng GMV theo tháng không tăng thật.",,,
+C8,C — Campaign / Sale day,Campaign attribution: mỗi đơn trong sale day thuộc campaign nào,L1,JOIN dim_campaign,8 phút,,,,
+C9,C — Campaign / Sale day,Top cat1 hưởng lợi nhất từ sale day,L2,GROUP BY cat1 + filter sale day,15 phút,,,,
+C10,C — Campaign / Sale day,"**CASE: Dự đoán GMV sale day 6/6** từ trend 3/3, 4/4, 5/5",L4,"CAGR, projection",35 phút,"Planning team muốn set target cho 6/6. Phương pháp đơn giản: tính growth rate giữa 3 sale day đã có, projection.",,,"- Không kèm caveat → PM dùng số thô rồi commit sai.
+- Dùng CAGR kiểu geometric mean sẽ tốt hơn khi có ≥3 điểm, arithmetic mean thích hợp khi 2 điểm."
+D1,D — Voucher / Promotion,% đơn có dùng voucher (platform hoặc shop),L1,"`CASE WHEN > 0`, ratio",8 phút,"Voucher penetration rate. Nếu >70% → quá phụ thuộc voucher, margin mỏng; nếu <20% → voucher strategy chưa phát huy.",,,
+D2,D — Voucher / Promotion,Voucher giảm trung bình bao nhiêu % giá trị đơn,L2,ratio aggregation,12 phút,,,,"- Nhầm AVG(ratio) và SUM/SUM — kết quả khác nhau vài %.
+- Tính cả đơn không voucher → mean kéo xuống gần 0."
+D3,D — Voucher / Promotion,**Voucher stacking**: đơn nào dùng cả 3 loại voucher,L2,Multi-column filter,15 phút,Stacking (chồng voucher) là lỗ hổng hay bị khai thác. Cần biết quy mô và giá trị discount bị ăn.,,,
+D4,D — Voucher / Promotion,**CASE: Voucher có làm tăng AOV hay chỉ cannibalize?**,L4,"segmented comparison, control",50 phút,"Câu hỏi CMO đau đầu: ""Voucher thật sự tăng giá trị đơn, hay khách đằng nào cũng mua rồi dùng voucher để giảm?"" Phải so AOV có voucher vs không, control theo cat1 (cat khác nhau AOV khác nhau — không control sẽ bị Simpson's paradox).",,"| cat1_name | avg_subtotal_w_voucher | avg_subtotal_no_voucher | uplift_pct |
+|---|---|---|---|
+| Điện Tử | 1,850,000 | 1,620,000 | 14.2 |
+| Fashion Nữ | 420,000 | 380,000 | 10.5 |
+| Sắc Đẹp | 290,000 | 310,000 | -6.5 *(cannibalize!)* |","- So AOV tổng (không split theo cat) → Simpson: voucher thường rơi vào cat giá cao → làm như có uplift giả.
+- So total_amount thay vì subtotal → luôn thấy âm (vì voucher giảm total mà)."
+D5,D — Voucher / Promotion,Voucher redemption rate theo campaign,L3,JOIN fact_voucher_usage + dim_voucher,25 phút,Voucher phát ra nhiều nhưng không ai dùng = waste. Phát ít mà dùng hết = under-supply. Redemption rate giúp calibrate.,,,
+D6,D — Voucher / Promotion,Top 5 voucher có GMV attributed cao nhất,L2,GROUP BY,12 phút,,,,
+D7,D — Voucher / Promotion,% đơn có `coin_used > 0` và coin giảm trung bình bao nhiêu,L2,aggregation,10 phút,,,,
+E1,E — Seller performance,Top 20 seller theo GMV,L1,GROUP BY,5 phút,,,,
+E2,E — Seller performance,**Pareto**: bao nhiêu % seller chiếm 80% GMV?,L3,cumulative window `SUM OVER (...)`,30 phút,"Pareto 80/20 kinh điển. Biết concentration giúp:
+- Nếu 5% seller cầm 80% → rủi ro khi seller lớn rời sàn.
+- Nếu 40% seller cầm 80% → long-tail khoẻ, ổn định.",,,"- Thiếu ORDER BY gmv DESC trong cumulative — running total vô nghĩa.
+- Filter <= 80 cứng có thể miss dòng ngay tại mốc — dùng 80.5 cho an toàn."
+E3,E — Seller performance,Seller có cancel rate > 20% (red flag),L2,"`AVG(CASE)` ratio, HAVING",15 phút,,,,"- Quên min orders filter → list dài toàn seller nhỏ xíu.
+- Filter payment_status ở đây không đúng: đơn cancel thường không paid, nếu filter sẽ loại hết đơn cần đếm."
+E4,E — Seller performance,Seller có số SKU active cao nhất,L2,"JOIN dim_product, COUNT",10 phút,,,,
+E5,E — Seller performance,Seller mới (launch ≤ 3 tháng) hoạt động tốt không?,L3,date filter + rank,20 phút,Measure onboarding success: seller mới có đơn trong N ngày đầu không? Quartile đầu tăng trưởng ra sao?,,,
+E6,E — Seller performance,"**CASE: Seller risk audit** — seller vừa cancel cao, vừa ship trễ, vừa nhiều CS ticket",L4,multi-fact join,50 phút,"Trust & Safety team cần list seller risk cao để review. 1 indicator có thể noise, 3 indicator cùng cao thì gần chắc chắn có vấn đề.",,,"- Dùng INNER JOIN ở đầu CTE → loại seller không có ticket → bỏ sót seller nguy hiểm hơn. Phải LEFT JOIN để hold đủ.
+- Normalize tickets theo số đơn (tickets/orders) mới fair — seller nhiều đơn đương nhiên có nhiều ticket hơn."
+E7,E — Seller performance,Seller category concentration,L3,"`COUNT DISTINCT`, Herfindahl index",30 phút,"Seller chỉ bán 1 cat1 (đồng nhất) vs seller đa dạng. Đa dạng ổn định hơn khi 1 cat giảm, nhưng khó master.",,,
+F1,F — Product / Category,"GMV theo từng cấp cat1, cat2, cat3, cat4",L1,drill-down GROUP BY,10 phút,,,,
+F2,F — Product / Category,Top 10 cat4 bán chạy nhất mỗi cat1,L3,`ROW_NUMBER() PARTITION BY`,20 phút,"Category team cần xác định ""star SKU family"" mỗi ngành → làm featured trong Shopee Mall.",,,"- Dùng LIMIT 10 thay vì ROW_NUMBER — chỉ lấy 10 dòng top toàn cục, không per cat1.
+- ROW_NUMBER() không có ORDER BY → random, không xác định."
+F3,F — Product / Category,**Recursive CTE** in cây category,L3,`WITH RECURSIVE`,30 phút,"Khi cây có chiều sâu chưa biết trước (ví dụ cat tree sàn khác có 6 tầng), không thể JOIN tay. Recursive CTE là công cụ chuẩn.",,"| category_id | level | path |
+|---|---|---|
+| 1 | 1 | Điện Tử |
+| 11 | 2 | Điện Tử > Điện Thoại |
+| 111 | 3 | Điện Tử > Điện Thoại > Smartphone |
+| 1111 | 4 | Điện Tử > Điện Thoại > Smartphone > iPhone |","- Quên UNION ALL (viết UNION) → dedup mỗi step, chậm và có thể sai.
+- Join sai chiều: c.category_id = t.parent_id thay vì c.parent_id = t.category_id."
+F4,F — Product / Category,Slow-mover: SKU chưa bán đơn nào 3 tháng,L2,Anti-join,15 phút,"SKU không bán = tốn slot index, tồn kho. Merchandising phải review/xoá.",,,- NOT IN + subquery có NULL → trả rỗng do SQL three-valued logic. Luôn dùng NOT EXISTS khi nghi có NULL.
+F5,F — Product / Category,Top SKU có tỷ lệ return cao nhất,L2,"JOIN fact_returns, ratio",15 phút,,,,
+F6,F — Product / Category,**CASE: Ngành hàng đang suy giảm** — cat1 nào MoM giảm 3 tháng liên tiếp?,L4,"LAG sequence, trend detection",40 phút,"Category team cần biết ""ngành nào đang rơi"" để can thiệp sớm: họp seller, thay merchandising plan, cắt promotion không hiệu quả.",,,"- Dataset chỉ 3 tháng nên tháng đầu có gmv_m2 IS NULL — filter kỹ.
+- Dùng tháng dương lịch mà quên tháng Tết ngắn hoặc data bắt đầu giữa tháng → lệch."
+F7,F — Product / Category,Price elasticity giả lập,L3,"bucketize, aggregate",30 phút,"Không có A/B test thực, nhưng có thể quan sát: trong 1 cat, SKU thuộc bucket giá nào bán được nhiều nhất → hint về điểm giá tối ưu.",,,
+F8,F — Product / Category,Category mix shift (tháng này vs tháng trước),L3,"share calculation, diff",25 phút,Tổng GMV có thể không đổi nhưng cơ cấu ngành thay đổi. Biết được shift giúp merchandising re-plan stock.,,,
+G1,G — Marketing / Ads,Tổng ad spend 3 tháng theo campaign,L1,GROUP BY,5 phút,,,,
+G2,G — Marketing / Ads,"CTR, CPC, CPA theo campaign",L2,"ratio, JOIN fact_ad_performance_daily",20 phút,"3 chỉ số marketing kinh điển:
+- CTR = clicks / impressions
+- CPC = spend / clicks
+- CPA = spend / orders_attributed",,,"- Tính CTR từ spend thay vì clicks/impressions → nhầm khái niệm.
+- Nhân nhiều dòng khi JOIN 2 bảng aggregate sai cấp → mỗi aggregate gói trong CTE riêng rồi join."
+G3,G — Marketing / Ads,**ROAS** ranking,L3,multi-fact join,25 phút,,,,
+G4,G — Marketing / Ads,Ngày nào spend cao nhưng GMV không tương xứng (overspend alert),L3,ratio + threshold,25 phút,"Early warning cho marketing manager: rẽ tiền nhiều nhưng không kéo GMV → creative lỗi, bidding lỗi, hoặc market saturated.",,,
+G5,G — Marketing / Ads,**CASE: Budget reallocation** — chuyển budget từ campaign nào sang campaign nào,L4,"marginal ROAS, optimization framing",50 phút,"Câu hỏi CMO: ""Tôi có 10 tỷ ad budget tháng tới. Nên cắt ở đâu và bơm vào đâu?""","1. Tính ROAS mỗi campaign.
+2. Xếp campaign thành 4 quadrant: High ROAS × High spend, High × Low, Low × High, Low × Low.
+3. Recommend:
+   - Low ROAS × High spend → cắt mạnh
+   - High ROAS × Low spend → bơm thêm (nhưng cẩn thận diminishing return)
+   - Low × Low → quan sát
+   - High × High → giữ nguyên",,
+G6,G — Marketing / Ads,Funnel: impression → click → session → order → GMV,L3,"multi-stage aggregation, conversion",30 phút,Funnel analysis chỉ ra chỗ leak lớn nhất để ưu tiên fix.,,,"- So theo top of funnel cho mọi stage (vd order/impression) → số bé tí, không actionable."
+G7,G — Marketing / Ads,"Attribution: paid vs organic, AOV khác nhau?",L3,"JOIN fact_traffic_session, segmentation",25 phút,,,,
+H1,H — Operations / Shipping,Thời gian trung bình từ `paid_at` → `delivered_at`,L1,"Date diff, AVG",10 phút,,,,"- delivered_at - paid_at trong Postgres trả interval, không trực tiếp thành số. Phải qua EPOCH.
+- Không filter NULL → nếu để lọt, calculation trả NULL silent."
+H2,H — Operations / Shipping,On-time delivery rate theo carrier,L2,"Ratio, GROUP BY",15 phút,,,,
+H3,H — Operations / Shipping,**CASE: Carrier benchmark theo route**,L3,Multi-dim GROUP BY,25 phút,Gán carrier mặc định theo route → tối ưu cost + SLA. Không phải carrier nào cũng mạnh mọi route.,,,
+H4,H — Operations / Shipping,% đơn ship chậm hơn SLA committed,L2,Ratio + filter,10 phút,,,,
+H5,H — Operations / Shipping,Giờ nào đặt đơn bị ship chậm nhất?,L3,"Hour extract, capacity analysis",25 phút,"Nếu peak order hour → capacity overload → ship chậm, giải pháp là thêm shift hoặc limit promo theo giờ.",,,
+H6,H — Operations / Shipping,Route volume cao nhưng SLA tệ,L3,"Multi-dim, HAVING",25 phút,,,,
+H7,H — Operations / Shipping,**CASE: Stockout impact** — SKU hết hàng có làm mất đơn?,L4,Multi-fact temporal join,50 phút,"Nếu SKU hết hàng, demand chuyển sang SKU thay thế hoặc mất luôn? Impact phải đo được để inventory team quyết stocking level.","1. Với mỗi SKU, tìm tuần is_in_stock = FALSE.
+2. So GMV tuần đó vs tuần có stock.
+3. Aggregate lên cat2 để tránh noise per SKU.",,"- Không match exactly 'same week' giữa inventory snapshot và order week → so lệch.
+- Quên BOOL_AND → 1 day OOS trong tuần cũng count, noise lớn."
+I1,I — Cancellation / Return,Overall cancel rate,L1,Ratio,5 phút,,,,
+I2,I — Cancellation / Return,Top cancel_reason,L1,"GROUP BY, NULL handling",8 phút,,,,
+I3,I — Cancellation / Return,Cancel rate theo payment_method (COD có cao hơn?),L2,Segmented ratio,15 phút,"COD (thu hộ) nổi tiếng là bài toán đau đầu của sàn: khách đặt xong không nhận, driver return — chi phí nặng.",,,
+I4,I — Cancellation / Return,Return rate theo cat1,L2,JOIN fact_returns,15 phút,,,,
+I5,I — Cancellation / Return,**CASE: COD abuse pattern** — khách nào có pattern đặt COD → cancel lặp lại,L4,"Multi-aggregate filter, fraud detection",45 phút,"Có nhóm khách ""troll"" đặt 10 đơn COD → huỷ hết. Ops phải identify để block hoặc force prepaid.",,,"- Chỉ dùng rate không dùng volume → khách 1 đơn COD huỷ 1 đơn = 100%, không phải abuse thật.
+- NULLIF khi cod_orders=0 tránh division error, tuy nhiên với filter >=5 không cần lắm."
+I6,I — Cancellation / Return,Time-to-cancel distribution,L3,Histogram via CASE buckets,30 phút,Đa số huỷ trong 1 giờ (khách đổi ý) vs 1 ngày (đợi ship lâu) vs 3 ngày (seller không ship) — mỗi root cause cần giải pháp khác.,,,
+J1,J — Customer Service,Volume ticket CS theo tuần,L1,DATE_TRUNC,8 phút,,,,
+J2,J — Customer Service,Top ticket_category,L1,GROUP BY,5 phút,,,,
+J3,J — Customer Service,"Resolution time: mean, median, p95",L2,"`PERCENTILE_CONT`, date diff",15 phút,,,,
+J4,J — Customer Service,Seller nào có ticket/order ratio cao,L3,Multi-fact ratio,25 phút,"Seller tốt không chỉ là seller bán nhiều. Seller có nhiều ticket/đơn = chất lượng dịch vụ kém, làm khổ CS team.",,,
+J5,J — Customer Service,**CASE: Ticket spike có trùng campaign / shipping issue?**,L4,Time-series correlation,45 phút,"CS team hỏi: 'tuần này ticket tăng 40%, do đâu?'. Analyst phải join với các event (campaign, shipping trouble) cùng thời điểm để tìm root cause.",,,"- Chỉ nhìn số ticket tăng không nhìn context → kết luận sai root cause.
+- ROWS BETWEEN 7 PRECEDING AND 1 PRECEDING — nếu include ngày hiện tại thì spike tự nâng baseline, giảm sensitivity."
+K1,K — Geographic,Top 10 tỉnh/thành theo GMV,L1,GROUP BY,5 phút,,,,
+K2,K — Geographic,GMV bình quân đầu khách theo tỉnh,L2,Ratio,10 phút,,,,
+K3,K — Geographic,Tỉnh nào AOV cao nhất,L1,"AVG, GROUP BY",5 phút,,,,
+K4,K — Geographic,Route liên vùng (Bắc ↔ Nam) volume & SLA,L3,Multi-dim JOIN dim_location,30 phút,,,,
+K5,K — Geographic,**CASE: Thị trường tiềm năng** — tỉnh nào có growth rate cao nhưng base thấp,L4,Growth matrix,45 phút,"Expansion team muốn chọn 5 tỉnh để invest (set warehouse, KOL, ads geo-target). Tỉnh lớn đã saturate; tỉnh tiềm năng = growth cao + base chưa lớn → room to grow.",,,"- Chỉ sort theo growth → chọn tỉnh base tí hon, không scale được.
+- Chỉ sort theo size → chọn tỉnh đã bão hoà (HN, HCM).
+- Pivot FILTER mà quên GROUP BY province → tổng toàn sàn."
+L1,L — Capstone (tổng hợp),**Weekly Business Review cho CEO**,L2,,,"Mỗi sáng thứ Hai, analyst gửi CEO 1 báo cáo 1 trang tóm tắt sức khoẻ sàn tuần trước. CEO xem 2 phút rồi quyết định focus tuần này.","1. Xác định week_start của tuần gần nhất (DATE_TRUNC('week', MAX(order_date))).
+2. Dùng CTE period tính các period: current_week, last_week, 4w_avg.
+3. Mỗi KPI là 1 subquery hoặc FILTER.
+4. Cuối cùng pivot ngang — báo cáo thường đọc theo hàng.",,
+L2,L — Capstone (tổng hợp),**Post-campaign report** cho 4/4,L2,,,"Sau mỗi Mega Sale, marketing team làm report ""autopsy"". Học viên đóng vai analyst marketing, trả lời:
+1. So với 3/3, 4/4 tăng/giảm KPI nào?
+2. Ngành nào thắng / thua?
+3. Voucher nào redeem cao nhất?
+4. ROAS theo channel?
+5. New buyer từ 4/4 retention ra sao? (có quay lại 2 tuần sau không)
+6. 3 recommendation cho 5/5.",,,
+L3,L — Capstone (tổng hợp),"**""Tại sao GMV tháng 3 giảm""** — investigation report",L2,,,"Bạn nhận câu hỏi từ sếp: 'Tháng 3 GMV giảm 15% so với tháng 2, tại sao?' Viết báo cáo điều tra như analyst.",,,
+L4,L — Capstone (tổng hợp),**Seller onboarding success** model,L2,,,Seller Ops team muốn biết: metric nào trong 30 ngày đầu của seller mới predict họ sẽ active sau 90 ngày?,,,
+L5,L — Capstone (tổng hợp),**Category growth strategy** — pick 1 cat1 to invest,L2,,,Bạn là category manager mới nhận brief: chọn 1 cat1 để invest 5 tỷ ngân sách quý sau. Justify bằng data.,,,
+L6,L — Capstone (tổng hợp),**Customer win-back** voucher design,L2,,,"CRM team chuẩn bị chiến dịch win-back. Muốn personalize voucher dựa trên:
+- Cat1 khách hay mua
+- AOV trung bình
+- Thời gian lapse",,,
+L7,L — Capstone (tổng hợp),**Flash sale vs daily deal** sustainability,L2,,,"Format promo nào bền vững hơn: flash sale (2h, discount sâu) hay daily deal (24h, discount vừa)? Đo bằng (a) GMV trong promo, (b) GMV 7 ngày sau promo (post-halo hay post-dip).",,,
+L8,L — Capstone (tổng hợp),**Data quality audit** — tìm 10 anomaly,L2,,,"Trước khi làm report, analyst nên check data quality. Tìm 10 anomaly trong dataset:","Viết 10 query ngắn, mỗi query 1 check, return 5-10 ví dụ anomaly.",,

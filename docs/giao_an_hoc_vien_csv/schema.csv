@@ -1,0 +1,19 @@
+﻿Bảng,Nhóm,Grain,Mô tả ngắn
+fact_orders,fact,1 row = 1 đơn hàng,"Bảng fact chính. Payment, shipping, customer/seller, timestamps qua lifecycle. Filter payment_status='paid' để tính GMV."
+fact_order_items,fact,1 row = 1 dòng hàng trong đơn,"Line item chi tiết. quantity, unit_price, item_discount, line_total. JOIN với fact_orders qua order_id."
+fact_shipment,fact,1 row = 1 lô hàng,"Pickup/deliver timestamps, SLA committed vs actual. is_on_time TRUE/FALSE."
+fact_returns,fact,1 row = 1 yêu cầu trả hàng,"Reason, status (approved/completed/rejected/requested), refund_amount."
+fact_ad_spend,fact,1 row = 1 chi tiêu ads / ngày / channel,"Daily spend per campaign × channel (search/display/affiliate/kol). impressions, clicks."
+fact_ad_performance_daily,fact,1 row = 1 (ngày × campaign × cat1),"Daily attribution: orders_attributed, gmv_attributed cho campaign theo cat1."
+fact_voucher_usage,fact,1 row = 1 voucher dùng trong order,"Mapping order ↔ voucher_id, discount_applied. Chỉ orders có platform_voucher > 0."
+fact_traffic_session,fact,1 row = 1 session truy cập,"Customer (or guest), device, traffic_source, pageviews, duration. has_order = đã chuyển đổi?"
+fact_inventory_weekly,fact,1 row = (tuần × product),Snapshot stock_qty mỗi thứ 2. is_in_stock. Cho ~50% sản phẩm active.
+fact_customer_service_ticket,fact,1 row = 1 ticket CS,"Category (shipping/quality/refund/...), priority, status, resolved_at."
+dim_date,dim,1 row = 1 ngày,"Calendar dim: full_date, day, month, year, quarter, week_of_year, is_weekend, is_holiday, is_sale_day."
+dim_location,dim,1 row = 1 thành phố VN,"20 thành phố lớn VN: city, province, region (north/central/south), is_major_city."
+dim_category,dim,1 row = 1 category (4 levels),Cây 4 cấp: cat1 (Điện Tử / Thời Trang / ...) → cat4 (leaf). full_path để hiển thị.
+dim_customer,dim,1 row = 1 user đã đăng ký,"Tên, gender, birth_year, signup_date, city, preferred_device, tier (bronze/silver/gold/platinum)."
+dim_seller,dim,1 row = 1 shop,"shop_name, shop_type (normal/preferred/mall), is_official, seller_city/province."
+dim_product,dim,1 row = 1 SKU,"product_name, brand (đúng cat1), list_price, launch_date, cat1-4, is_active."
+dim_campaign,dim,1 row = 1 chiến dịch,"campaign_name (3.3 Mega Sale, Payday Feb...), type, owner_team, start/end_date."
+dim_voucher,dim,1 row = 1 voucher code,"voucher_code, type (shop/platform/shipping), discount_type (percent/fixed), value, min_order_value, max_discount."

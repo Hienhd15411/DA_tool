@@ -1,0 +1,11 @@
+﻿Buổi,Chủ đề,Nội dung chính,Theme,Bài tập
+1,Buổi 1 — SQL cơ bản & dataset Shopee,"Làm quen schema (fact/dim), SELECT/FROM/WHERE, ORDER BY, LIMIT. Đọc số top-line: GMV, số đơn. Filter payment_status='paid'.",A,"A1, A2"
+2,"Buổi 2 — JOIN, GROUP BY, aggregate","INNER JOIN nhiều bảng, GROUP BY + SUM/COUNT/AVG. Phân tích GMV theo tuần/tháng, AOV, basket size.","A, F","A3-A6, F1-F2"
+3,"Buổi 3 — DATE_TRUNC, time intelligence","DATE_TRUNC, EXTRACT, BETWEEN. So sánh tuần này vs tuần trước. WoW / MoM growth. Pattern theo giờ trong ngày.","A, C","A7-A8, C1-C3"
+4,Buổi 4 — Window functions cơ bản,"ROW_NUMBER, RANK, LAG, LEAD. Top-N per group. Running total. Tính growth rate qua LAG.","B, F","B1-B3, F3-F5"
+5,Buổi 5 — CTE & subquery,"WITH ... AS (CTE), nested subquery. Cohort analysis cơ bản, retention 7/30 ngày.",B,B4-B7
+6,Buổi 6 — Customer segmentation & RFM,"RFM (Recency, Frequency, Monetary). NTILE để chia tier. First-time vs returning customer.","B, K","B8-B9, K1-K3"
+7,Buổi 7 — Campaign & voucher analysis,"Đo hiệu quả campaign: GMV uplift, voucher redemption rate. Self-join để compare period với baseline.","C, D","C4-C10, D1-D7"
+8,Buổi 8 — Marketing & seller performance,"ROAS, CTR, CPC, conversion rate. Top sellers theo GMV/units. Long tail vs head sellers.","E, G","E1-E7, G1-G7"
+9,Buổi 9 — Operations: shipping & cancel/return,"On-time delivery rate, SLA breach. Cancel/return reason. CS ticket category breakdown.","H, I, J","H1-H7, I1-I6, J1-J5"
+10,Buổi 10 — Capstone: end-to-end case study,Tổng hợp tất cả skill — phân tích 1 case business thật. Trình bày insight + recommendation cho stakeholder.,L,L1-L17
