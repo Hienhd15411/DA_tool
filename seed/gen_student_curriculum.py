@@ -131,46 +131,141 @@ def parse_all() -> list[dict]:
 
 SESSIONS = [
     # (số_buổi, chủ_đề, nội_dung_chính, theme_codes, exercises_range)
-    (1, "Buổi 1 — SQL cơ bản & dataset Shopee",
-     "Làm quen schema (fact/dim), SELECT/FROM/WHERE, ORDER BY, LIMIT. "
-     "Đọc số top-line: GMV, số đơn. Filter payment_status='paid'.",
+    # === THÁNG 1 — SQL FOUNDATION (8 buổi) ===
+    (1,  "Buổi 1 — Intro tool + dataset Shopee",
+     "Setup tool, đăng nhập, schema fact/dim, SELECT/FROM/WHERE/LIMIT, "
+     "đọc số top-line: COUNT đơn, SUM total_amount.",
+     "—", "—"),
+    (2,  "Buổi 2 — ORDER BY, DISTINCT, operators",
+     "ORDER BY ASC/DESC, DISTINCT, IN/BETWEEN/LIKE/IS NULL, "
+     "string functions cơ bản (LOWER, UPPER, TRIM, ||).",
+     "—", "(luyện cú pháp)"),
+    (3,  "Buổi 3 — Aggregate functions",
+     "COUNT, SUM, AVG, MIN, MAX, COUNT(DISTINCT). "
+     "Tính GMV, AOV, basket size. Phân biệt COUNT(*) vs COUNT(col).",
      "A", "A1, A2"),
-    (2, "Buổi 2 — JOIN, GROUP BY, aggregate",
-     "INNER JOIN nhiều bảng, GROUP BY + SUM/COUNT/AVG. "
-     "Phân tích GMV theo tuần/tháng, AOV, basket size.",
-     "A, F", "A3-A6, F1-F2"),
-    (3, "Buổi 3 — DATE_TRUNC, time intelligence",
-     "DATE_TRUNC, EXTRACT, BETWEEN. So sánh tuần này vs tuần trước. "
-     "WoW / MoM growth. Pattern theo giờ trong ngày.",
-     "A, C", "A7-A8, C1-C3"),
-    (4, "Buổi 4 — Window functions cơ bản",
-     "ROW_NUMBER, RANK, LAG, LEAD. Top-N per group. "
-     "Running total. Tính growth rate qua LAG.",
-     "B, F", "B1-B3, F3-F5"),
-    (5, "Buổi 5 — CTE & subquery",
-     "WITH ... AS (CTE), nested subquery. "
-     "Cohort analysis cơ bản, retention 7/30 ngày.",
-     "B", "B4-B7"),
-    (6, "Buổi 6 — Customer segmentation & RFM",
-     "RFM (Recency, Frequency, Monetary). NTILE để chia tier. "
-     "First-time vs returning customer.",
-     "B, K", "B8-B9, K1-K3"),
-    (7, "Buổi 7 — Campaign & voucher analysis",
-     "Đo hiệu quả campaign: GMV uplift, voucher redemption rate. "
-     "Self-join để compare period với baseline.",
-     "C, D", "C4-C10, D1-D7"),
-    (8, "Buổi 8 — Marketing & seller performance",
-     "ROAS, CTR, CPC, conversion rate. Top sellers theo GMV/units. "
-     "Long tail vs head sellers.",
-     "E, G", "E1-E7, G1-G7"),
-    (9, "Buổi 9 — Operations: shipping & cancel/return",
-     "On-time delivery rate, SLA breach. Cancel/return reason. "
-     "CS ticket category breakdown.",
-     "H, I, J", "H1-H7, I1-I6, J1-J5"),
-    (10, "Buổi 10 — Capstone: end-to-end case study",
-     "Tổng hợp tất cả skill — phân tích 1 case business thật. "
-     "Trình bày insight + recommendation cho stakeholder.",
-     "L", "L1-L17"),
+    (4,  "Buổi 4 — GROUP BY + HAVING",
+     "GROUP BY 1 cột, nhiều cột. HAVING vs WHERE. "
+     "GMV theo ngày/tuần/tháng (DATE_TRUNC sơ lược).",
+     "A", "A3, A4"),
+    (5,  "Buổi 5 — INNER JOIN",
+     "Khái niệm join, JOIN 2 bảng (fact_orders + dim_date), "
+     "JOIN 3 bảng (orders + items + product).",
+     "A, F", "A5, F1"),
+    (6,  "Buổi 6 — LEFT/RIGHT/FULL JOIN",
+     "Khi nào dùng LEFT vs INNER. Tìm 'customer chưa mua', "
+     "'sản phẩm chưa bán'. Anti-join pattern (NOT EXISTS / LEFT IS NULL).",
+     "B, F", "B1, F2"),
+    (7,  "Buổi 7 — Multi-table JOIN nâng cao",
+     "JOIN 4-5 bảng. Bí quyết tránh Cartesian. Alias rõ ràng. "
+     "Decompose query phức tạp.",
+     "F, K", "F3, K1"),
+    (8,  "Buổi 8 — Mini-project tháng 1",
+     "Bài tổng hợp: viết GMV weekly report đầy đủ với MoM growth. "
+     "Trình bày trên Google Sheets (paste TSV từ tool).",
+     "A", "A6, A7, A8"),
+
+    # === THÁNG 2 — TIME INTELLIGENCE + WINDOW FUNCTIONS (8 buổi) ===
+    (9,  "Buổi 9 — DATE_TRUNC, EXTRACT, INTERVAL",
+     "DATE_TRUNC('week'/'month'/'quarter'). EXTRACT(DOW/HOUR). "
+     "INTERVAL math. Pattern theo giờ trong ngày.",
+     "C", "C1, C2"),
+    (10, "Buổi 10 — Time-series: WoW, MoM, YoY",
+     "So sánh kỳ với kỳ. Self-join trên dim_date (chưa dùng window). "
+     "Tăng trưởng tuyệt đối vs tăng trưởng %.",
+     "C", "C3, C4"),
+    (11, "Buổi 11 — Subquery cơ bản",
+     "Scalar subquery, subquery trong WHERE/IN/EXISTS. "
+     "Khi nào nên dùng subquery vs JOIN.",
+     "B, F", "B2, F4"),
+    (12, "Buổi 12 — CTE (WITH clause)",
+     "WITH ... AS (...) SELECT. Multi-CTE. "
+     "Lý do CTE > nested subquery: dễ đọc, dễ debug.",
+     "B", "B3, B4"),
+    (13, "Buổi 13 — Window function intro",
+     "OVER (), PARTITION BY, ORDER BY trong window. "
+     "Khác biệt aggregate vs window aggregate (giữ nguyên row).",
+     "F", "F5"),
+    (14, "Buổi 14 — Ranking: ROW_NUMBER, RANK, NTILE",
+     "Top-N per group (top 5 SP mỗi seller). RANK vs DENSE_RANK. "
+     "NTILE để chia tier (RFM segment).",
+     "F, B", "F6, B5"),
+    (15, "Buổi 15 — LAG, LEAD, running total",
+     "Lag để tính growth %. Lead để check next event. "
+     "SUM(...) OVER (ORDER BY ... ROWS BETWEEN ...) cho running total/MA.",
+     "A, B", "A8 ext, B6"),
+    (16, "Buổi 16 — Mini-project tháng 2",
+     "Cohort retention 7/30 ngày + MoM signup growth. "
+     "Output: bảng cohort matrix.",
+     "B", "B7, B8, B9"),
+
+    # === THÁNG 3 — BUSINESS ANALYTICS (8 buổi) ===
+    (17, "Buổi 17 — RFM customer segmentation",
+     "Recency / Frequency / Monetary. NTILE chia 5 tier. "
+     "Crossing 3 dimension → 125 segment (rút gọn còn 4-5 nhóm chính).",
+     "B", "B (extension)"),
+    (18, "Buổi 18 — Voucher / promotion analysis",
+     "Voucher redemption rate, average discount per order. "
+     "Voucher có thật sự drive incremental orders?",
+     "D", "D1-D4"),
+    (19, "Buổi 19 — Campaign uplift",
+     "Compare campaign period vs baseline (3 tuần trước). "
+     "Cẩn thận seasonality. Self-join hoặc CTE để tính uplift.",
+     "C, D", "C5-C7, D5-D7"),
+    (20, "Buổi 20 — Marketing: ROAS, CTR, CPC",
+     "fact_ad_spend × fact_ad_performance_daily. "
+     "Tính ROAS, CTR, CPC theo channel/campaign. Channel nào hiệu quả nhất?",
+     "G", "G1-G4"),
+    (21, "Buổi 21 — Seller performance",
+     "Top sellers theo GMV/units/AOV. Long tail vs head. "
+     "Shop_type (mall/preferred/normal) ảnh hưởng GMV?",
+     "E", "E1-E4"),
+    (22, "Buổi 22 — Product / category trends",
+     "Cat1 nào growth nhất 3 tháng qua? Brand contribution. "
+     "Pareto 80/20 trên SKU level.",
+     "F", "F7, F8"),
+    (23, "Buổi 23 — Geographic analysis",
+     "GMV theo region (north/central/south). Penetration rate. "
+     "Province nào tỷ lệ cancel cao bất thường?",
+     "K", "K1-K5"),
+    (24, "Buổi 24 — Mini-project tháng 3",
+     "Marketing dashboard end-to-end: top campaign, top seller, "
+     "top SKU, ROAS theo channel. Trình bày bằng số + chart suggestion.",
+     "C, D, E, G", "(tổng hợp)"),
+
+    # === THÁNG 4 — OPERATIONS + CAPSTONE (8 buổi) ===
+    (25, "Buổi 25 — Shipping & SLA",
+     "On-time delivery rate. SLA breach theo carrier/route. "
+     "Avg delivery time intra-city vs cross-region.",
+     "H", "H1-H4"),
+    (26, "Buổi 26 — Cancellation & return",
+     "Cancel rate theo lý do, theo seller. Return reason analysis. "
+     "Buyer cancel vs seller cancel patterns.",
+     "I", "I1-I4"),
+    (27, "Buổi 27 — Customer service tickets",
+     "Ticket category distribution. Avg resolution time. "
+     "Seller nào nhiều complaint nhất? Correlation với cancel/return.",
+     "J", "J1-J5"),
+    (28, "Buổi 28 — Advanced SQL patterns",
+     "FILTER (WHERE ...), conditional aggregate, PIVOT bằng FILTER. "
+     "CASE WHEN trong aggregate. JSON functions (nếu có thời gian).",
+     "L (intro)", "L1, L2"),
+    (29, "Buổi 29 — Performance & EXPLAIN",
+     "Index, EXPLAIN basic. Vì sao query chậm? "
+     "Best practice: filter sớm, tránh SELECT *, JOIN order.",
+     "—", "(thực hành EXPLAIN)"),
+    (30, "Buổi 30 — Capstone phần 1",
+     "Bốc 1 case business thật từ theme L. Định nghĩa câu hỏi, "
+     "phân rã thành sub-query, viết draft.",
+     "L", "L3-L8 (tự chọn)"),
+    (31, "Buổi 31 — Capstone phần 2",
+     "Hoàn thiện query, validate kết quả, viết insight + recommendation. "
+     "Format Google Slides / Sheets.",
+     "L", "L9-L14"),
+    (32, "Buổi 32 — Final presentation + Q&A",
+     "Mỗi học viên trình bày capstone 5-7 phút. Giảng viên + bạn cùng lớp "
+     "feedback. Tổng kết khoá + roadmap nâng cao.",
+     "L", "L15-L17"),
 ]
 
 
@@ -300,12 +395,21 @@ def build_workbook(exercises: list[dict]) -> openpyxl.Workbook:
     intro = [
         "",
         "🎯 Mục tiêu khoá học",
-        "  Sau 10 buổi, học viên có thể tự viết query SQL phân tích dataset thương mại điện tử (Shopee-like),",
+        "  Sau 32 buổi (4 tháng), học viên có thể tự viết query SQL phân tích dataset thương mại điện tử (Shopee-like),",
         "  đọc số top-line (GMV, AOV, retention), build cohort, đo hiệu quả campaign / voucher / shipping,",
-        "  và trình bày insight cho stakeholder.",
+        "  và trình bày insight + recommendation cho stakeholder.",
+        "",
+        "📅 Cấu trúc khoá",
+        "  • Tổng: 32 buổi × ~120 phút",
+        "  • Lịch:  2 buổi / tuần × 16 tuần (~ 4 tháng)",
+        "  • 4 module:",
+        "      - Tháng 1 (B1-B8):    SQL foundation — SELECT, JOIN, GROUP BY",
+        "      - Tháng 2 (B9-B16):   Time intelligence + Window functions + CTE",
+        "      - Tháng 3 (B17-B24):  Business analytics (RFM, voucher, campaign, marketing, geo…)",
+        "      - Tháng 4 (B25-B32):  Operations + Capstone (case study + final presentation)",
         "",
         "📖 Cách dùng file này",
-        "  • Sheet 'Lộ trình' — 10 buổi, mỗi buổi 1 chủ đề + bài tập map vào.",
+        "  • Sheet 'Lộ trình' — 32 buổi, mỗi buổi 1 chủ đề + bài tập map vào.",
         "  • Sheet 'Bài tập' — 87 bài (12 theme A → L). Mỗi bài có business context + hint, KHÔNG có SQL solution",
         "    (học viên tự viết, giảng viên review qua tool teacher dashboard).",
         "  • Sheet 'Schema' — cheatsheet 18 bảng dataset.",
@@ -313,12 +417,12 @@ def build_workbook(exercises: list[dict]) -> openpyxl.Workbook:
         "",
         "🛠️ Tool để làm bài",
         "  Web URL do giảng viên cung cấp (Netlify) — login bằng email magic link.",
-        "  Mọi query đều log lên server → giảng viên sẽ feedback định kỳ.",
+        "  Mọi query đều log lên server → giảng viên sẽ feedback định kỳ qua teacher dashboard.",
         "",
         "⏱️ Khuyến nghị tiến độ",
-        "  • 1 buổi/tuần × 10 tuần.",
-        "  • Mỗi buổi: 90 phút lý thuyết + demo, 60 phút tự giải bài tập, 30 phút Q&A.",
-        "  • Bài tập về nhà: làm thêm 3-5 bài/tuần ngoài lớp.",
+        "  • Mỗi buổi: 60 phút lý thuyết + demo, 45 phút thực hành tại lớp, 15 phút Q&A.",
+        "  • Bài tập về nhà giữa 2 buổi: 2-3 bài (làm trên tool, log lên server).",
+        "  • Mini-project cuối mỗi tháng (B8, B16, B24, B32) → trình bày 5-7 phút.",
     ]
     for i, line in enumerate(intro, start=3):
         ws.cell(row=i, column=1, value=line).alignment = WRAP
