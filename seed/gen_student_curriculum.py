@@ -129,143 +129,473 @@ def parse_all() -> list[dict]:
 # 2. STATIC CONTENT — lộ trình + schema + hướng dẫn
 # =========================================================================
 
-SESSIONS = [
-    # (số_buổi, chủ_đề, nội_dung_chính, theme_codes, exercises_range)
-    # === THÁNG 1 — SQL FOUNDATION (8 buổi) ===
-    (1,  "Buổi 1 — Intro tool + dataset Shopee",
-     "Setup tool, đăng nhập, schema fact/dim, SELECT/FROM/WHERE/LIMIT, "
-     "đọc số top-line: COUNT đơn, SUM total_amount.",
-     "—", "—"),
-    (2,  "Buổi 2 — ORDER BY, DISTINCT, operators",
-     "ORDER BY ASC/DESC, DISTINCT, IN/BETWEEN/LIKE/IS NULL, "
-     "string functions cơ bản (LOWER, UPPER, TRIM, ||).",
-     "—", "(luyện cú pháp)"),
-    (3,  "Buổi 3 — Aggregate functions",
-     "COUNT, SUM, AVG, MIN, MAX, COUNT(DISTINCT). "
-     "Tính GMV, AOV, basket size. Phân biệt COUNT(*) vs COUNT(col).",
-     "A", "A1, A2"),
-    (4,  "Buổi 4 — GROUP BY + HAVING",
-     "GROUP BY 1 cột, nhiều cột. HAVING vs WHERE. "
-     "GMV theo ngày/tuần/tháng (DATE_TRUNC sơ lược).",
-     "A", "A3, A4"),
-    (5,  "Buổi 5 — INNER JOIN",
-     "Khái niệm join, JOIN 2 bảng (fact_orders + dim_date), "
-     "JOIN 3 bảng (orders + items + product).",
-     "A, F", "A5, F1"),
-    (6,  "Buổi 6 — LEFT/RIGHT/FULL JOIN",
-     "Khi nào dùng LEFT vs INNER. Tìm 'customer chưa mua', "
-     "'sản phẩm chưa bán'. Anti-join pattern (NOT EXISTS / LEFT IS NULL).",
-     "B, F", "B1, F2"),
-    (7,  "Buổi 7 — Multi-table JOIN nâng cao",
-     "JOIN 4-5 bảng. Bí quyết tránh Cartesian. Alias rõ ràng. "
-     "Decompose query phức tạp.",
-     "F, K", "F3, K1"),
-    (8,  "Buổi 8 — Mini-project tháng 1",
-     "Bài tổng hợp: viết GMV weekly report đầy đủ với MoM growth. "
-     "Trình bày trên Google Sheets (paste TSV từ tool).",
-     "A", "A6, A7, A8"),
+def _bullets(*items):
+    return "\n".join(f"• {i}" for i in items)
 
-    # === THÁNG 2 — TIME INTELLIGENCE + WINDOW FUNCTIONS (8 buổi) ===
-    (9,  "Buổi 9 — DATE_TRUNC, EXTRACT, INTERVAL",
-     "DATE_TRUNC('week'/'month'/'quarter'). EXTRACT(DOW/HOUR). "
-     "INTERVAL math. Pattern theo giờ trong ngày.",
-     "C", "C1, C2"),
-    (10, "Buổi 10 — Time-series: WoW, MoM, YoY",
-     "So sánh kỳ với kỳ. Self-join trên dim_date (chưa dùng window). "
-     "Tăng trưởng tuyệt đối vs tăng trưởng %.",
-     "C", "C3, C4"),
-    (11, "Buổi 11 — Subquery cơ bản",
-     "Scalar subquery, subquery trong WHERE/IN/EXISTS. "
-     "Khi nào nên dùng subquery vs JOIN.",
-     "B, F", "B2, F4"),
-    (12, "Buổi 12 — CTE (WITH clause)",
-     "WITH ... AS (...) SELECT. Multi-CTE. "
-     "Lý do CTE > nested subquery: dễ đọc, dễ debug.",
-     "B", "B3, B4"),
-    (13, "Buổi 13 — Window function intro",
-     "OVER (), PARTITION BY, ORDER BY trong window. "
-     "Khác biệt aggregate vs window aggregate (giữ nguyên row).",
-     "F", "F5"),
-    (14, "Buổi 14 — Ranking: ROW_NUMBER, RANK, NTILE",
-     "Top-N per group (top 5 SP mỗi seller). RANK vs DENSE_RANK. "
-     "NTILE để chia tier (RFM segment).",
-     "F, B", "F6, B5"),
-    (15, "Buổi 15 — LAG, LEAD, running total",
-     "Lag để tính growth %. Lead để check next event. "
-     "SUM(...) OVER (ORDER BY ... ROWS BETWEEN ...) cho running total/MA.",
-     "A, B", "A8 ext, B6"),
-    (16, "Buổi 16 — Mini-project tháng 2",
-     "Cohort retention 7/30 ngày + MoM signup growth. "
-     "Output: bảng cohort matrix.",
-     "B", "B7, B8, B9"),
+
+SESSIONS = [
+    # Mỗi dict: no, week, month, title, objectives (list), homework (list), themes, exercises
+    # === THÁNG 1 — SQL FOUNDATION (8 buổi) ===
+    {
+        "no": 1, "week": 1, "month": 1,
+        "title": "Intro tool + dataset Shopee + SELECT cơ bản",
+        "objectives": _bullets(
+            "Đăng nhập tool, làm quen UI (editor, schema browser, kết quả).",
+            "Hiểu cấu trúc schema 'shopee' — phân biệt bảng fact (giao dịch) vs dim (master).",
+            "Viết SELECT đơn giản với FROM, WHERE, LIMIT.",
+            "Đọc số top-line cơ bản: COUNT(*) số đơn, SUM(total_amount) doanh thu.",
+        ),
+        "homework": _bullets(
+            "Nộp: viết 5 query SELECT trên fact_orders với filter khác nhau (status, payment_method, ngày).",
+            "Coi trước: sheet 'Schema' — đọc kỹ dim_date, dim_customer, dim_product.",
+            "Chuẩn bị: ghi chú 3 câu hỏi business muốn trả lời từ dataset.",
+        ),
+        "themes": "—", "exercises": "—",
+    },
+    {
+        "no": 2, "week": 1, "month": 1,
+        "title": "ORDER BY, DISTINCT, operators",
+        "objectives": _bullets(
+            "Sort kết quả với ORDER BY ASC/DESC, sort theo nhiều cột.",
+            "Loại trùng với DISTINCT, COUNT(DISTINCT col).",
+            "Dùng các operator: IN, BETWEEN, LIKE, IS NULL.",
+            "String functions cơ bản: LOWER, UPPER, TRIM, concat ||.",
+        ),
+        "homework": _bullets(
+            "Nộp: list top 20 đơn cao nhất theo total_amount.",
+            "Nộp: list distinct payment_method và số đơn mỗi loại.",
+            "Nộp: tìm shop có shop_name chứa từ 'Store' (case-insensitive).",
+            "Coi trước: khái niệm aggregate (COUNT, SUM, AVG, MIN, MAX).",
+        ),
+        "themes": "—", "exercises": "(luyện cú pháp)",
+    },
+    {
+        "no": 3, "week": 2, "month": 1,
+        "title": "Aggregate functions",
+        "objectives": _bullets(
+            "Phân biệt COUNT(*), COUNT(col), COUNT(DISTINCT col).",
+            "Tính GMV (SUM total_amount), AOV (SUM/COUNT), max/min order.",
+            "Hiểu khi nào dùng aggregate function nào cho metric biz.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài A1, A2 (sheet Bài tập). Lưu ý filter payment_status='paid' khi tính GMV.",
+            "Coi trước: GROUP BY là gì, vì sao cần?",
+        ),
+        "themes": "A", "exercises": "A1, A2",
+    },
+    {
+        "no": 4, "week": 2, "month": 1,
+        "title": "GROUP BY + HAVING",
+        "objectives": _bullets(
+            "GROUP BY 1 cột rồi nhiều cột.",
+            "Phân biệt HAVING vs WHERE (filter trước/sau aggregate).",
+            "GMV theo ngày/tuần/tháng — sơ lược DATE_TRUNC.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài A3, A4.",
+            "Coi trước: khái niệm JOIN — vì sao cần JOIN nhiều bảng?",
+        ),
+        "themes": "A", "exercises": "A3, A4",
+    },
+    {
+        "no": 5, "week": 3, "month": 1,
+        "title": "INNER JOIN",
+        "objectives": _bullets(
+            "Hiểu join là gì, vẽ Venn diagram.",
+            "JOIN 2 bảng (fact_orders + dim_date), 3 bảng (orders + items + product).",
+            "Dùng alias cho dễ đọc; ON condition đúng khoá.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài A5 (GMV theo cat1), Bài F1.",
+            "Coi trước: LEFT JOIN khác INNER chỗ nào? Khi nào cần LEFT?",
+        ),
+        "themes": "A, F", "exercises": "A5, F1",
+    },
+    {
+        "no": 6, "week": 3, "month": 1,
+        "title": "LEFT / RIGHT / FULL JOIN",
+        "objectives": _bullets(
+            "Khi nào dùng LEFT vs INNER. NULL từ bên không match.",
+            "Anti-join pattern: customer chưa từng mua, sản phẩm chưa bán.",
+            "LEFT JOIN ... WHERE x IS NULL = NOT EXISTS.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài B1 (customer chưa quay lại), Bài F2 (sản phẩm bán chậm).",
+            "Coi trước: query 5+ bảng — chiến lược tránh nhầm Cartesian.",
+        ),
+        "themes": "B, F", "exercises": "B1, F2",
+    },
+    {
+        "no": 7, "week": 4, "month": 1,
+        "title": "Multi-table JOIN nâng cao",
+        "objectives": _bullets(
+            "JOIN 4-5 bảng trong 1 query, alias rõ ràng.",
+            "Decompose query phức tạp thành step nhỏ.",
+            "Phát hiện + tránh Cartesian product (cardinality check).",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài F3 (top SP theo cat), Bài K1 (GMV theo region).",
+            "Chuẩn bị mini-project tháng 1: GMV weekly report.",
+        ),
+        "themes": "F, K", "exercises": "F3, K1",
+    },
+    {
+        "no": 8, "week": 4, "month": 1,
+        "title": "Mini-project tháng 1: GMV Weekly Report",
+        "objectives": _bullets(
+            "Tổng hợp SQL foundation đã học.",
+            "Viết end-to-end report GMV weekly với MoM growth.",
+            "Trình bày kết quả Google Sheets (paste TSV từ tool).",
+        ),
+        "homework": _bullets(
+            "Nộp: 1 query SQL + 1 trang Google Sheets phân tích insights.",
+            "Coi trước: DATE_TRUNC, EXTRACT — chuẩn bị cho tháng 2.",
+        ),
+        "themes": "A", "exercises": "A6, A7, A8",
+    },
+
+    # === THÁNG 2 — TIME INTELLIGENCE + WINDOW + CTE (8 buổi) ===
+    {
+        "no": 9, "week": 5, "month": 2,
+        "title": "DATE_TRUNC, EXTRACT, INTERVAL",
+        "objectives": _bullets(
+            "DATE_TRUNC ('day', 'week', 'month', 'quarter') — group theo period.",
+            "EXTRACT (DOW, HOUR, MONTH) — bóc thành phần.",
+            "INTERVAL math: cộng/trừ ngày, tính tuổi đơn.",
+            "Pattern theo giờ trong ngày: peak hour, dip hour.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài C1 (GMV theo giờ), C2 (GMV theo ngày trong tuần).",
+            "Coi trước: WoW / MoM growth — cách so sánh kỳ với kỳ.",
+        ),
+        "themes": "C", "exercises": "C1, C2",
+    },
+    {
+        "no": 10, "week": 5, "month": 2,
+        "title": "Time-series: WoW, MoM, YoY growth",
+        "objectives": _bullets(
+            "So sánh tuần này vs tuần trước (WoW), tháng vs tháng trước (MoM).",
+            "Self-join trên dim_date để align period.",
+            "Tăng trưởng tuyệt đối (Δ) vs tăng trưởng % (growth rate).",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài C3, C4.",
+            "Coi trước: subquery — query lồng nhau, IN / EXISTS.",
+        ),
+        "themes": "C", "exercises": "C3, C4",
+    },
+    {
+        "no": 11, "week": 6, "month": 2,
+        "title": "Subquery cơ bản",
+        "objectives": _bullets(
+            "Scalar subquery (trả 1 giá trị).",
+            "Subquery trong WHERE: IN, NOT IN, EXISTS, NOT EXISTS.",
+            "Khi nào nên dùng subquery vs JOIN — trade-off readability vs performance.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài B2 (customer mua > X đơn), F4 (sản phẩm có rating cao).",
+            "Coi trước: CTE (WITH clause) — vì sao CTE tốt hơn nested subquery?",
+        ),
+        "themes": "B, F", "exercises": "B2, F4",
+    },
+    {
+        "no": 12, "week": 6, "month": 2,
+        "title": "CTE — WITH clause",
+        "objectives": _bullets(
+            "Cú pháp WITH name AS (...) SELECT.",
+            "Multi-CTE: WITH a AS (...), b AS (...) — chain logic.",
+            "Lợi: dễ đọc, dễ debug, có thể reference nhiều lần.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài B3 (segment customer), B4 (cohort signup theo tháng).",
+            "Coi trước: window function là gì? Khác aggregate chỗ nào?",
+        ),
+        "themes": "B", "exercises": "B3, B4",
+    },
+    {
+        "no": 13, "week": 7, "month": 2,
+        "title": "Window function intro: OVER, PARTITION BY",
+        "objectives": _bullets(
+            "Khái niệm window: aggregate KHÔNG collapse row.",
+            "OVER (PARTITION BY ... ORDER BY ...) — khung tính toán.",
+            "Use case: % share trong group, rank trong group.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài F5 (% GMV mỗi cat trong tổng).",
+            "Coi trước: ROW_NUMBER, RANK, DENSE_RANK — khác nhau ra sao?",
+        ),
+        "themes": "F", "exercises": "F5",
+    },
+    {
+        "no": 14, "week": 7, "month": 2,
+        "title": "Ranking: ROW_NUMBER, RANK, DENSE_RANK, NTILE",
+        "objectives": _bullets(
+            "ROW_NUMBER vs RANK vs DENSE_RANK — handle ties.",
+            "Top-N per group (top 5 SP mỗi seller).",
+            "NTILE để chia tier (RFM: 5 nhóm Recency/Frequency/Monetary).",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài F6 (top 5 SP mỗi seller), B5 (xếp tier customer).",
+            "Coi trước: LAG, LEAD — tính growth rate qua window.",
+        ),
+        "themes": "F, B", "exercises": "F6, B5",
+    },
+    {
+        "no": 15, "week": 8, "month": 2,
+        "title": "LAG, LEAD, running total, moving average",
+        "objectives": _bullets(
+            "LAG để tính growth %: (this - prev) / prev.",
+            "LEAD để check next event (next purchase, next session).",
+            "SUM(...) OVER (ORDER BY ... ROWS BETWEEN ...) cho running total / MA-7.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài A8 extension (MoM growth qua LAG), B6 (thời gian giữa 2 đơn).",
+            "Chuẩn bị mini-project tháng 2: cohort retention.",
+        ),
+        "themes": "A, B", "exercises": "A8 ext, B6",
+    },
+    {
+        "no": 16, "week": 8, "month": 2,
+        "title": "Mini-project tháng 2: Cohort retention 7/30",
+        "objectives": _bullets(
+            "Tổng hợp time + window + CTE.",
+            "Build cohort matrix: signup_month × tháng quay lại.",
+            "Tính retention rate 7d / 30d / 90d.",
+        ),
+        "homework": _bullets(
+            "Nộp: 1 query cohort + bảng matrix paste vào Google Sheets.",
+            "Coi trước: RFM segmentation — recency/frequency/monetary.",
+        ),
+        "themes": "B", "exercises": "B7, B8, B9",
+    },
 
     # === THÁNG 3 — BUSINESS ANALYTICS (8 buổi) ===
-    (17, "Buổi 17 — RFM customer segmentation",
-     "Recency / Frequency / Monetary. NTILE chia 5 tier. "
-     "Crossing 3 dimension → 125 segment (rút gọn còn 4-5 nhóm chính).",
-     "B", "B (extension)"),
-    (18, "Buổi 18 — Voucher / promotion analysis",
-     "Voucher redemption rate, average discount per order. "
-     "Voucher có thật sự drive incremental orders?",
-     "D", "D1-D4"),
-    (19, "Buổi 19 — Campaign uplift",
-     "Compare campaign period vs baseline (3 tuần trước). "
-     "Cẩn thận seasonality. Self-join hoặc CTE để tính uplift.",
-     "C, D", "C5-C7, D5-D7"),
-    (20, "Buổi 20 — Marketing: ROAS, CTR, CPC",
-     "fact_ad_spend × fact_ad_performance_daily. "
-     "Tính ROAS, CTR, CPC theo channel/campaign. Channel nào hiệu quả nhất?",
-     "G", "G1-G4"),
-    (21, "Buổi 21 — Seller performance",
-     "Top sellers theo GMV/units/AOV. Long tail vs head. "
-     "Shop_type (mall/preferred/normal) ảnh hưởng GMV?",
-     "E", "E1-E4"),
-    (22, "Buổi 22 — Product / category trends",
-     "Cat1 nào growth nhất 3 tháng qua? Brand contribution. "
-     "Pareto 80/20 trên SKU level.",
-     "F", "F7, F8"),
-    (23, "Buổi 23 — Geographic analysis",
-     "GMV theo region (north/central/south). Penetration rate. "
-     "Province nào tỷ lệ cancel cao bất thường?",
-     "K", "K1-K5"),
-    (24, "Buổi 24 — Mini-project tháng 3",
-     "Marketing dashboard end-to-end: top campaign, top seller, "
-     "top SKU, ROAS theo channel. Trình bày bằng số + chart suggestion.",
-     "C, D, E, G", "(tổng hợp)"),
+    {
+        "no": 17, "week": 9, "month": 3,
+        "title": "RFM customer segmentation",
+        "objectives": _bullets(
+            "RFM = Recency × Frequency × Monetary.",
+            "Dùng NTILE chia 5 tier mỗi dimension → 125 segment.",
+            "Rút gọn 125 → 4-5 nhóm chính (Champion, Loyal, At-risk, Lost…).",
+        ),
+        "homework": _bullets(
+            "Nộp: query RFM + danh sách 100 'Champion customer' để remarketing.",
+            "Coi trước: voucher analysis — redemption rate là gì?",
+        ),
+        "themes": "B", "exercises": "(B mở rộng)",
+    },
+    {
+        "no": 18, "week": 9, "month": 3,
+        "title": "Voucher / promotion analysis",
+        "objectives": _bullets(
+            "Voucher redemption rate = (used / issued).",
+            "Avg discount per order, total discount cost.",
+            "Voucher có drive incremental orders, hay chỉ subsidize organic?",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài D1, D2, D3, D4.",
+            "Coi trước: campaign uplift — đo hiệu quả campaign so với baseline.",
+        ),
+        "themes": "D", "exercises": "D1-D4",
+    },
+    {
+        "no": 19, "week": 10, "month": 3,
+        "title": "Campaign uplift",
+        "objectives": _bullets(
+            "Compare campaign period vs baseline (3 tuần trước cùng kỳ).",
+            "Cẩn thận seasonality, lễ tết.",
+            "Self-join hoặc CTE để tính uplift %.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài C5, C6, C7, D5, D6, D7.",
+            "Coi trước: ROAS = Return on Ad Spend, CTR, CPC.",
+        ),
+        "themes": "C, D", "exercises": "C5-C7, D5-D7",
+    },
+    {
+        "no": 20, "week": 10, "month": 3,
+        "title": "Marketing: ROAS, CTR, CPC",
+        "objectives": _bullets(
+            "JOIN fact_ad_spend × fact_ad_performance_daily.",
+            "Tính ROAS (revenue/spend), CTR (clicks/impressions), CPC (spend/clicks).",
+            "So sánh hiệu quả channel: search vs display vs affiliate vs KOL.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài G1, G2, G3, G4.",
+            "Coi trước: seller performance — long tail vs head sellers.",
+        ),
+        "themes": "G", "exercises": "G1-G4",
+    },
+    {
+        "no": 21, "week": 11, "month": 3,
+        "title": "Seller performance",
+        "objectives": _bullets(
+            "Top sellers theo GMV / units sold / AOV.",
+            "Pareto 80/20: top 20% sellers chiếm bao nhiêu % GMV?",
+            "Shop_type (mall / preferred / normal) ảnh hưởng GMV / cancel rate?",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài E1, E2, E3, E4.",
+            "Coi trước: product / category trends — cat nào growth nhất?",
+        ),
+        "themes": "E", "exercises": "E1-E4",
+    },
+    {
+        "no": 22, "week": 11, "month": 3,
+        "title": "Product / Category trends",
+        "objectives": _bullets(
+            "Cat1 nào growth GMV nhanh nhất 3 tháng qua?",
+            "Brand contribution: top brand mỗi cat1.",
+            "Pareto trên SKU level — 20% SKU sinh 80% GMV?",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài F7, F8.",
+            "Coi trước: geographic analysis — region/province.",
+        ),
+        "themes": "F", "exercises": "F7, F8",
+    },
+    {
+        "no": 23, "week": 12, "month": 3,
+        "title": "Geographic analysis",
+        "objectives": _bullets(
+            "GMV theo region (north/central/south).",
+            "Penetration rate: % customer / population (giả định population).",
+            "Province nào tỷ lệ cancel cao bất thường? (red flag).",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài K1, K2, K3, K4, K5.",
+            "Chuẩn bị mini-project tháng 3: marketing dashboard.",
+        ),
+        "themes": "K", "exercises": "K1-K5",
+    },
+    {
+        "no": 24, "week": 12, "month": 3,
+        "title": "Mini-project tháng 3: Marketing Dashboard",
+        "objectives": _bullets(
+            "Tổng hợp business analytics đã học.",
+            "Build dashboard: top campaign, top seller, top SKU, ROAS theo channel.",
+            "Trình bày bằng số + chart suggestion (loại chart nào cho metric nào).",
+        ),
+        "homework": _bullets(
+            "Nộp: Google Sheets dashboard 1 trang + insight 3-5 bullet.",
+            "Coi trước: shipping & SLA — on-time rate là gì.",
+        ),
+        "themes": "C, D, E, G", "exercises": "(tổng hợp)",
+    },
 
     # === THÁNG 4 — OPERATIONS + CAPSTONE (8 buổi) ===
-    (25, "Buổi 25 — Shipping & SLA",
-     "On-time delivery rate. SLA breach theo carrier/route. "
-     "Avg delivery time intra-city vs cross-region.",
-     "H", "H1-H4"),
-    (26, "Buổi 26 — Cancellation & return",
-     "Cancel rate theo lý do, theo seller. Return reason analysis. "
-     "Buyer cancel vs seller cancel patterns.",
-     "I", "I1-I4"),
-    (27, "Buổi 27 — Customer service tickets",
-     "Ticket category distribution. Avg resolution time. "
-     "Seller nào nhiều complaint nhất? Correlation với cancel/return.",
-     "J", "J1-J5"),
-    (28, "Buổi 28 — Advanced SQL patterns",
-     "FILTER (WHERE ...), conditional aggregate, PIVOT bằng FILTER. "
-     "CASE WHEN trong aggregate. JSON functions (nếu có thời gian).",
-     "L (intro)", "L1, L2"),
-    (29, "Buổi 29 — Performance & EXPLAIN",
-     "Index, EXPLAIN basic. Vì sao query chậm? "
-     "Best practice: filter sớm, tránh SELECT *, JOIN order.",
-     "—", "(thực hành EXPLAIN)"),
-    (30, "Buổi 30 — Capstone phần 1",
-     "Bốc 1 case business thật từ theme L. Định nghĩa câu hỏi, "
-     "phân rã thành sub-query, viết draft.",
-     "L", "L3-L8 (tự chọn)"),
-    (31, "Buổi 31 — Capstone phần 2",
-     "Hoàn thiện query, validate kết quả, viết insight + recommendation. "
-     "Format Google Slides / Sheets.",
-     "L", "L9-L14"),
-    (32, "Buổi 32 — Final presentation + Q&A",
-     "Mỗi học viên trình bày capstone 5-7 phút. Giảng viên + bạn cùng lớp "
-     "feedback. Tổng kết khoá + roadmap nâng cao.",
-     "L", "L15-L17"),
+    {
+        "no": 25, "week": 13, "month": 4,
+        "title": "Shipping & SLA analysis",
+        "objectives": _bullets(
+            "On-time delivery rate = is_on_time / total shipments.",
+            "SLA breach theo carrier, theo route (intra-city / cross-region).",
+            "Avg delivery time + p90/p95.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài H1, H2, H3, H4.",
+            "Coi trước: cancel/return analysis — pattern lý do hủy.",
+        ),
+        "themes": "H", "exercises": "H1-H4",
+    },
+    {
+        "no": 26, "week": 13, "month": 4,
+        "title": "Cancellation & return analysis",
+        "objectives": _bullets(
+            "Cancel rate theo lý do, theo seller, theo cat1.",
+            "Return reason analysis — top 3 lý do return.",
+            "Buyer cancel (customer_change_mind) vs seller cancel (out_of_stock) — phân biệt.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài I1, I2, I3, I4.",
+            "Coi trước: customer service tickets — category breakdown.",
+        ),
+        "themes": "I", "exercises": "I1-I4",
+    },
+    {
+        "no": 27, "week": 14, "month": 4,
+        "title": "Customer service tickets",
+        "objectives": _bullets(
+            "Ticket category distribution: shipping vs quality vs refund.",
+            "Avg resolution time (resolved_at - created_at).",
+            "Seller nào nhiều complaint nhất — correlation với cancel/return.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài J1, J2, J3, J4, J5.",
+            "Coi trước: advanced patterns — FILTER, conditional aggregate.",
+        ),
+        "themes": "J", "exercises": "J1-J5",
+    },
+    {
+        "no": 28, "week": 14, "month": 4,
+        "title": "Advanced SQL patterns",
+        "objectives": _bullets(
+            "FILTER (WHERE ...) trong aggregate — pivot bằng FILTER.",
+            "CASE WHEN trong SUM/COUNT để conditional metric.",
+            "Cú pháp pivot manual: SUM(CASE WHEN cat='X' THEN ...) AS x_gmv.",
+        ),
+        "homework": _bullets(
+            "Nộp: Bài L1, L2 (capstone — chuẩn bị).",
+            "Coi trước: EXPLAIN — đọc execution plan cơ bản.",
+        ),
+        "themes": "L", "exercises": "L1, L2",
+    },
+    {
+        "no": 29, "week": 15, "month": 4,
+        "title": "Performance & EXPLAIN",
+        "objectives": _bullets(
+            "EXPLAIN cơ bản — đọc plan output.",
+            "Vì sao query chậm: full scan, missing index, bad join order.",
+            "Best practice: filter sớm, tránh SELECT *, dùng index column trong WHERE.",
+        ),
+        "homework": _bullets(
+            "Nộp: 3 query đã optimize (kèm EXPLAIN trước/sau).",
+            "Bốc 1 case study từ theme L cho capstone (sẽ làm 2 buổi).",
+        ),
+        "themes": "—", "exercises": "(thực hành EXPLAIN)",
+    },
+    {
+        "no": 30, "week": 15, "month": 4,
+        "title": "Capstone — Phần 1: phân rã & draft query",
+        "objectives": _bullets(
+            "Định nghĩa câu hỏi business của capstone.",
+            "Phân rã thành 3-5 sub-question.",
+            "Viết draft SQL cho từng sub-question.",
+        ),
+        "homework": _bullets(
+            "Nộp: outline capstone + draft query (chưa cần hoàn thiện).",
+            "Coi trước: cách viết insight + recommendation.",
+        ),
+        "themes": "L", "exercises": "L3-L8 (tự chọn 1)",
+    },
+    {
+        "no": 31, "week": 16, "month": 4,
+        "title": "Capstone — Phần 2: hoàn thiện + viết insight",
+        "objectives": _bullets(
+            "Validate kết quả query: cross-check số, edge case.",
+            "Viết insight (số nói gì) + recommendation (nên làm gì).",
+            "Format slide / Sheets cho final presentation.",
+        ),
+        "homework": _bullets(
+            "Nộp: Google Slides / Sheets capstone hoàn chỉnh (5-7 slide).",
+            "Chuẩn bị: trình bày 5-7 phút buổi sau.",
+        ),
+        "themes": "L", "exercises": "L9-L14",
+    },
+    {
+        "no": 32, "week": 16, "month": 4,
+        "title": "Final presentation + Q&A + Tổng kết khoá",
+        "objectives": _bullets(
+            "Mỗi học viên trình bày capstone 5-7 phút.",
+            "Q&A từ giảng viên + bạn cùng lớp.",
+            "Tổng kết: skill đã học, roadmap nâng cao (analytics engineer, BI dev).",
+        ),
+        "homework": _bullets(
+            "Final: bản capstone v2 (sau feedback).",
+            "Roadmap nâng cao: học dbt, đọc 'SQL for Data Analysts' (Cathy Tanimura).",
+        ),
+        "themes": "L", "exercises": "L15-L17",
+    },
 ]
 
 
@@ -431,16 +761,21 @@ def build_workbook(exercises: list[dict]) -> openpyxl.Workbook:
 
     # ---- Sheet 2: Lộ trình ----
     ws2 = wb.create_sheet("Lộ trình")
-    headers2 = ["Buổi", "Chủ đề", "Nội dung chính (vắn tắt)", "Theme", "Bài tập"]
+    headers2 = ["Buổi", "Tuần", "Tháng", "Chủ đề", "Mục tiêu buổi học", "Bài tập về nhà", "Theme", "Bài tập map"]
     ws2.append(headers2)
     style_header_row(ws2, 1, len(headers2))
     for s in SESSIONS:
-        ws2.append(list(s))
+        ws2.append([
+            s["no"], s["week"], f"Tháng {s['month']}", s["title"],
+            s["objectives"], s["homework"], s["themes"], s["exercises"],
+        ])
     style_data_rows(ws2, 2, len(SESSIONS) + 1, len(headers2))
-    set_col_widths(ws2, [6, 38, 70, 12, 22])
-    ws2.row_dimensions[1].height = 28
+    set_col_widths(ws2, [6, 6, 9, 40, 70, 70, 10, 16])
+    ws2.row_dimensions[1].height = 30
     for r in range(2, len(SESSIONS) + 2):
-        ws2.row_dimensions[r].height = 60
+        ws2.row_dimensions[r].height = 130
+    ws2.freeze_panes = "A2"
+    ws2.auto_filter.ref = ws2.dimensions
 
     # ---- Sheet 3: Bài tập ----
     ws3 = wb.create_sheet("Bài tập")
@@ -535,8 +870,9 @@ def main():
     # sessions.csv
     write_csv(
         OUT_CSV_DIR / "lo_trinh.csv",
-        ["Buổi", "Chủ đề", "Nội dung chính", "Theme", "Bài tập"],
-        [list(s) for s in SESSIONS],
+        ["Buổi", "Tuần", "Tháng", "Chủ đề", "Mục tiêu buổi học", "Bài tập về nhà", "Theme", "Bài tập map"],
+        [[s["no"], s["week"], f"Tháng {s['month']}", s["title"],
+          s["objectives"], s["homework"], s["themes"], s["exercises"]] for s in SESSIONS],
     )
     # schema.csv
     write_csv(
