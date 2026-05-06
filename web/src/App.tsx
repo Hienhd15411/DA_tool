@@ -90,10 +90,14 @@ function Workbench({ email }: { email: string | undefined }) {
   const activeResult = results[active.id] ?? null;
   const loading = loadingTabId === active.id;
 
+  // Debounce localStorage write — tránh ghi mỗi keystroke (gây lag khi gõ nhanh)
   useEffect(() => {
-    try {
-      localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify({ tabs, activeId } satisfies StoredState));
-    } catch {/* quota */}
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify({ tabs, activeId } satisfies StoredState));
+      } catch {/* quota */}
+    }, 500);
+    return () => clearTimeout(timer);
   }, [tabs, activeId]);
 
   useEffect(() => {

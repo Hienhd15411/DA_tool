@@ -33,13 +33,39 @@ export function SqlEditor({
           automaticLayout: true,
           wordWrap: "on",
           tabSize: 2,
-          // Autocomplete đã bị bỏ hoàn toàn — user complained nhảy khó chịu.
+          renderWhitespace: "none",
+          // ===== TẮT TẤT CẢ AUTOCOMPLETE / SUGGEST =====
           quickSuggestions: false,
           suggestOnTriggerCharacters: false,
           wordBasedSuggestions: "off",
           acceptSuggestionOnEnter: "off",
+          acceptSuggestionOnCommitCharacter: false,
           tabCompletion: "off",
           parameterHints: { enabled: false },
+          inlineSuggest: { enabled: false },
+          snippetSuggestions: "none",
+          suggest: {
+            showWords: false,
+            showSnippets: false,
+            preview: false,
+          },
+          // ===== TẮT AUTO-FORMAT / AUTO-INSERT KHI GÕ =====
+          // (autoClosingBrackets/Quotes thêm ký tự phụ → có thể gây nhảy với Telex VN)
+          formatOnType: false,
+          formatOnPaste: false,
+          autoClosingBrackets: "never",
+          autoClosingQuotes: "never",
+          autoSurround: "never",
+          autoIndent: "keep",
+          // ===== TẮT VISUAL DISTRACTIONS =====
+          hover: { enabled: false },
+          links: false,
+          occurrencesHighlight: "off",
+          selectionHighlight: false,
+          codeLens: false,
+          contextmenu: false,
+          cursorSmoothCaretAnimation: "off",
+          smoothScrolling: false,
         }}
         onMount={(ed, monaco) => {
           ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => onRunRef.current());
