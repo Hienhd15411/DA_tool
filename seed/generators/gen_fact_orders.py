@@ -87,16 +87,20 @@ def run(conn, cfg, rng):
         dk = date_key(d)
         active_camps = [c[0] for c in campaigns if c[1] <= dk <= c[2]]
 
-        for _ in range(daily_n):
+        # Pre-generate timestamps cho cả ngày rồi SORT — đảm bảo order_id
+        # monotonic theo created_at (như Shopee thực tế: PK gán lúc tạo đơn).
+        day_timestamps = sorted(
+            datetime(d.year, d.month, d.day,
+                     peak_hour_distribution(rng),
+                     rng.randint(0, 59), rng.randint(0, 59),
+                     tzinfo=timezone.utc)
+            for _ in range(daily_n)
+        )
+
+        for created_at in day_timestamps:
             customer_id, cust_city, cust_prov, pref_device = rng.choice(customers)
             is_first = not customer_first_seen.get(customer_id, False)
             customer_first_seen[customer_id] = True
-
-            # timestamp
-            hour = peak_hour_distribution(rng)
-            created_at = datetime(d.year, d.month, d.day, hour,
-                                  rng.randint(0, 59), rng.randint(0, 59),
-                                  tzinfo=timezone.utc)
 
             # status
             status = _status_flow(rng, anomalies)
