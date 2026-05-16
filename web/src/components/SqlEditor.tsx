@@ -2,21 +2,44 @@ import { useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
+/**
+ * UNCONTROLLED Monaco — không truyền `value` prop (tránh round-trip
+ * React re-render → setValue → nhảy chữ khi gõ nhanh / gõ Telex VN).
+ *
+ * - Monaco tự own text buffer.
+ * - `tabId` đổi (user switch tab) → mới setValue lại nội dung tab đó.
+ * - `onChange` vẫn fire để App lưu state (persistence) — nhưng KHÔNG
+ *   feed ngược lại làm value prop.
+ * - App đọc nội dung live qua editor ref (onReady) khi Run / Format.
+ */
 export function SqlEditor({
-  value,
+  tabId,
+  initialValue,
   onChange,
   onRun,
   onReady,
 }: {
-  value: string;
+  tabId: string;
+  initialValue: string;
   onChange: (v: string) => void;
   onRun: () => void;
   onReady?: (ed: editor.IStandaloneCodeEditor) => void;
 }) {
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const onRunRef = useRef(onRun);
   useEffect(() => {
     onRunRef.current = onRun;
   }, [onRun]);
+
+  // Chỉ sync nội dung vào editor khi ĐỔI TAB (tabId thay đổi),
+  // KHÔNG sync theo initialValue (tránh disrupt khi đang gõ).
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (ed && ed.getValue() !== initialValue) {
+      ed.setValue(initialValue);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabId]);
 
   return (
     <div style={{ height: "100%", position: "relative" }}>
@@ -24,7 +47,7 @@ export function SqlEditor({
         height="100%"
         language="sql"
         theme="vs-dark"
-        value={value}
+        defaultValue={initialValue}
         onChange={(v) => onChange(v ?? "")}
         options={{
           fontSize: 14,
@@ -34,7 +57,7 @@ export function SqlEditor({
           wordWrap: "on",
           tabSize: 2,
           renderWhitespace: "none",
-          // ===== TẮT TẤT CẢ AUTOCOMPLETE / SUGGEST =====
+          // Tắt autocomplete / suggest
           quickSuggestions: false,
           suggestOnTriggerCharacters: false,
           wordBasedSuggestions: "off",
@@ -44,20 +67,15 @@ export function SqlEditor({
           parameterHints: { enabled: false },
           inlineSuggest: { enabled: false },
           snippetSuggestions: "none",
-          suggest: {
-            showWords: false,
-            showSnippets: false,
-            preview: false,
-          },
-          // ===== TẮT AUTO-FORMAT / AUTO-INSERT KHI GÕ =====
-          // (autoClosingBrackets/Quotes thêm ký tự phụ → có thể gây nhảy với Telex VN)
+          suggest: { showWords: false, showSnippets: false, preview: false },
+          // Tắt auto-insert / auto-format khi gõ
           formatOnType: false,
           formatOnPaste: false,
           autoClosingBrackets: "never",
           autoClosingQuotes: "never",
           autoSurround: "never",
           autoIndent: "keep",
-          // ===== TẮT VISUAL DISTRACTIONS =====
+          // Tắt visual distractions
           hover: { enabled: false },
           links: false,
           occurrencesHighlight: "off",
@@ -68,6 +86,7 @@ export function SqlEditor({
           smoothScrolling: false,
         }}
         onMount={(ed, monaco) => {
+          editorRef.current = ed;
           ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => onRunRef.current());
           onReady?.(ed);
         }}

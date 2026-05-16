@@ -115,13 +115,16 @@ function Workbench({ email }: { email: string | undefined }) {
   async function run() {
     const tabId = active.id;
     const ed = editorRef.current;
+    // Editor uncontrolled → đọc nội dung LIVE từ editor, không từ state
     let sql = active.sql;
     if (ed) {
       const sel = ed.getSelection();
       const model = ed.getModel();
       if (sel && !sel.isEmpty() && model) {
         const picked = model.getValueInRange(sel);
-        if (picked.trim()) sql = picked;
+        sql = picked.trim() ? picked : ed.getValue();
+      } else {
+        sql = ed.getValue();
       }
     }
     if (!sql.trim()) return;
@@ -141,9 +144,11 @@ function Workbench({ email }: { email: string | undefined }) {
   }
 
   async function formatActive() {
+    const ed = editorRef.current;
+    const src = ed ? ed.getValue() : active.sql;
     try {
       const { format } = await import("sql-formatter");
-      const formatted = format(active.sql, {
+      const formatted = format(src, {
         language: "postgresql",
         keywordCase: "upper",
         dataTypeCase: "upper",
@@ -156,14 +161,18 @@ function Workbench({ email }: { email: string | undefined }) {
         tabWidth: 2,
         useTabs: false,
       });
-      setActiveSql(formatted);
+      // Push thẳng vào editor → onChange tự sync state
+      if (ed) ed.setValue(formatted);
+      else setActiveSql(formatted);
     } catch (e) {
       alert("Format fail — SQL có thể còn syntax error:\n" + (e instanceof Error ? e.message : String(e)));
     }
   }
 
   function clearActive() {
-    setActiveSql("");
+    const ed = editorRef.current;
+    if (ed) ed.setValue("");
+    else setActiveSql("");
     setResults((prev) => ({ ...prev, [active.id]: null }));
   }
 
@@ -300,7 +309,8 @@ function Workbench({ email }: { email: string | undefined }) {
           <div ref={splitContainerRef} style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div style={{ height: `${splitPct}%`, minHeight: 100, overflow: "hidden" }}>
               <SqlEditor
-                value={active.sql}
+                tabId={active.id}
+                initialValue={active.sql}
                 onChange={setActiveSql}
                 onRun={run}
                 onReady={(ed) => (editorRef.current = ed)}
