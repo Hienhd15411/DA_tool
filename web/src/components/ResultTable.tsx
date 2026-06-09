@@ -43,7 +43,9 @@ function OkTable({ result }: { result: OkResult }) {
   const [sort, setSort] = useState<SortState>(null);
   const [filters, setFilters] = useState<Record<string, ColFilter>>({});
   const [openMenu, setOpenMenu] = useState<{ col: string; rect: DOMRect | null } | null>(null);
-  const cols = Object.keys(result.rows[0]);
+  // Ưu tiên columns từ backend (preserve thứ tự gốc). Fallback Object.keys
+  // chỉ khi backend cũ chưa có field này — JS sẽ sort integer-like keys sai.
+  const cols = result.columns?.length ? result.columns : Object.keys(result.rows[0]);
 
   // Drag detection: lưu toạ độ mousedown để phân biệt click vs drag
   const dragStart = useRef<{ x: number; y: number } | null>(null);

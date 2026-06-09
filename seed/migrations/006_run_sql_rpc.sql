@@ -30,8 +30,9 @@ DECLARE
   MAX_RESULT_BYTES CONSTANT INT := 2 * 1024 * 1024;
 
   v_start      TIMESTAMPTZ := clock_timestamp();
-  v_result     JSON;     -- ⭐ JSON
+  v_result     JSON;
   v_plan       JSON;
+  v_columns    TEXT[];           -- ⭐ thứ tự cột chuẩn (tránh JS reorder numeric keys)
   v_row_cnt    INT := 0;
   v_bytes      INT := 0;
   v_exec_ms    INT;
@@ -119,6 +120,18 @@ BEGIN
         v_row_cnt := COALESCE(json_array_length(v_result), 0);
       END IF;
     END IF;
+
+    -- ⭐ Extract column names theo đúng thứ tự xuất hiện trong row đầu tiên.
+    -- Cần thiết vì JavaScript sort integer-like keys ("0","1","10") numeric
+    -- → Object.keys(row) trả sai thứ tự với cột tên numeric.
+    IF v_result IS NOT NULL AND json_array_length(v_result) > 0 THEN
+      SELECT array_agg(k ORDER BY ord)
+      INTO   v_columns
+      FROM (
+        SELECT k, ord
+        FROM json_each(v_result -> 0) WITH ORDINALITY AS t(k, v, ord)
+      ) sub;
+    END IF;
   EXCEPTION WHEN OTHERS THEN
     v_err_code := SQLSTATE;
     v_err_msg  := SQLERRM;
@@ -144,6 +157,7 @@ BEGIN
 
   RETURN json_build_object(
     'status',    'ok',
+    'columns',   COALESCE(to_json(v_columns), '[]'::json),
     'rows',      COALESCE(v_result, '[]'::json),
     'row_count', v_row_cnt,
     'exec_ms',   v_exec_ms,
