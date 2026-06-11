@@ -173,4 +173,4 @@ REVOKE ALL ON FUNCTION public.run_sql(TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.run_sql(TEXT, TEXT) TO authenticated;
 
 COMMENT ON FUNCTION public.run_sql IS
-  'Execute read-only SQL. SECURITY INVOKER. JSON output preserves column order. 5s timeout, 1000 rows, 2MB payload.';
+  'Execute read-only SQL. SECURITY INVOKER. JSON output preserves column order. Caps: 15s timeout, 48MB work_mem, 1000 rows, 2MB payload.';
