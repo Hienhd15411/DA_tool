@@ -7,7 +7,8 @@
 --      → DML/DDL inject bị Postgres chặn ở permission layer.
 --   3. Input sanitization: strip leading ws/comments, strip trailing `;`,
 --      reject `;` giữa, whitelist SELECT/WITH/EXPLAIN.
---   4. Caps: 5s timeout, 16MB work_mem, 1000 rows, 2MB payload.
+--   4. Caps: 15s timeout, 48MB work_mem, 1000 rows, 2MB payload.
+--      (Bump từ 5s/16MB sau khi user feedback — cohort/retention/capstone fit)
 --   5. EXPLAIN qua `EXPLAIN (FORMAT JSON)` riêng.
 --   6. ⭐ Dùng JSON (preserves column order) thay JSONB (sort keys
 --      alphabetical) → kết quả trả về theo đúng thứ tự cột user SELECT.
@@ -75,8 +76,8 @@ BEGIN
     RAISE EXCEPTION 'Only bare EXPLAIN SELECT/WITH allowed (no ANALYZE/VERBOSE)' USING ERRCODE = '42501';
   END IF;
 
-  SET LOCAL statement_timeout = '5s';
-  SET LOCAL work_mem          = '16MB';
+  SET LOCAL statement_timeout = '15s';
+  SET LOCAL work_mem          = '48MB';
 
   BEGIN
     IF v_is_explain THEN

@@ -303,7 +303,7 @@ function Workbench({ email }: { email: string | undefined }) {
               Xoá
             </button>
             <span className="muted" style={{ marginLeft: "auto" }}>
-              <b>Ctrl+Enter</b> · bôi đen để chạy 1 đoạn · max 1000 rows / 2 MB
+              <b>Ctrl+Enter</b> · bôi đen để chạy 1 đoạn · timeout 15s · max 1000 rows / 2 MB
             </span>
           </div>
           <div ref={splitContainerRef} style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
