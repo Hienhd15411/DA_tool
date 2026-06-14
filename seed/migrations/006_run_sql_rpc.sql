@@ -7,8 +7,9 @@
 --      → DML/DDL inject bị Postgres chặn ở permission layer.
 --   3. Input sanitization: strip leading ws/comments, strip trailing `;`,
 --      reject `;` giữa, whitelist SELECT/WITH/EXPLAIN.
---   4. Caps: 15s timeout, 48MB work_mem, 1000 rows, 2MB payload.
---      (Bump từ 5s/16MB sau khi user feedback — cohort/retention/capstone fit)
+--   4. Caps: 60s timeout, 128MB work_mem, 1000 rows, 2MB payload.
+--      (Bump cho lớp 2 user — capstone/cohort fit thoải mái, vẫn an toàn
+--       free tier compute Small. Hơn 60s sẽ bị PostgREST HTTP layer cắt.)
 --   5. EXPLAIN qua `EXPLAIN (FORMAT JSON)` riêng.
 --   6. ⭐ Dùng JSON (preserves column order) thay JSONB (sort keys
 --      alphabetical) → kết quả trả về theo đúng thứ tự cột user SELECT.
@@ -76,8 +77,8 @@ BEGIN
     RAISE EXCEPTION 'Only bare EXPLAIN SELECT/WITH allowed (no ANALYZE/VERBOSE)' USING ERRCODE = '42501';
   END IF;
 
-  SET LOCAL statement_timeout = '15s';
-  SET LOCAL work_mem          = '48MB';
+  SET LOCAL statement_timeout = '60s';
+  SET LOCAL work_mem          = '128MB';
 
   BEGIN
     IF v_is_explain THEN
@@ -173,4 +174,4 @@ REVOKE ALL ON FUNCTION public.run_sql(TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.run_sql(TEXT, TEXT) TO authenticated;
 
 COMMENT ON FUNCTION public.run_sql IS
-  'Execute read-only SQL. SECURITY INVOKER. JSON output preserves column order. Caps: 15s timeout, 48MB work_mem, 1000 rows, 2MB payload.';
+  'Execute read-only SQL. SECURITY INVOKER. JSON output preserves column order. Caps: 60s timeout, 128MB work_mem, 1000 rows, 2MB payload.';
