@@ -1,0 +1,137 @@
+name: Backup shopee data
+
+# Snapshot toàn bộ schema shopee thành .dump.gz + upload lên GitHub Release.
+# Restore: download file từ release → gunzip → pg_restore.
+#
+# Trigger manual từ Actions tab. Nên chạy trước khi:
+#   • Reset seed với config mới
+#   • Bump orders/day nhiều
+#   • Bất kỳ major schema change nào
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Tag name cho release (VD: dataset-v1-3month)"
+        required: true
+        default: "dataset-backup"
+      note:
+        description: "Ghi chú backup (VD: '89 ngày Feb-Apr, 135k orders')"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # cần để tạo release
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Check DATABASE_URL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret not set"
+            exit 1
+          fi
+          echo "DATABASE_URL is set (length ${#DATABASE_URL})"
+
+      - name: Create dump dir + timestamp
+        id: meta
+        run: |
+          mkdir -p /tmp/backup
+          echo "ts=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: pg_dump schema shopee (custom format, compressed)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          FILE="/tmp/backup/shopee-${{ steps.meta.outputs.ts }}.dump"
+          pg_dump "$DATABASE_URL" \
+            --schema=shopee \
+            --no-owner \
+            --no-privileges \
+            --format=custom \
+            --compress=9 \
+            --file="$FILE"
+          echo "Dump size:"
+          ls -lh "$FILE"
+
+      - name: pg_dump schema learning (log học viên)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          FILE="/tmp/backup/learning-${{ steps.meta.outputs.ts }}.dump"
+          pg_dump "$DATABASE_URL" \
+            --schema=learning \
+            --schema=public \
+            --no-owner \
+            --no-privileges \
+            --format=custom \
+            --compress=9 \
+            --file="$FILE"
+          echo "Dump size:"
+          ls -lh "$FILE"
+
+      - name: DB size stats
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          psql "$DATABASE_URL" -c "
+            SELECT schemaname, relname, n_live_tup AS rows,
+                   pg_size_pretty(pg_total_relation_size(quote_ident(schemaname)||'.'||quote_ident(relname))::BIGINT) AS size
+            FROM pg_stat_user_tables
+            WHERE schemaname IN ('shopee', 'learning', 'public')
+            ORDER BY schemaname, relname;
+          " > /tmp/backup/stats.txt
+          cat /tmp/backup/stats.txt
+
+      - name: Create GitHub Release + upload dumps
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.tag_name }}-${{ steps.meta.outputs.ts }}"
+          NOTE="${{ inputs.note }}"
+          STATS=$(cat /tmp/backup/stats.txt)
+          BODY="Backup của schema shopee + learning + public.
+
+Timestamp: ${{ steps.meta.outputs.ts }}
+Note: $NOTE
+
+## Restore
+\`\`\`bash
+# 1. Download 2 file .dump từ release này
+# 2. Drop schema hiện tại (nếu muốn overwrite hoàn toàn)
+psql \$DATABASE_URL -c 'DROP SCHEMA shopee CASCADE; CREATE SCHEMA shopee;'
+# 3. Restore
+pg_restore --no-owner --no-privileges -d \$DATABASE_URL shopee-*.dump
+pg_restore --no-owner --no-privileges -d \$DATABASE_URL learning-*.dump
+\`\`\`
+
+## Table stats
+\`\`\`
+$STATS
+\`\`\`"
+
+          gh release create "$TAG" \
+            --title "Dataset backup — ${{ steps.meta.outputs.ts }}" \
+            --notes "$BODY" \
+            /tmp/backup/shopee-*.dump \
+            /tmp/backup/learning-*.dump \
+            /tmp/backup/stats.txt
+
+      - name: Summary
+        run: |
+          echo "✅ Backup done. Release: ${{ inputs.tag_name }}-${{ steps.meta.outputs.ts }}"
+          echo "Download từ: https://github.com/${{ github.repository }}/releases"
