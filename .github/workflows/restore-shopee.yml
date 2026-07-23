@@ -1,0 +1,111 @@
+name: Restore shopee data
+
+# Restore từ 1 backup release lên DB hiện tại.
+# ⚠️ CHÚ Ý: sẽ DROP schema shopee hiện tại trước khi restore.
+#   learning + public giữ nguyên (backup có ghi đè nếu row conflict).
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag release chứa backup (VD: dataset-v1-3month-20240614-153000)"
+        required: true
+      restore_learning:
+        description: "Có restore luôn schema learning không? (mất log học viên hiện tại)"
+        required: true
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+      confirm:
+        description: "Gõ 'YES-RESTORE' để confirm"
+        required: true
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Verify confirm
+        run: |
+          if [ "${{ inputs.confirm }}" != "YES-RESTORE" ]; then
+            echo "::error::Không confirm. Phải gõ chính xác 'YES-RESTORE' vào ô confirm."
+            exit 1
+          fi
+
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/restore
+          cd /tmp/restore
+          gh release download "${{ inputs.release_tag }}" \
+            --repo ${{ github.repository }} \
+            --pattern "*.dump"
+          ls -lh /tmp/restore/
+
+      - name: Drop schema shopee (fresh restore)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          psql "$DATABASE_URL" -c "DROP SCHEMA IF EXISTS shopee CASCADE; CREATE SCHEMA shopee;"
+
+      - name: Restore shopee schema
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          SHOPEE_DUMP=$(ls /tmp/restore/shopee-*.dump | head -1)
+          echo "Restoring: $SHOPEE_DUMP"
+          pg_restore --no-owner --no-privileges --disable-triggers \
+            -d "$DATABASE_URL" \
+            "$SHOPEE_DUMP"
+
+      - name: Restore learning schema (optional)
+        if: ${{ inputs.restore_learning == 'true' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # Drop learning tables data (giữ schema/RLS)
+          psql "$DATABASE_URL" -c "
+            TRUNCATE learning.query_log RESTART IDENTITY CASCADE;
+            TRUNCATE learning.attempt RESTART IDENTITY CASCADE;
+          "
+          LEARN_DUMP=$(ls /tmp/restore/learning-*.dump | head -1)
+          pg_restore --no-owner --no-privileges --disable-triggers \
+            --data-only \
+            -d "$DATABASE_URL" \
+            "$LEARN_DUMP"
+
+      - name: Re-run required migrations (roles, RPCs)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          for f in seed/migrations/005_roles_rls.sql seed/migrations/006_run_sql_rpc.sql seed/migrations/007_indexes.sql seed/migrations/009_schema_info_rpc.sql seed/migrations/010_teacher_rpcs.sql; do
+            if [ -f "$f" ]; then
+              echo "Applying $f"
+              psql "$DATABASE_URL" -f "$f"
+            fi
+          done
+        continue-on-error: true
+
+      - name: ANALYZE + verify
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          psql "$DATABASE_URL" -c "ANALYZE;"
+          psql "$DATABASE_URL" -c "
+            SELECT schemaname, relname, n_live_tup AS rows,
+                   pg_size_pretty(pg_total_relation_size(quote_ident(schemaname)||'.'||quote_ident(relname))::BIGINT) AS size
+            FROM pg_stat_user_tables
+            WHERE schemaname = 'shopee'
+            ORDER BY relname;
+          "
+
+      - name: Summary
+        run: echo "✅ Restore done from ${{ inputs.release_tag }}"
