@@ -67,6 +67,7 @@ jobs:
             --file="$FILE"
           echo "Dump size:"
           ls -lh "$FILE"
+          echo "FILE=$FILE" >> $GITHUB_ENV
 
       - name: pg_dump schema learning (log học viên)
         env:
@@ -83,6 +84,7 @@ jobs:
             --file="$FILE"
           echo "Dump size:"
           ls -lh "$FILE"
+          echo "LEARNING_FILE=$FILE" >> $GITHUB_ENV
 
       - name: DB size stats
         env:
@@ -103,26 +105,24 @@ jobs:
         run: |
           TAG="${{ inputs.tag_name }}-${{ steps.meta.outputs.ts }}"
           NOTE="${{ inputs.note }}"
-          STATS=$(cat /tmp/backup/stats.txt)
           BODY="Backup của schema shopee + learning + public.
+          Timestamp: ${{ steps.meta.outputs.ts }}
+          Note: $NOTE
 
-Timestamp: ${{ steps.meta.outputs.ts }}
-Note: $NOTE
+          ## Restore
+          \`\`\`bash
+          # 1. Download 2 file dump từ release này
+          # 2. Drop schema hiện tại (nếu muốn overwrite hoàn toàn)
+          psql \$DATABASE_URL -c 'DROP SCHEMA shopee CASCADE; CREATE SCHEMA shopee;'
+          # 3. Restore
+          pg_restore --no-owner --no-privileges -d \$DATABASE_URL shopee-*.dump
+          pg_restore --no-owner --no-privileges -d \$DATABASE_URL learning-*.dump
+          \`\`\`
 
-## Restore
-\`\`\`bash
-# 1. Download 2 file .dump từ release này
-# 2. Drop schema hiện tại (nếu muốn overwrite hoàn toàn)
-psql \$DATABASE_URL -c 'DROP SCHEMA shopee CASCADE; CREATE SCHEMA shopee;'
-# 3. Restore
-pg_restore --no-owner --no-privileges -d \$DATABASE_URL shopee-*.dump
-pg_restore --no-owner --no-privileges -d \$DATABASE_URL learning-*.dump
-\`\`\`
-
-## Table stats
-\`\`\`
-$STATS
-\`\`\`"
+          ## Table stats
+          \`\`\`
+          $(cat /tmp/backup/stats.txt)
+          \`\`\`"
 
           gh release create "$TAG" \
             --title "Dataset backup — ${{ steps.meta.outputs.ts }}" \

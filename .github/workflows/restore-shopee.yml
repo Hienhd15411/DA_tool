@@ -2,6 +2,7 @@ name: Restore shopee data
 
 # Restore từ 1 backup release lên DB hiện tại.
 # ⚠️ CHÚ Ý: sẽ DROP schema shopee hiện tại trước khi restore.
+#   learning + public giữ nguyên (backup có ghi đè nếu row conflict).
 
 on:
   workflow_dispatch:
@@ -30,9 +31,6 @@ jobs:
             echo "::error::Không confirm. Phải gõ chính xác 'YES-RESTORE' vào ô confirm."
             exit 1
           fi
-
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Install PostgreSQL 16 client
         run: |
@@ -73,6 +71,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
+          # Drop learning tables data (giữ schema/RLS)
           psql "$DATABASE_URL" -c "
             TRUNCATE learning.query_log RESTART IDENTITY CASCADE;
             TRUNCATE learning.attempt RESTART IDENTITY CASCADE;
@@ -82,6 +81,18 @@ jobs:
             --data-only \
             -d "$DATABASE_URL" \
             "$LEARN_DUMP"
+
+      - name: Re-run required migrations (roles, RPCs)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          for f in seed/migrations/005_roles_rls.sql seed/migrations/006_run_sql_rpc.sql seed/migrations/007_indexes.sql seed/migrations/009_schema_info_rpc.sql seed/migrations/010_teacher_rpcs.sql; do
+            if [ -f "$f" ]; then
+              echo "Applying $f"
+              psql "$DATABASE_URL" -f "$f"
+            fi
+          done
+        continue-on-error: true
 
       - name: ANALYZE + verify
         env:
