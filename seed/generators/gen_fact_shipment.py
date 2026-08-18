@@ -1,7 +1,33 @@
-"""Derived từ fact_orders: đơn có shipped_at → tạo shipment row."""
-from datetime import timedelta
+"""Derived từ fact_orders: đơn có shipped_at → tạo shipment row.
+
+SLA theo region (VN realistic):
+  • intra-city (cùng thành phố):           24h
+  • intra-region (cùng miền N/C/S):        48h
+  • cross-region (liên miền, VD HCM↔HN):   72h
+"""
 from tqdm import tqdm
-from .utils import bulk_insert
+from .utils import bulk_insert, VN_CITIES
+
+
+# Build city → region map once
+CITY_REGION = {city: region for city, _, region, _ in VN_CITIES}
+
+
+def region_of(city: str) -> str:
+    """Return 'north' / 'central' / 'south' / 'unknown'."""
+    return CITY_REGION.get(city, "unknown")
+
+
+def sla_hours(from_city: str, to_city: str) -> int:
+    if from_city == to_city:
+        return 24
+    r_from = region_of(from_city)
+    r_to   = region_of(to_city)
+    if r_from == "unknown" or r_to == "unknown":
+        return 48           # fallback
+    if r_from == r_to:
+        return 48           # cùng miền
+    return 72               # liên miền
 
 
 def run(conn, cfg, rng):
@@ -18,27 +44,20 @@ def run(conn, cfg, rng):
 
     rows = []
     shipment_id = 1
-    for order_id, carrier, shipped_at, delivered_at, from_city, to_city, to_prov in tqdm(orders, desc="shipment"):
-        # SLA theo route: intra-city 24h, liên tỉnh 48h, liên miền 72h
-        if from_city == to_city:
-            sla = 24
-        elif from_city in ("TP HCM","Hà Nội") and to_city in ("TP HCM","Hà Nội"):
-            sla = 72  # liên miền
-        else:
-            sla = 48
+    for order_id, carrier, shipped_at, delivered_at, from_city, to_city, _to_prov in tqdm(orders, desc="shipment"):
+        sla = sla_hours(from_city, to_city)
 
         pickup = shipped_at
         if delivered_at is not None:
             actual_hours = int((delivered_at - pickup).total_seconds() / 3600)
-            # thêm noise đôi khi âm -> skip anomaly cho shipment
             if actual_hours < 1:
+                # delivered trước shipped = data anomaly — gán ngẫu nhiên dưới SLA
                 actual_hours = rng.randint(1, sla)
             is_on_time = actual_hours <= sla
         else:
             actual_hours = None
             is_on_time = None
 
-        # carrier fallback
         c = carrier or rng.choice(cfg["shopee_context"]["carriers"])
 
         rows.append((

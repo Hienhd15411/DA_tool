@@ -1,0 +1,13 @@
+﻿#,Bước,Mô tả
+1,Đăng nhập,Mở URL tool (do giảng viên cung cấp). Nhập email → bấm 'Gửi magic link'. Check inbox → click link → vào tool.
+2,Chạy query đầu tiên,Editor SQL mặc định có query mẫu GMV theo tuần. Bấm ▶ Run hoặc Ctrl+Enter. Kết quả ra ở panel dưới.
+3,Tham khảo schema,Sidebar trái có Dataset browser — click bảng để mở danh sách cột. Click cột để insert vào editor.
+4,Bài tập,"Mỗi bài tập có ID (A1, B2, L7...). Đọc Business context + Approach hint trong sheet 'Bài tập'. Viết SQL trong tool, chạy, so kết quả với Expected shape."
+5,Tab nhiều query cùng lúc,Bấm + Tab để mở tab mới. Mỗi tab giữ SQL + result riêng. Tabs lưu local nếu reload.
+6,Format SQL,"Bấm ✨ Format để tự động format theo chuẩn (UPPERCASE keyword, comma leading, indent 2 space)."
+7,Copy / Export kết quả,📋 Copy all (TSV → paste Excel/Sheets) hoặc ⬇ Download CSV. Click vào số dòng/tên cột để copy cả row/cả cột.
+8,Sort & Filter,Click ▾ ở header cột → menu Sort A-Z / Z-A / Filter by condition / Filter by values.
+9,Lịch sử query,Bấm 🕑 History ở header → drawer hiển thị 50 query gần nhất. Click 1 entry → load lại.
+10,Giới hạn,"Mỗi query: timeout 5s, max 1000 dòng / 2 MB payload. Nếu vượt → banner cam cảnh báo."
+11,Cấu trúc bài tập,"12 theme A→L. Mỗi bài có Level (L1=easy, L4=hard). Capstone (L) là tổng hợp."
+12,Cần giúp đỡ,Đọc Business context + Approach hint trong sheet 'Bài tập'. Vẫn bí → hỏi giảng viên trong group lớp.

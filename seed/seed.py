@@ -92,6 +92,21 @@ def generate_data(conn, cfg):
         n = fn()
         print(f"[seed] {name} ← {n:,} rows")
 
+    # ANALYZE để update stats (n_live_tup dùng trong get_schema_info) + query planner.
+    # Cần autocommit vì ANALYZE không chạy trong transaction block ở 1 số version.
+    print("\n[seed] ANALYZE shopee.* ...")
+    conn.commit()
+    old_autocommit = conn.autocommit
+    conn.autocommit = True
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT schemaname || '.' || tablename "
+            "FROM pg_tables WHERE schemaname = 'shopee' ORDER BY tablename"
+        )
+        for (fq,) in cur.fetchall():
+            cur.execute(f"ANALYZE {fq}")
+    conn.autocommit = old_autocommit
+
 
 def main():
     load_dotenv()

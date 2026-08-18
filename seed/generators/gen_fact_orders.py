@@ -87,16 +87,20 @@ def run(conn, cfg, rng):
         dk = date_key(d)
         active_camps = [c[0] for c in campaigns if c[1] <= dk <= c[2]]
 
-        for _ in range(daily_n):
+        # Pre-generate timestamps cho cả ngày rồi SORT — đảm bảo order_id
+        # monotonic theo created_at (như Shopee thực tế: PK gán lúc tạo đơn).
+        day_timestamps = sorted(
+            datetime(d.year, d.month, d.day,
+                     peak_hour_distribution(rng),
+                     rng.randint(0, 59), rng.randint(0, 59),
+                     tzinfo=timezone.utc)
+            for _ in range(daily_n)
+        )
+
+        for created_at in day_timestamps:
             customer_id, cust_city, cust_prov, pref_device = rng.choice(customers)
             is_first = not customer_first_seen.get(customer_id, False)
             customer_first_seen[customer_id] = True
-
-            # timestamp
-            hour = peak_hour_distribution(rng)
-            created_at = datetime(d.year, d.month, d.day, hour,
-                                  rng.randint(0, 59), rng.randint(0, 59),
-                                  tzinfo=timezone.utc)
 
             # status
             status = _status_flow(rng, anomalies)
@@ -158,35 +162,56 @@ def run(conn, cfg, rng):
             if rng.random() < anomalies["amount_rounding_lost_pct"]:
                 total_amount += rng.choice([-1, 1]) * rng.randint(1, 5)
 
-            # timestamps by status
+            # timestamps by status — lifecycle chuẩn:
+            #   pending → to_ship → shipping → (completed | returned → refunded) | cancelled
             paid_at = shipped_at = delivered_at = completed_at = cancelled_at = None
             cancel_reason = None
             payment_status = "paid"
+
             if status in ("completed", "returned", "refunded", "shipping"):
                 paid_at = created_at + timedelta(minutes=rng.randint(1, 120))
-                if status != "pending":
-                    shipped_at = paid_at + timedelta(hours=rng.randint(8, 48))
-            if status in ("completed", "returned"):
+                shipped_at = paid_at + timedelta(hours=rng.randint(8, 48))
+
+            # completed/returned/refunded đều đã được delivered (refund xảy ra SAU khi nhận)
+            if status in ("completed", "returned", "refunded"):
                 delivered_at = shipped_at + timedelta(hours=rng.randint(12, 96))
                 if status == "completed":
                     completed_at = delivered_at + timedelta(days=rng.randint(1, 5))
+
+            # returned: hoàn hàng → có refund → payment_status='refunded'
+            if status == "returned":
+                payment_status = "refunded"
+
+            # refunded: hoàn tiền trực tiếp → payment_status='refunded'
+            if status == "refunded":
+                payment_status = "refunded"
+
             if status == "cancelled":
-                cancelled_at = created_at + timedelta(
-                    hours=rng.choice([rng.uniform(0.1, 1), rng.uniform(1, 24), rng.uniform(24, 72)])
-                )
+                # Huỷ trong 3 khoảng: tức thì (0.1-1h), trong ngày (1-24h), chậm (24-72h)
+                bucket = rng.choice(["fast", "medium", "slow"])
+                if bucket == "fast":
+                    cancel_hours = rng.uniform(0.1, 1)
+                elif bucket == "medium":
+                    cancel_hours = rng.uniform(1, 24)
+                else:
+                    cancel_hours = rng.uniform(24, 72)
+                cancelled_at = created_at + timedelta(hours=cancel_hours)
                 cancel_reason = rng.choice(cancel_reasons)
+                # ~5% đơn cancel đã paid → refund
                 if rng.random() < anomalies["cancelled_with_paid_at_pct"]:
                     paid_at = created_at + timedelta(minutes=rng.randint(1, 30))
                     payment_status = "refunded"
                 else:
                     payment_status = "unpaid"
-            if status == "refunded":
-                payment_status = "refunded"
+
+            # Edge case: ~2% completed thiếu delivered_at (data quality teaching)
             if status == "completed" and rng.random() < anomalies["completed_no_delivered_pct"]:
                 delivered_at = None
+
             if status == "pending":
                 payment_status = "unpaid"
                 paid_at = None
+
             if status == "to_ship":
                 paid_at = created_at + timedelta(minutes=rng.randint(1, 60))
 

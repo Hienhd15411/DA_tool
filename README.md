@@ -181,12 +181,31 @@ ORDER BY ql.created_at DESC
 LIMIT 20;
 ```
 
-### Thêm giảng viên (bypass RLS)
+### Teacher Dashboard — xem log + đánh giá học viên
 
+Giảng viên có **UI riêng trong app** để xem query của học viên:
+
+1. **Whitelist email giảng viên** — Supabase SQL Editor:
+   ```sql
+   INSERT INTO public.teacher_emails (email) VALUES ('teacher@your-school.com');
+   ```
+2. Giảng viên login app → header hiện nút **👨‍🏫 Teacher**.
+3. Click → modal dashboard với:
+   - **Stats cards**: tổng query, OK/error, học viên active, error rate
+   - **Filters**: email (partial match), exercise_id, status, since days (1/7/30/90), limit (50-1000)
+   - **Query log**: click 1 row xem full SQL + error detail → nút Copy SQL
+   - **Top errors**: 10 error_code nhiều nhất + sample message
+   - **Top students**: 20 học viên active nhất
+
+Bỏ whitelist:
 ```sql
--- Supabase dashboard → SQL Editor
--- Giả sử email giảng viên là teacher@example.com
--- Set custom claim để tool dashboard biết đây là teacher (tuỳ chọn, phase 2)
+DELETE FROM public.teacher_emails WHERE email = 'teacher@your-school.com';
+```
+
+Student bypass thử:
+```sql
+SELECT public.is_teacher();        -- false nếu không trong whitelist
+SELECT public.teacher_query_log(); -- ERROR: Not authorized
 ```
 
 ---

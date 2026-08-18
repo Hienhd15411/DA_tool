@@ -1,4 +1,9 @@
-"""Đơn có platform_voucher > 0 → tạo voucher usage row."""
+"""Đơn có platform_voucher > 0 → tạo voucher usage row.
+
+Semantic: platform_voucher trong fact_orders = amount từ voucher platform/shop-wide
+(không phải shipping voucher — shipping dùng cột shipping_discount riêng).
+→ Pool voucher chọn là 'shop' hoặc 'platform', KHÔNG phải 'shipping'.
+"""
 from datetime import timedelta
 from tqdm import tqdm
 from .utils import bulk_insert
@@ -15,12 +20,20 @@ def run(conn, cfg, rng):
         )
         orders = cur.fetchall()
 
-        cur.execute("""SELECT voucher_id, campaign_id FROM shopee.dim_voucher""")
+        # Chỉ lấy voucher type shop/platform — exclude 'shipping' (semantic đã tách riêng)
+        cur.execute("""
+            SELECT voucher_id, campaign_id
+            FROM shopee.dim_voucher
+            WHERE voucher_type IN ('shop','platform')
+        """)
         v_by_camp: dict[int | None, list[int]] = {}
         all_v = []
         for vid, cid in cur.fetchall():
             v_by_camp.setdefault(cid, []).append(vid)
             all_v.append(vid)
+
+    if not all_v:
+        return 0
 
     rows = []
     vid_seq = 1

@@ -1,56 +1,139 @@
 -- 006_run_sql_rpc.sql
 -- RPC public.run_sql(): entry point cho học viên chạy query.
--- Ở public để Supabase PostgREST expose qua REST API.
+--
+-- Security model (v6 — SECURITY INVOKER + JSON ordering fix):
+--   1. SECURITY INVOKER → chạy với quyền caller (authenticated).
+--   2. authenticated được GRANT SELECT shopee.* + INSERT learning.query_log
+--      → DML/DDL inject bị Postgres chặn ở permission layer.
+--   3. Input sanitization: strip leading ws/comments, strip trailing `;`,
+--      reject `;` giữa, whitelist SELECT/WITH/EXPLAIN.
+--   4. Caps: 60s timeout, 128MB work_mem, 1000 rows, 2MB payload.
+--      (Bump cho lớp 2 user — capstone/cohort fit thoải mái, vẫn an toàn
+--       free tier compute Small. Hơn 60s sẽ bị PostgREST HTTP layer cắt.)
+--   5. EXPLAIN qua `EXPLAIN (FORMAT JSON)` riêng.
+--   6. ⭐ Dùng JSON (preserves column order) thay JSONB (sort keys
+--      alphabetical) → kết quả trả về theo đúng thứ tự cột user SELECT.
 
--- Cleanup nếu còn function cũ ở learning
+-- Cleanup function cũ
 DROP FUNCTION IF EXISTS learning.run_sql(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.run_sql(TEXT, TEXT);
 
 CREATE OR REPLACE FUNCTION public.run_sql(
   query_text     TEXT,
   exercise_id_in TEXT DEFAULT NULL
 )
-RETURNS JSONB
+RETURNS JSON   -- ⭐ JSON, không JSONB — preserve key order
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = shopee, public
 AS $$
 DECLARE
-  v_start    TIMESTAMPTZ := clock_timestamp();
-  v_result   JSONB;
-  v_row_cnt  INT;
-  v_exec_ms  INT;
-  v_err_code TEXT;
-  v_err_msg  TEXT;
-  v_uid      UUID := auth.uid();
-  v_head     TEXT;
+  MAX_ROWS         CONSTANT INT := 1000;
+  MAX_RESULT_BYTES CONSTANT INT := 2 * 1024 * 1024;
+
+  v_start      TIMESTAMPTZ := clock_timestamp();
+  v_result     JSON;
+  v_plan       JSON;
+  v_columns    TEXT[];           -- ⭐ thứ tự cột chuẩn (tránh JS reorder numeric keys)
+  v_row_cnt    INT := 0;
+  v_bytes      INT := 0;
+  v_exec_ms    INT;
+  v_err_code   TEXT;
+  v_err_msg    TEXT;
+  v_uid        UUID := auth.uid();
+  v_clean      TEXT;
+  v_head       TEXT;
+  v_is_explain BOOLEAN := FALSE;
+  v_truncated  BOOLEAN := FALSE;
+  v_notice     TEXT;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '28000';
   END IF;
 
-  -- Strip leading whitespace, newlines, và SQL line comments trước khi check
-  v_head := upper(regexp_replace(query_text, E'^(\\s+|--[^\\n]*\\n?)+', ''));
+  v_clean := regexp_replace(query_text, E'^(?:\\s+|--[^\\n]*)+', '', 'g');
+  v_clean := regexp_replace(v_clean, E'[\\s;]+$', '', 'g');
+
+  IF v_clean IS NULL OR v_clean = '' THEN
+    RAISE EXCEPTION 'Empty query' USING ERRCODE = '42601';
+  END IF;
+
+  IF position(';' IN v_clean) > 0 THEN
+    RAISE EXCEPTION 'Multiple statements not allowed; remove ";"' USING ERRCODE = '42601';
+  END IF;
+
+  v_head := upper(v_clean);
+  v_is_explain := v_head LIKE 'EXPLAIN%';
 
   IF NOT (
     v_head LIKE 'SELECT%'
     OR v_head LIKE 'WITH%'
-    OR v_head LIKE 'EXPLAIN%'
+    OR v_is_explain
   ) THEN
     RAISE EXCEPTION 'Only SELECT/WITH/EXPLAIN are allowed' USING ERRCODE = '42501';
   END IF;
 
-  SET LOCAL statement_timeout = '5s';
-  SET LOCAL work_mem = '16MB';
-  -- Note: không SET LOCAL ROLE được trong SECURITY DEFINER func.
-  -- Security dựa vào regex check ở trên + statement_timeout + chỉ cho SELECT.
+  IF v_is_explain AND v_head !~ '^EXPLAIN\s+(SELECT|WITH)\y' THEN
+    RAISE EXCEPTION 'Only bare EXPLAIN SELECT/WITH allowed (no ANALYZE/VERBOSE)' USING ERRCODE = '42501';
+  END IF;
+
+  SET LOCAL statement_timeout = '60s';
+  SET LOCAL work_mem          = '128MB';
 
   BEGIN
-    EXECUTE format(
-      'SELECT jsonb_agg(row_to_json(t)) FROM (%s LIMIT 500) t',
-      query_text
-    ) INTO v_result;
+    IF v_is_explain THEN
+      EXECUTE E'EXPLAIN (FORMAT JSON) ' || regexp_replace(v_clean, E'^EXPLAIN\\s+', '', 'i') || E'\n'
+        INTO v_plan;
+      -- json_build_array / json_build_object preserve order
+      v_result  := json_build_array(json_build_object('QUERY PLAN', v_plan));
+      v_row_cnt := 1;
+    ELSE
+      -- ⭐ json_agg(row_to_json(t)) preserve column order theo SELECT.
+      EXECUTE format(
+        E'SELECT json_agg(row_to_json(t)) FROM (SELECT * FROM (%s\n) AS q LIMIT %s) t',
+        v_clean,
+        MAX_ROWS
+      ) INTO v_result;
+      v_row_cnt   := COALESCE(json_array_length(v_result), 0);
+      v_truncated := v_row_cnt = MAX_ROWS;
 
-    v_row_cnt := COALESCE(jsonb_array_length(v_result), 0);
+      -- HARD BYTE CAP với halving (giữ thứ tự cột vì vẫn JSON)
+      v_bytes := octet_length(v_result::text);
+      IF v_bytes > MAX_RESULT_BYTES THEN
+        v_truncated := TRUE;
+        v_notice := format(
+          'Kết quả %s KB vượt ngưỡng %s KB — chỉ giữ các cột hẹp hoặc thêm LIMIT/SELECT cột cụ thể.',
+          (v_bytes / 1024)::INT,
+          (MAX_RESULT_BYTES / 1024)::INT
+        );
+        FOR i IN 1..10 LOOP
+          EXIT WHEN octet_length(v_result::text) <= MAX_RESULT_BYTES;
+          v_row_cnt := GREATEST(1, v_row_cnt / 2);
+          -- Slice JSON array bằng json_array_elements + LIMIT (giữ thứ tự)
+          v_result := (
+            SELECT json_agg(elem)
+            FROM (
+              SELECT elem
+              FROM json_array_elements(v_result) AS elem
+              LIMIT v_row_cnt
+            ) sub
+          );
+        END LOOP;
+        v_row_cnt := COALESCE(json_array_length(v_result), 0);
+      END IF;
+    END IF;
+
+    -- ⭐ Extract column names theo đúng thứ tự xuất hiện trong row đầu tiên.
+    -- Cần thiết vì JavaScript sort integer-like keys ("0","1","10") numeric
+    -- → Object.keys(row) trả sai thứ tự với cột tên numeric.
+    IF v_result IS NOT NULL AND json_array_length(v_result) > 0 THEN
+      SELECT array_agg(k ORDER BY ord)
+      INTO   v_columns
+      FROM (
+        SELECT k, ord
+        FROM json_each(v_result -> 0) WITH ORDINALITY AS t(k, v, ord)
+      ) sub;
+    END IF;
   EXCEPTION WHEN OTHERS THEN
     v_err_code := SQLSTATE;
     v_err_msg  := SQLERRM;
@@ -66,20 +149,23 @@ BEGIN
      v_err_code, v_err_msg, v_row_cnt, v_exec_ms);
 
   IF v_err_code IS NOT NULL THEN
-    RETURN jsonb_build_object(
-      'status', 'error',
-      'error_code', v_err_code,
+    RETURN json_build_object(
+      'status',        'error',
+      'error_code',    v_err_code,
       'error_message', v_err_msg,
-      'exec_ms', v_exec_ms
+      'exec_ms',       v_exec_ms
     );
   END IF;
 
-  RETURN jsonb_build_object(
-    'status', 'ok',
-    'rows', COALESCE(v_result, '[]'::jsonb),
+  RETURN json_build_object(
+    'status',    'ok',
+    'columns',   COALESCE(to_json(v_columns), '[]'::json),
+    'rows',      COALESCE(v_result, '[]'::json),
     'row_count', v_row_cnt,
-    'exec_ms', v_exec_ms,
-    'truncated', v_row_cnt = 500
+    'exec_ms',   v_exec_ms,
+    'truncated', v_truncated,
+    'notice',    v_notice,
+    'max_rows',  MAX_ROWS
   );
 END;
 $$;
@@ -88,4 +174,4 @@ REVOKE ALL ON FUNCTION public.run_sql(TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.run_sql(TEXT, TEXT) TO authenticated;
 
 COMMENT ON FUNCTION public.run_sql IS
-  'Execute read-only SQL from students. Enforces 5s timeout, 500-row limit, logs to learning.query_log.';
+  'Execute read-only SQL. SECURITY INVOKER. JSON output preserves column order. Caps: 60s timeout, 128MB work_mem, 1000 rows, 2MB payload.';

@@ -20,11 +20,23 @@ def run(conn, cfg, rng):
         dtype = rng.choices(["percent","fixed"], weights=[60, 40], k=1)[0]
         if dtype == "percent":
             value = rng.choice([5, 10, 15, 20, 25, 30, 40, 50])
-            min_order = rng.choice([0, 100000, 200000, 300000, 500000, 1000000])
+            # min_order tối thiểu scale theo % voucher — tránh 50% voucher với min_order=0
+            #   ≤15%: 0-300k · 20-30%: 100k-500k · ≥40%: 300k-1M
+            if value <= 15:
+                min_order = rng.choice([0, 100000, 200000, 300000])
+            elif value <= 30:
+                min_order = rng.choice([100000, 200000, 300000, 500000])
+            else:
+                min_order = rng.choice([300000, 500000, 1000000])
             max_disc = rng.choice([20000, 50000, 100000, 200000])
         else:
             value = rng.choice([10000, 20000, 30000, 50000, 100000])
-            min_order = rng.choice([0, 100000, 200000, 500000])
+            # Fixed: min_order ≥ 5× voucher value (tránh free-money case)
+            min_order = rng.choice([
+                max(0, value * 3),
+                max(value * 5, 100000),
+                max(value * 10, 200000),
+            ])
             max_disc = value
 
         v_from = start + timedelta(days=rng.randint(-10, 10))

@@ -1,0 +1,135 @@
+﻿Buổi,Tuần,Tháng,Chủ đề,Mục tiêu buổi học,Bài tập về nhà,Theme,Bài tập map
+1,1,Tháng 1,Intro tool + dataset Shopee + SELECT cơ bản,"• Đăng nhập tool, làm quen UI (editor, schema browser, kết quả).
+• Hiểu cấu trúc schema 'shopee' — phân biệt bảng fact (giao dịch) vs dim (master).
+• Viết SELECT đơn giản với FROM, WHERE, LIMIT.
+• Đọc số top-line cơ bản: COUNT(*) số đơn, SUM(total_amount) doanh thu.","• Nộp: viết 5 query SELECT trên fact_orders với filter khác nhau (status, payment_method, ngày).
+• Coi trước: sheet 'Schema' — đọc kỹ dim_date, dim_customer, dim_product.
+• Chuẩn bị: ghi chú 3 câu hỏi business muốn trả lời từ dataset.",—,—
+2,1,Tháng 1,"ORDER BY, DISTINCT, operators","• Sort kết quả với ORDER BY ASC/DESC, sort theo nhiều cột.
+• Loại trùng với DISTINCT, COUNT(DISTINCT col).
+• Dùng các operator: IN, BETWEEN, LIKE, IS NULL.
+• String functions cơ bản: LOWER, UPPER, TRIM, concat ||.","• Nộp: list top 20 đơn cao nhất theo total_amount.
+• Nộp: list distinct payment_method và số đơn mỗi loại.
+• Nộp: tìm shop có shop_name chứa từ 'Store' (case-insensitive).
+• Coi trước: khái niệm aggregate (COUNT, SUM, AVG, MIN, MAX).",—,(luyện cú pháp)
+3,2,Tháng 1,Aggregate functions,"• Phân biệt COUNT(*), COUNT(col), COUNT(DISTINCT col).
+• Tính GMV (SUM total_amount), AOV (SUM/COUNT), max/min order.
+• Hiểu khi nào dùng aggregate function nào cho metric biz.","• Nộp: Bài A1, A2 (sheet Bài tập). Lưu ý filter payment_status='paid' khi tính GMV.
+• Coi trước: GROUP BY là gì, vì sao cần?",A,"A1, A2"
+4,2,Tháng 1,GROUP BY + HAVING,"• GROUP BY 1 cột rồi nhiều cột.
+• Phân biệt HAVING vs WHERE (filter trước/sau aggregate).
+• GMV theo ngày/tuần/tháng — sơ lược DATE_TRUNC.","• Nộp: Bài A3, A4.
+• Coi trước: khái niệm JOIN — vì sao cần JOIN nhiều bảng?",A,"A3, A4"
+5,3,Tháng 1,INNER JOIN,"• Hiểu join là gì, vẽ Venn diagram.
+• JOIN 2 bảng (fact_orders + dim_date), 3 bảng (orders + items + product).
+• Dùng alias cho dễ đọc; ON condition đúng khoá.","• Nộp: Bài A5 (GMV theo cat1), Bài F1.
+• Coi trước: LEFT JOIN khác INNER chỗ nào? Khi nào cần LEFT?","A, F","A5, F1"
+6,3,Tháng 1,LEFT / RIGHT / FULL JOIN,"• Khi nào dùng LEFT vs INNER. NULL từ bên không match.
+• Anti-join pattern: customer chưa từng mua, sản phẩm chưa bán.
+• LEFT JOIN ... WHERE x IS NULL = NOT EXISTS.","• Nộp: Bài B1 (customer chưa quay lại), Bài F2 (sản phẩm bán chậm).
+• Coi trước: query 5+ bảng — chiến lược tránh nhầm Cartesian.","B, F","B1, F2"
+7,4,Tháng 1,Multi-table JOIN nâng cao,"• JOIN 4-5 bảng trong 1 query, alias rõ ràng.
+• Decompose query phức tạp thành step nhỏ.
+• Phát hiện + tránh Cartesian product (cardinality check).","• Nộp: Bài F3 (top SP theo cat), Bài K1 (GMV theo region).
+• Chuẩn bị mini-project tháng 1: GMV weekly report.","F, K","F3, K1"
+8,4,Tháng 1,Mini-project tháng 1: GMV Weekly Report,"• Tổng hợp SQL foundation đã học.
+• Viết end-to-end report GMV weekly với MoM growth.
+• Trình bày kết quả Google Sheets (paste TSV từ tool).","• Nộp: 1 query SQL + 1 trang Google Sheets phân tích insights.
+• Coi trước: DATE_TRUNC, EXTRACT — chuẩn bị cho tháng 2.",A,"A6, A7, A8"
+9,5,Tháng 2,"DATE_TRUNC, EXTRACT, INTERVAL","• DATE_TRUNC ('day', 'week', 'month', 'quarter') — group theo period.
+• EXTRACT (DOW, HOUR, MONTH) — bóc thành phần.
+• INTERVAL math: cộng/trừ ngày, tính tuổi đơn.
+• Pattern theo giờ trong ngày: peak hour, dip hour.","• Nộp: Bài C1 (GMV theo giờ), C2 (GMV theo ngày trong tuần).
+• Coi trước: WoW / MoM growth — cách so sánh kỳ với kỳ.",C,"C1, C2"
+10,5,Tháng 2,"Time-series: WoW, MoM, YoY growth","• So sánh tuần này vs tuần trước (WoW), tháng vs tháng trước (MoM).
+• Self-join trên dim_date để align period.
+• Tăng trưởng tuyệt đối (Δ) vs tăng trưởng % (growth rate).","• Nộp: Bài C3, C4.
+• Coi trước: subquery — query lồng nhau, IN / EXISTS.",C,"C3, C4"
+11,6,Tháng 2,Subquery cơ bản,"• Scalar subquery (trả 1 giá trị).
+• Subquery trong WHERE: IN, NOT IN, EXISTS, NOT EXISTS.
+• Khi nào nên dùng subquery vs JOIN — trade-off readability vs performance.","• Nộp: Bài B2 (customer mua > X đơn), F4 (sản phẩm có rating cao).
+• Coi trước: CTE (WITH clause) — vì sao CTE tốt hơn nested subquery?","B, F","B2, F4"
+12,6,Tháng 2,CTE — WITH clause,"• Cú pháp WITH name AS (...) SELECT.
+• Multi-CTE: WITH a AS (...), b AS (...) — chain logic.
+• Lợi: dễ đọc, dễ debug, có thể reference nhiều lần.","• Nộp: Bài B3 (segment customer), B4 (cohort signup theo tháng).
+• Coi trước: window function là gì? Khác aggregate chỗ nào?",B,"B3, B4"
+13,7,Tháng 2,"Window function intro: OVER, PARTITION BY","• Khái niệm window: aggregate KHÔNG collapse row.
+• OVER (PARTITION BY ... ORDER BY ...) — khung tính toán.
+• Use case: % share trong group, rank trong group.","• Nộp: Bài F5 (% GMV mỗi cat trong tổng).
+• Coi trước: ROW_NUMBER, RANK, DENSE_RANK — khác nhau ra sao?",F,F5
+14,7,Tháng 2,"Ranking: ROW_NUMBER, RANK, DENSE_RANK, NTILE","• ROW_NUMBER vs RANK vs DENSE_RANK — handle ties.
+• Top-N per group (top 5 SP mỗi seller).
+• NTILE để chia tier (RFM: 5 nhóm Recency/Frequency/Monetary).","• Nộp: Bài F6 (top 5 SP mỗi seller), B5 (xếp tier customer).
+• Coi trước: LAG, LEAD — tính growth rate qua window.","F, B","F6, B5"
+15,8,Tháng 2,"LAG, LEAD, running total, moving average","• LAG để tính growth %: (this - prev) / prev.
+• LEAD để check next event (next purchase, next session).
+• SUM(...) OVER (ORDER BY ... ROWS BETWEEN ...) cho running total / MA-7.","• Nộp: Bài A8 extension (MoM growth qua LAG), B6 (thời gian giữa 2 đơn).
+• Chuẩn bị mini-project tháng 2: cohort retention.","A, B","A8 ext, B6"
+16,8,Tháng 2,Mini-project tháng 2: Cohort retention 7/30,"• Tổng hợp time + window + CTE.
+• Build cohort matrix: signup_month × tháng quay lại.
+• Tính retention rate 7d / 30d / 90d.","• Nộp: 1 query cohort + bảng matrix paste vào Google Sheets.
+• Coi trước: RFM segmentation — recency/frequency/monetary.",B,"B7, B8, B9"
+17,9,Tháng 3,RFM customer segmentation,"• RFM = Recency × Frequency × Monetary.
+• Dùng NTILE chia 5 tier mỗi dimension → 125 segment.
+• Rút gọn 125 → 4-5 nhóm chính (Champion, Loyal, At-risk, Lost…).","• Nộp: query RFM + danh sách 100 'Champion customer' để remarketing.
+• Coi trước: voucher analysis — redemption rate là gì?",B,(B mở rộng)
+18,9,Tháng 3,Voucher / promotion analysis,"• Voucher redemption rate = (used / issued).
+• Avg discount per order, total discount cost.
+• Voucher có drive incremental orders, hay chỉ subsidize organic?","• Nộp: Bài D1, D2, D3, D4.
+• Coi trước: campaign uplift — đo hiệu quả campaign so với baseline.",D,D1-D4
+19,10,Tháng 3,Campaign uplift,"• Compare campaign period vs baseline (3 tuần trước cùng kỳ).
+• Cẩn thận seasonality, lễ tết.
+• Self-join hoặc CTE để tính uplift %.","• Nộp: Bài C5, C6, C7, D5, D6, D7.
+• Coi trước: ROAS = Return on Ad Spend, CTR, CPC.","C, D","C5-C7, D5-D7"
+20,10,Tháng 3,"Marketing: ROAS, CTR, CPC","• JOIN fact_ad_spend × fact_ad_performance_daily.
+• Tính ROAS (revenue/spend), CTR (clicks/impressions), CPC (spend/clicks).
+• So sánh hiệu quả channel: search vs display vs affiliate vs KOL.","• Nộp: Bài G1, G2, G3, G4.
+• Coi trước: seller performance — long tail vs head sellers.",G,G1-G4
+21,11,Tháng 3,Seller performance,"• Top sellers theo GMV / units sold / AOV.
+• Pareto 80/20: top 20% sellers chiếm bao nhiêu % GMV?
+• Shop_type (mall / preferred / normal) ảnh hưởng GMV / cancel rate?","• Nộp: Bài E1, E2, E3, E4.
+• Coi trước: product / category trends — cat nào growth nhất?",E,E1-E4
+22,11,Tháng 3,Product / Category trends,"• Cat1 nào growth GMV nhanh nhất 3 tháng qua?
+• Brand contribution: top brand mỗi cat1.
+• Pareto trên SKU level — 20% SKU sinh 80% GMV?","• Nộp: Bài F7, F8.
+• Coi trước: geographic analysis — region/province.",F,"F7, F8"
+23,12,Tháng 3,Geographic analysis,"• GMV theo region (north/central/south).
+• Penetration rate: % customer / population (giả định population).
+• Province nào tỷ lệ cancel cao bất thường? (red flag).","• Nộp: Bài K1, K2, K3, K4, K5.
+• Chuẩn bị mini-project tháng 3: marketing dashboard.",K,K1-K5
+24,12,Tháng 3,Mini-project tháng 3: Marketing Dashboard,"• Tổng hợp business analytics đã học.
+• Build dashboard: top campaign, top seller, top SKU, ROAS theo channel.
+• Trình bày bằng số + chart suggestion (loại chart nào cho metric nào).","• Nộp: Google Sheets dashboard 1 trang + insight 3-5 bullet.
+• Coi trước: shipping & SLA — on-time rate là gì.","C, D, E, G",(tổng hợp)
+25,13,Tháng 4,Shipping & SLA analysis,"• On-time delivery rate = is_on_time / total shipments.
+• SLA breach theo carrier, theo route (intra-city / cross-region).
+• Avg delivery time + p90/p95.","• Nộp: Bài H1, H2, H3, H4.
+• Coi trước: cancel/return analysis — pattern lý do hủy.",H,H1-H4
+26,13,Tháng 4,Cancellation & return analysis,"• Cancel rate theo lý do, theo seller, theo cat1.
+• Return reason analysis — top 3 lý do return.
+• Buyer cancel (customer_change_mind) vs seller cancel (out_of_stock) — phân biệt.","• Nộp: Bài I1, I2, I3, I4.
+• Coi trước: customer service tickets — category breakdown.",I,I1-I4
+27,14,Tháng 4,Customer service tickets,"• Ticket category distribution: shipping vs quality vs refund.
+• Avg resolution time (resolved_at - created_at).
+• Seller nào nhiều complaint nhất — correlation với cancel/return.","• Nộp: Bài J1, J2, J3, J4, J5.
+• Coi trước: advanced patterns — FILTER, conditional aggregate.",J,J1-J5
+28,14,Tháng 4,Advanced SQL patterns,"• FILTER (WHERE ...) trong aggregate — pivot bằng FILTER.
+• CASE WHEN trong SUM/COUNT để conditional metric.
+• Cú pháp pivot manual: SUM(CASE WHEN cat='X' THEN ...) AS x_gmv.","• Nộp: Bài L1, L2 (capstone — chuẩn bị).
+• Coi trước: EXPLAIN — đọc execution plan cơ bản.",L,"L1, L2"
+29,15,Tháng 4,Performance & EXPLAIN,"• EXPLAIN cơ bản — đọc plan output.
+• Vì sao query chậm: full scan, missing index, bad join order.
+• Best practice: filter sớm, tránh SELECT *, dùng index column trong WHERE.","• Nộp: 3 query đã optimize (kèm EXPLAIN trước/sau).
+• Bốc 1 case study từ theme L cho capstone (sẽ làm 2 buổi).",—,(thực hành EXPLAIN)
+30,15,Tháng 4,Capstone — Phần 1: phân rã & draft query,"• Định nghĩa câu hỏi business của capstone.
+• Phân rã thành 3-5 sub-question.
+• Viết draft SQL cho từng sub-question.","• Nộp: outline capstone + draft query (chưa cần hoàn thiện).
+• Coi trước: cách viết insight + recommendation.",L,L3-L8 (tự chọn 1)
+31,16,Tháng 4,Capstone — Phần 2: hoàn thiện + viết insight,"• Validate kết quả query: cross-check số, edge case.
+• Viết insight (số nói gì) + recommendation (nên làm gì).
+• Format slide / Sheets cho final presentation.","• Nộp: Google Slides / Sheets capstone hoàn chỉnh (5-7 slide).
+• Chuẩn bị: trình bày 5-7 phút buổi sau.",L,L9-L14
+32,16,Tháng 4,Final presentation + Q&A + Tổng kết khoá,"• Mỗi học viên trình bày capstone 5-7 phút.
+• Q&A từ giảng viên + bạn cùng lớp.
+• Tổng kết: skill đã học, roadmap nâng cao (analytics engineer, BI dev).","• Final: bản capstone v2 (sau feedback).
+• Roadmap nâng cao: học dbt, đọc 'SQL for Data Analysts' (Cathy Tanimura).",L,L15-L17
