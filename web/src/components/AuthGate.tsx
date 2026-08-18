@@ -7,6 +7,7 @@ type Mode = "login" | "signup";
 export function AuthGate({ children }: { children: (session: Session) => ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recovery, setRecovery] = useState(false);
 
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
@@ -17,11 +18,23 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
   const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
+    // Supabase recovery link land page với hash #type=recovery&access_token=…
+    // Detect ngay để chặn vô app trước khi session ổn định.
+    const hash = window.location.hash;
+    if (hash.includes("type=recovery")) {
+      setRecovery(true);
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
     });
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === "PASSWORD_RECOVERY") {
+        setRecovery(true);
+      }
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -86,8 +99,83 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
     else setInfo("Đã gửi email reset password. Check inbox.");
   }
 
+  async function handleUpdatePassword(e: FormEvent) {
+    e.preventDefault();
+    resetMsgs();
+    if (password.length < 6) {
+      setError("Password tối thiểu 6 ký tự.");
+      return;
+    }
+    if (password !== password2) {
+      setError("Password nhập lại không khớp.");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
+    if (error) {
+      setError(mapError(error.message));
+      return;
+    }
+    // Đổi xong → clear URL hash + signOut để user login lại với pass mới cho chắc
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    await supabase.auth.signOut();
+    setRecovery(false);
+    setPassword("");
+    setPassword2("");
+    setMode("login");
+    setInfo("Đã đổi password. Đăng nhập lại với password mới.");
+  }
+
   if (loading) return <div style={{ padding: 40 }}>Loading…</div>;
 
+  // 1. Recovery flow — chặn vô app, bắt đổi password trước
+  if (recovery) {
+    return (
+      <div
+        style={{
+          maxWidth: 400,
+          margin: "8vh auto",
+          padding: 24,
+          background: "var(--panel)",
+          borderRadius: 8,
+        }}
+      >
+        <h2 style={{ marginTop: 0 }}>Đổi password</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Nhập password mới cho tài khoản{session?.user?.email ? ` ${session.user.email}` : ""}.
+        </p>
+        <form
+          onSubmit={handleUpdatePassword}
+          style={{ display: "flex", flexDirection: "column", gap: 12 }}
+        >
+          <input
+            type="password"
+            required
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password mới (tối thiểu 6 ký tự)"
+          />
+          <input
+            type="password"
+            required
+            autoComplete="new-password"
+            value={password2}
+            onChange={(e) => setPassword2(e.target.value)}
+            placeholder="Nhập lại password mới"
+          />
+          <button type="submit" disabled={busy}>
+            {busy ? "Đang xử lý…" : "Đổi password"}
+          </button>
+          {error && <div className="error">{error}</div>}
+          {info && <div className="success">{info}</div>}
+        </form>
+      </div>
+    );
+  }
+
+  // 2. Chưa login → form đăng nhập/đăng ký
   if (!session) {
     const isLogin = mode === "login";
     return (
@@ -205,5 +293,6 @@ function mapError(msg: string): string {
   if (m.includes("user already registered")) return "Email này đã đăng ký. Chuyển sang tab Đăng nhập.";
   if (m.includes("rate limit")) return "Quá nhiều lần thử. Đợi 1 phút rồi thử lại.";
   if (m.includes("password should be")) return "Password quá ngắn (tối thiểu 6 ký tự).";
+  if (m.includes("same as the old")) return "Password mới không được trùng password cũ.";
   return msg;
 }
