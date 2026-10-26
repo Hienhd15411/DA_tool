@@ -3,10 +3,13 @@ import { supabase } from "../supabase";
 export type RunSqlResult =
   | {
       status: "ok";
+      columns: string[];      // ⭐ thứ tự cột chuẩn (backend extract từ JSON, không qua JS reorder)
       rows: Record<string, unknown>[];
       row_count: number;
       exec_ms: number;
       truncated: boolean;
+      notice: string | null;
+      max_rows: number;
     }
   | {
       status: "error";
