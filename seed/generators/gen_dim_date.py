@@ -1,45 +1,74 @@
-"""Generate dim_date covering config range (+1 month buffer for future dates)."""
+"""Generate stock.dim_date — calendar 2024-2025 với flag ngày giao dịch VN."""
 from __future__ import annotations
-from datetime import date, timedelta
+from datetime import date, datetime
+from typing import Any
+
 from .utils import bulk_insert, daterange, date_key
 
-MONTH_NAMES = ["", "January","February","March","April","May","June",
-               "July","August","September","October","November","December"]
-DAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+ENGLISH_MONTH = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+ENGLISH_DAY = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
-def run(conn, cfg):
-    start = date.fromisoformat(cfg["dates"]["start"])
-    end   = date.fromisoformat(cfg["dates"]["end"]) + timedelta(days=90)   # buffer tương lai
-    # Buffer quá khứ đủ rộng để cover customer signup (730 days) + seller join (1200 days)
-    start = start - timedelta(days=1500)
+def _parse_holidays(cfg: dict) -> dict[date, str]:
+    """Trả về dict {date: holiday_name} từ config."""
+    holidays: dict[date, str] = {}
+    for _year, items in (cfg.get("holidays") or {}).items():
+        for item in items or []:
+            d = datetime.strptime(item["date"], "%Y-%m-%d").date()
+            holidays[d] = item["name"]
+    return holidays
 
-    sale_days = {date.fromisoformat(s) for s in cfg["dates"]["sale_days"]}
-    holidays  = {date.fromisoformat(s) for s in cfg["dates"]["holidays"]}
-    payday_d  = set(cfg["dates"]["payday"])
 
-    rows = []
+def _check_holidays_coverage(cfg: dict, start: date, end: date) -> None:
+    """Cảnh báo nếu range có năm mà config.holidays chưa có entry."""
+    cfg_years = set((cfg.get("holidays") or {}).keys())
+    needed_years = set(range(start.year, end.year + 1))
+    missing = needed_years - cfg_years
+    if missing:
+        print(f"  ⚠️  [dim_date] Thiếu holidays config cho năm: {sorted(missing)}. "
+              f"Các ngày đó sẽ coi là trading day → is_trading_day có thể sai.")
+
+
+def run(conn, cfg: dict) -> int:
+    start = datetime.strptime(cfg["dates"]["start"], "%Y-%m-%d").date()
+    end = datetime.strptime(cfg["dates"]["end"], "%Y-%m-%d").date()
+    _check_holidays_coverage(cfg, start, end)
+    holidays = _parse_holidays(cfg)
+
+    rows: list[tuple[Any, ...]] = []
     for d in daterange(start, end):
-        dow = d.isoweekday()  # 1..7
-        is_payday = d.day in payday_d
-        is_sale   = d in sale_days or (d.day == d.month)  # coincidence 3/3, 4/4, 5/5...
+        dow = d.weekday()  # Mon=0..Sun=6
+        is_weekend = dow >= 5
+        is_holiday = d in holidays
+        is_trading = not (is_weekend or is_holiday)
         rows.append((
-            date_key(d), d,
-            d.day, d.month, d.year, (d.month - 1) // 3 + 1,
-            MONTH_NAMES[d.month], dow, DAY_NAMES[dow - 1],
-            d.isocalendar()[1],
-            dow >= 6,
-            d in holidays,
-            is_sale or is_payday,
-            f"{d.year}-Q{(d.month - 1) // 3 + 1}",
+            date_key(d),
+            d,
+            d.day,
+            d.month,
+            d.year,
+            (d.month - 1) // 3 + 1,
+            ENGLISH_MONTH[d.month - 1],
+            dow + 1,                                # 1=Mon..7=Sun
+            ENGLISH_DAY[dow],
+            int(d.strftime("%V")),                  # ISO week
+            is_weekend,
+            is_trading,
+            is_holiday,
+            holidays.get(d),
+            f"{d.year}Q{(d.month - 1) // 3 + 1}",
         ))
 
     with conn.cursor() as cur:
         n = bulk_insert(
-            cur, "shopee.dim_date",
-            ["date_key","full_date","day","month","year","quarter",
-             "month_name","day_of_week","day_name","week_of_year",
-             "is_weekend","is_holiday","is_sale_day","fiscal_period"],
+            cur, "stock.dim_date",
+            ["date_key", "full_date", "day", "month", "year", "quarter",
+             "month_name", "day_of_week", "day_name", "week_of_year",
+             "is_weekend", "is_trading_day", "is_holiday", "holiday_name",
+             "fiscal_quarter"],
             rows,
             on_conflict="(date_key) DO NOTHING",
         )

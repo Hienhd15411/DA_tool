@@ -1,46 +1,33 @@
 -- 007_indexes.sql
--- Indexes for query performance on common filter/join columns
+-- Indexes cho query patterns phổ biến trên stock schema
 
--- fact_orders
-CREATE INDEX IF NOT EXISTS ix_orders_date         ON shopee.fact_orders (order_date_key);
-CREATE INDEX IF NOT EXISTS ix_orders_customer     ON shopee.fact_orders (customer_id);
-CREATE INDEX IF NOT EXISTS ix_orders_seller       ON shopee.fact_orders (seller_id);
-CREATE INDEX IF NOT EXISTS ix_orders_campaign     ON shopee.fact_orders (campaign_id) WHERE campaign_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS ix_orders_status_date  ON shopee.fact_orders (order_status, order_date_key);
-CREATE INDEX IF NOT EXISTS ix_orders_created      ON shopee.fact_orders (created_at);
+-- fact_price_daily: PRIMARY KEY đã cover (ticker, date_key). Thêm index theo ngày để
+-- query "giao dịch của tất cả mã trong 1 ngày / 1 tháng" nhanh hơn.
+CREATE INDEX IF NOT EXISTS ix_price_date       ON stock.fact_price_daily (date_key);
+CREATE INDEX IF NOT EXISTS ix_price_trade_date ON stock.fact_price_daily (trade_date);
 
--- fact_order_items
-CREATE INDEX IF NOT EXISTS ix_items_order     ON shopee.fact_order_items (order_id);
-CREATE INDEX IF NOT EXISTS ix_items_product   ON shopee.fact_order_items (product_id);
-CREATE INDEX IF NOT EXISTS ix_items_seller    ON shopee.fact_order_items (seller_id);
+-- Query "top volume / top value" theo ngày
+CREATE INDEX IF NOT EXISTS ix_price_date_volume
+  ON stock.fact_price_daily (date_key, volume DESC);
+CREATE INDEX IF NOT EXISTS ix_price_date_value
+  ON stock.fact_price_daily (date_key, trade_value DESC);
 
--- fact_shipment
-CREATE INDEX IF NOT EXISTS ix_shipment_order   ON shopee.fact_shipment (order_id);
-CREATE INDEX IF NOT EXISTS ix_shipment_carrier ON shopee.fact_shipment (carrier);
+-- fact_fundamental_quarterly: PK (ticker, period) đã cover. Thêm index theo kỳ.
+CREATE INDEX IF NOT EXISTS ix_fund_year_quarter
+  ON stock.fact_fundamental_quarterly (year, quarter);
+CREATE INDEX IF NOT EXISTS ix_fund_period
+  ON stock.fact_fundamental_quarterly (period);
 
--- fact_returns
-CREATE INDEX IF NOT EXISTS ix_returns_order ON shopee.fact_returns (order_id);
-CREATE INDEX IF NOT EXISTS ix_returns_item  ON shopee.fact_returns (order_item_id);
+-- dim_ticker: filter theo ngành, VN30
+CREATE INDEX IF NOT EXISTS ix_ticker_industry ON stock.dim_ticker (industry_id);
+CREATE INDEX IF NOT EXISTS ix_ticker_vn30     ON stock.dim_ticker (is_vn30) WHERE is_vn30;
 
--- fact_ad_spend / performance
-CREATE INDEX IF NOT EXISTS ix_adspend_date_campaign ON shopee.fact_ad_spend (date_key, campaign_id);
+-- dim_date: filter trading day
+CREATE INDEX IF NOT EXISTS ix_date_trading
+  ON stock.dim_date (full_date) WHERE is_trading_day;
+CREATE INDEX IF NOT EXISTS ix_date_year_month
+  ON stock.dim_date (year, month);
 
--- fact_voucher_usage
-CREATE INDEX IF NOT EXISTS ix_vusage_order   ON shopee.fact_voucher_usage (order_id);
-CREATE INDEX IF NOT EXISTS ix_vusage_voucher ON shopee.fact_voucher_usage (voucher_id);
-
--- fact_traffic_session
-CREATE INDEX IF NOT EXISTS ix_traffic_customer_date ON shopee.fact_traffic_session (customer_id, date_key);
-CREATE INDEX IF NOT EXISTS ix_traffic_source       ON shopee.fact_traffic_session (traffic_source);
-
--- fact_inventory_weekly
-CREATE INDEX IF NOT EXISTS ix_inv_product_date ON shopee.fact_inventory_weekly (product_id, snapshot_date_key);
-
--- fact_customer_service_ticket
-CREATE INDEX IF NOT EXISTS ix_ticket_customer ON shopee.fact_customer_service_ticket (customer_id);
-CREATE INDEX IF NOT EXISTS ix_ticket_seller   ON shopee.fact_customer_service_ticket (seller_id);
-CREATE INDEX IF NOT EXISTS ix_ticket_status   ON shopee.fact_customer_service_ticket (status);
-
--- dim_product category drill-down
-CREATE INDEX IF NOT EXISTS ix_product_cat1 ON shopee.dim_product (cat1_id);
-CREATE INDEX IF NOT EXISTS ix_product_cat4 ON shopee.dim_product (cat4_id);
+-- fact_index_daily: filter theo date để JOIN benchmark
+CREATE INDEX IF NOT EXISTS ix_index_date
+  ON stock.fact_index_daily (date_key);
