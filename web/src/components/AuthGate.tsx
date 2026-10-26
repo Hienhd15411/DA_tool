@@ -2,14 +2,39 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../supabase";
 
-type Mode = "login" | "signup";
+/**
+ * Single-user mode: chỉ cho phép email trong whitelist login.
+ *
+ * Whitelist lấy từ env var VITE_ALLOWED_EMAILS (CSV, comma-separated).
+ * Nếu env trống, default = owner email hardcode.
+ *
+ * Session persist tự động qua Supabase client (persistSession: true trong supabase.ts),
+ * nên sau khi login 1 lần, user ko phải login lại trừ khi:
+ *   - Logout chủ động
+ *   - localStorage bị clear
+ *   - Refresh token hết hạn (default 1 tuần, auto refresh nếu active)
+ */
+const DEFAULT_OWNER_EMAIL = "hienhd15411@gmail.com";
+
+const ALLOWED_EMAILS: Set<string> = (() => {
+  const raw = (import.meta.env.VITE_ALLOWED_EMAILS as string | undefined) ?? "";
+  const list = raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (list.length === 0) list.push(DEFAULT_OWNER_EMAIL);
+  return new Set(list);
+})();
+
+function isAllowed(email: string): boolean {
+  return ALLOWED_EMAILS.has(email.trim().toLowerCase());
+}
 
 export function AuthGate({ children }: { children: (session: Session) => ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [recovery, setRecovery] = useState(false);
 
-  const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -18,8 +43,7 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
   const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
-    // Supabase recovery link land page với hash #type=recovery&access_token=…
-    // Detect ngay để chặn vô app trước khi session ổn định.
+    // Recovery link: #type=recovery&access_token=…
     const hash = window.location.hash;
     if (hash.includes("type=recovery")) {
       setRecovery(true);
@@ -38,6 +62,15 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
     return () => data.subscription.unsubscribe();
   }, []);
 
+  // Nếu session đã có nhưng email không trong whitelist → signOut ngay.
+  // Phòng trường hợp whitelist bị thu hẹp sau khi user đã login từ trước.
+  useEffect(() => {
+    if (session && session.user?.email && !isAllowed(session.user.email)) {
+      supabase.auth.signOut();
+      setError("Tài khoản này không có quyền truy cập.");
+    }
+  }, [session]);
+
   function resetMsgs() {
     setError(null);
     setInfo(null);
@@ -46,48 +79,24 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
     resetMsgs();
+    if (!isAllowed(email)) {
+      setError("Tài khoản này không có quyền truy cập.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setBusy(false);
     if (error) setError(mapError(error.message));
   }
 
-  async function handleSignup(e: FormEvent) {
-    e.preventDefault();
-    resetMsgs();
-    if (password.length < 6) {
-      setError("Password tối thiểu 6 ký tự.");
-      return;
-    }
-    if (password !== password2) {
-      setError("Password nhập lại không khớp.");
-      return;
-    }
-    setBusy(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-    });
-    setBusy(false);
-    if (error) {
-      setError(mapError(error.message));
-      return;
-    }
-    if (data.session) {
-      // Auto-confirm ON — login luôn
-      return;
-    }
-    // Auto-confirm OFF ở Supabase → cần verify email
-    setInfo("Đã tạo tài khoản. Check email để confirm rồi quay lại đăng nhập.");
-    setMode("login");
-    setPassword("");
-    setPassword2("");
-  }
-
   async function handleForgot() {
     resetMsgs();
     if (!email.trim()) {
       setError("Nhập email trước rồi click 'Quên password'.");
+      return;
+    }
+    if (!isAllowed(email)) {
+      setError("Tài khoản này không có quyền truy cập.");
       return;
     }
     setBusy(true);
@@ -117,13 +126,11 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
       setError(mapError(error.message));
       return;
     }
-    // Đổi xong → clear URL hash + signOut để user login lại với pass mới cho chắc
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
     await supabase.auth.signOut();
     setRecovery(false);
     setPassword("");
     setPassword2("");
-    setMode("login");
     setInfo("Đã đổi password. Đăng nhập lại với password mới.");
   }
 
@@ -175,45 +182,25 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
     );
   }
 
-  // 2. Chưa login → form đăng nhập/đăng ký
+  // 2. Chưa login → form đăng nhập (ko có tab signup — single-user mode)
   if (!session) {
-    const isLogin = mode === "login";
     return (
       <div
         style={{
           maxWidth: 400,
-          margin: "8vh auto",
+          margin: "10vh auto",
           padding: 24,
           background: "var(--panel)",
           borderRadius: 8,
         }}
       >
         <h2 style={{ marginTop: 0 }}>DA Tool</h2>
-        <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("login");
-              resetMsgs();
-            }}
-            style={tabStyle(isLogin)}
-          >
-            Đăng nhập
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("signup");
-              resetMsgs();
-            }}
-            style={tabStyle(!isLogin)}
-          >
-            Đăng ký
-          </button>
-        </div>
+        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+          Private tool. Chỉ owner mới truy cập được.
+        </p>
 
         <form
-          onSubmit={isLogin ? handleLogin : handleSignup}
+          onSubmit={handleLogin}
           style={{ display: "flex", flexDirection: "column", gap: 12 }}
         >
           <input
@@ -227,42 +214,30 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
           <input
             type="password"
             required
-            autoComplete={isLogin ? "current-password" : "new-password"}
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={isLogin ? "Password" : "Password (tối thiểu 6 ký tự)"}
+            placeholder="Password"
           />
-          {!isLogin && (
-            <input
-              type="password"
-              required
-              autoComplete="new-password"
-              value={password2}
-              onChange={(e) => setPassword2(e.target.value)}
-              placeholder="Nhập lại password"
-            />
-          )}
           <button type="submit" disabled={busy}>
-            {busy ? "Đang xử lý…" : isLogin ? "Đăng nhập" : "Tạo tài khoản"}
+            {busy ? "Đang xử lý…" : "Đăng nhập"}
           </button>
-          {isLogin && (
-            <button
-              type="button"
-              onClick={handleForgot}
-              disabled={busy}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--accent)",
-                cursor: "pointer",
-                fontSize: 13,
-                padding: 0,
-                textAlign: "left",
-              }}
-            >
-              Quên password?
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleForgot}
+            disabled={busy}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--accent)",
+              cursor: "pointer",
+              fontSize: 13,
+              padding: 0,
+              textAlign: "left",
+            }}
+          >
+            Quên password?
+          </button>
           {error && <div className="error">{error}</div>}
           {info && <div className="success">{info}</div>}
         </form>
@@ -273,24 +248,10 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
   return <>{children(session)}</>;
 }
 
-function tabStyle(active: boolean): React.CSSProperties {
-  return {
-    flex: 1,
-    padding: "8px 12px",
-    background: active ? "var(--accent)" : "transparent",
-    color: active ? "#fff" : "var(--text)",
-    border: "1px solid var(--border)",
-    borderRadius: 4,
-    cursor: "pointer",
-    fontWeight: active ? 600 : 400,
-  };
-}
-
 function mapError(msg: string): string {
   const m = msg.toLowerCase();
   if (m.includes("invalid login credentials")) return "Email hoặc password sai.";
   if (m.includes("email not confirmed")) return "Email chưa được confirm. Check inbox.";
-  if (m.includes("user already registered")) return "Email này đã đăng ký. Chuyển sang tab Đăng nhập.";
   if (m.includes("rate limit")) return "Quá nhiều lần thử. Đợi 1 phút rồi thử lại.";
   if (m.includes("password should be")) return "Password quá ngắn (tối thiểu 6 ký tự).";
   if (m.includes("same as the old")) return "Password mới không được trùng password cũ.";
