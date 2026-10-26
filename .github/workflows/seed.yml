@@ -23,6 +23,10 @@ on:
         required: true
         default: true
         type: boolean
+  # Auto-trigger khi touch file seed/.auto-trigger (Claude dùng để tự run)
+  push:
+    paths:
+      - "seed/.auto-trigger"
 
 jobs:
   seed:
@@ -61,8 +65,17 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           PYTHONUNBUFFERED: "1"
         run: |
-          echo "=== Mode: ${{ inputs.mode }} ==="
-          python seed.py --mode=${{ inputs.mode }}
+          # Default mode = 'migrate' nếu trigger qua push (ko có inputs)
+          MODE="${{ inputs.mode }}"
+          if [ -z "$MODE" ]; then
+            # Đọc mode từ file .auto-trigger (dòng đầu tiên)
+            if [ -f .auto-trigger ]; then
+              MODE=$(head -1 .auto-trigger | tr -d '[:space:]')
+            fi
+            MODE="${MODE:-migrate}"
+          fi
+          echo "=== Mode: $MODE ==="
+          python seed.py --mode=$MODE
 
       - name: Import exercises
         if: ${{ inputs.import_exercises && hashFiles('docs/exercises/*.md') != '' }}
