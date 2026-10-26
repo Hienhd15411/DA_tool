@@ -5,8 +5,16 @@ on:
     - cron: '30 11 * * 1-5'
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'Mode: daily (default) | bootstrap (upload seed 1 lần) | status'
+        type: choice
+        default: 'daily'
+        options:
+          - daily
+          - bootstrap
+          - status
       skip_update:
-        description: 'Bỏ qua inbox (chỉ chạy lại báo cáo)'
+        description: 'daily mode: bỏ qua inbox (chỉ chạy lại báo cáo)'
         type: boolean
         default: false
 concurrency:
@@ -32,7 +40,23 @@ jobs:
           cache: pip
           cache-dependency-path: engine/requirements.txt
       - run: pip install -r requirements.txt
-      - name: cloud-run
+      - name: Chọn mode
+        id: pick
+        run: |
+          MODE="${{ inputs.mode }}"
+          MODE="${MODE:-daily}"
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
+          echo "=== VNQ mode: $MODE ==="
+      - name: Bootstrap seed (một lần)
+        if: steps.pick.outputs.mode == 'bootstrap'
+        run: python -m vnq storage bootstrap
+      - name: Status check
+        if: steps.pick.outputs.mode == 'status'
+        run: |
+          python -m vnq storage pull || echo "pull trống — có thể chưa bootstrap"
+          python -m vnq status
+      - name: Daily cloud-run
+        if: steps.pick.outputs.mode == 'daily'
         run: python -m vnq cloud-run ${{ inputs.skip_update && '--skip-update' || '' }}
       - name: Lưu log
         if: always()
