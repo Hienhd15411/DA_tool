@@ -1,6 +1,8 @@
-"""Fetch HOSE ticker list + metadata → stock.dim_industry + stock.dim_ticker.
+"""Fetch HOSE ticker list từ hardcoded config + metadata TCBS → dim_industry + dim_ticker.
 
-Dùng vndirect finfo API (listing) + TCBS ticker overview (metadata chi tiết).
+vndirect finfo API bị chặn geo từ GitHub Actions runner → dùng list cứng
+trong config.yml. Industry info lấy từ TCBS /ticker/overview endpoint (dùng
+chung infra TCBS cho price + fundamentals → ít dependency).
 """
 from __future__ import annotations
 from datetime import date, datetime
@@ -9,12 +11,24 @@ from .utils import bulk_insert, date_key
 from .vn_api import VnApi
 
 
-def _parse_date(s: str | None) -> date | None:
+def _parse_date(s) -> date | None:
     if not s:
         return None
     try:
+        if isinstance(s, (int, float)):
+            # Unix ts
+            return datetime.fromtimestamp(s / 1000 if s > 1e12 else s).date()
         return datetime.fromisoformat(str(s)[:10]).date()
     except (ValueError, TypeError):
+        return None
+
+
+def _safe_int(v) -> int | None:
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
         return None
 
 
@@ -25,39 +39,64 @@ def run(conn, cfg: dict) -> tuple[int, int]:
     skip = set(cfg["tickers"].get("skip") or [])
     vn30 = set(cfg.get("vn30") or [])
 
+    hardcoded = cfg["tickers"].get("hardcoded_list") or []
+    tickers_list = sorted(set(hardcoded) - skip)
+    if limit:
+        tickers_list = tickers_list[: int(limit)]
+
+    if not tickers_list:
+        raise RuntimeError("Không có ticker trong config.tickers.hardcoded_list")
+
     throttle = float(cfg["vnstock"]["throttle_sec"])
     max_retries = int(cfg["vnstock"]["max_retries"])
     api = VnApi(throttle_sec=throttle, max_retries=max_retries)
 
-    print(f"[tickers] Fetching listing from vndirect (exchange={exchange})...")
-    raw = api.list_tickers_hose()
-    if not raw:
-        raise RuntimeError("vndirect listing API trả rỗng — kiểm tra endpoint.")
+    print(f"[tickers] Fetching metadata for {len(tickers_list)} hardcoded tickers via TCBS...")
 
-    # Normalize + filter 3-char tickers (chuẩn HOSE)
-    tickers_raw: list[dict] = []
-    for r in raw:
-        sym = str(r.get("symbol", "")).upper()
-        if len(sym) != 3 or sym in skip:
+    enriched: list[dict] = []
+    skip_meta = 0
+    for i, ticker in enumerate(tickers_list, 1):
+        meta = api.get_ticker_overview(ticker)
+        api.throttle()
+
+        if not meta:
+            skip_meta += 1
+            # Vẫn thêm với metadata rỗng để có mã trong dim_ticker
+            enriched.append({
+                "ticker": ticker,
+                "name":   ticker,
+                "industry": "Khác",
+                "sector": None,
+                "listed": None,
+                "shares": None,
+                "capital": None,
+            })
             continue
-        tickers_raw.append({
-            "ticker":    sym,
-            "name":      r.get("companyName") or r.get("companyNameEng") or sym,
-            "industry":  r.get("icbName3") or r.get("icbName2") or r.get("icbName1") or "Khác",
-            "sector":    r.get("icbName1"),
-            "listed":    _parse_date(r.get("listingDate")),
-            "shares":    r.get("outstandingShares"),
-            "capital":   r.get("charterCapital"),
+
+        # TCBS overview response fields:
+        # 'exchange', 'shortName', 'companyName', 'industry', 'industryEn',
+        # 'establishedYear', 'noEmployees', 'noShareholders',
+        # 'foreignPercent', 'outstandingShare', 'issueShare', ...
+        enriched.append({
+            "ticker": ticker,
+            "name":   meta.get("companyName") or meta.get("shortName") or ticker,
+            "industry": meta.get("industry") or meta.get("industryEn") or "Khác",
+            "sector":   meta.get("industryEn"),  # fallback English name
+            "listed":   _parse_date(meta.get("listingDate")),
+            "shares":   _safe_int(meta.get("outstandingShare") or meta.get("issueShare")),
+            "capital":  None,  # TCBS overview không có charter capital trực tiếp
         })
 
-    if limit:
-        tickers_raw = tickers_raw[: int(limit)]
-    print(f"[tickers] After filter: {len(tickers_raw)} tickers.")
+        if i % 20 == 0:
+            print(f"  [tickers] {i}/{len(tickers_list)} metadata fetched "
+                  f"({skip_meta} no-metadata)")
+
+    print(f"[tickers] Metadata done: {len(enriched) - skip_meta} ok, {skip_meta} no-metadata")
 
     # dim_industry: unique list
-    industries = sorted({t["industry"] for t in tickers_raw if t["industry"]})
+    industries = sorted({t["industry"] for t in enriched if t["industry"]})
     sector_map: dict[str, str | None] = {}
-    for t in tickers_raw:
+    for t in enriched:
         ind = t["industry"]
         if ind and ind not in sector_map:
             sector_map[ind] = t["sector"]
@@ -81,20 +120,12 @@ def run(conn, cfg: dict) -> tuple[int, int]:
         valid_date_keys = {k for (k,) in cur.fetchall()}
 
     ticker_rows = []
-    for t in tickers_raw:
+    for t in enriched:
         ind_id = industry_id_map.get(t["industry"])
         listed_date = t["listed"]
         listed_key = date_key(listed_date) if listed_date else None
         if listed_key is not None and listed_key not in valid_date_keys:
-            listed_key = None     # FK sẽ fail → set NULL
-        try:
-            shares_int = int(t["shares"]) if t["shares"] is not None else None
-        except (TypeError, ValueError):
-            shares_int = None
-        try:
-            cap_int = int(t["capital"]) if t["capital"] is not None else None
-        except (TypeError, ValueError):
-            cap_int = None
+            listed_key = None
 
         ticker_rows.append((
             t["ticker"],
@@ -103,8 +134,8 @@ def run(conn, cfg: dict) -> tuple[int, int]:
             ind_id,
             listed_date,
             listed_key,
-            shares_int,
-            cap_int,
+            t["shares"],
+            t["capital"],
             t["ticker"] in vn30,
             True,
         ))
@@ -121,7 +152,6 @@ def run(conn, cfg: dict) -> tuple[int, int]:
                 "company_name = EXCLUDED.company_name, "
                 "industry_id = EXCLUDED.industry_id, "
                 "outstanding_shares = EXCLUDED.outstanding_shares, "
-                "charter_capital = EXCLUDED.charter_capital, "
                 "is_vn30 = EXCLUDED.is_vn30"
             ),
         )

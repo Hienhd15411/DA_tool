@@ -12,9 +12,166 @@ dates:
   end:    "2026-10-26"
 
 tickers:
-  exchange: "HSX"            # HOSE / HSX (vnstock dùng 'HSX')
+  exchange: "HSX"            # HOSE / HSX
   limit:   null              # null = lấy hết; set số để test nhanh (VD 20)
   skip:    []                # mã bỏ qua (VD mã đã huỷ niêm yết)
+  # vndirect listing API bị block từ GitHub Actions (chặn geo) → dùng list hardcoded
+  # bên dưới. Bổ sung thêm mã nếu cần.
+  hardcoded_list:
+    # VN30 (sẽ auto flag is_vn30 nếu match với vn30 section)
+    - ACB
+    - BCM
+    - BID
+    - BVH
+    - CTG
+    - FPT
+    - GAS
+    - GVR
+    - HDB
+    - HPG
+    - MBB
+    - MSN
+    - MWG
+    - PLX
+    - POW
+    - SAB
+    - SHB
+    - SSB
+    - SSI
+    - STB
+    - TCB
+    - TPB
+    - VCB
+    - VHM
+    - VIB
+    - VIC
+    - VJC
+    - VNM
+    - VPB
+    - VRE
+    # VNMidcap + VNSmallcap large liquid HOSE tickers
+    - DGC
+    - DIG
+    - DXG
+    - EIB
+    - FRT
+    - GEX
+    - GMD
+    - HAG
+    - HSG
+    - KBC
+    - KDH
+    - LPB
+    - MSB
+    - NLG
+    - NVL
+    - OCB
+    - PDR
+    - PNJ
+    - REE
+    - SBT
+    - SSB
+    - VND
+    - VPI
+    # Thêm nhóm hạ tầng + ngân hàng
+    - ABB
+    - BAB
+    - BAF
+    - BCG
+    - BID
+    - CII
+    - CKG
+    - CMG
+    - CRE
+    - CTD
+    - CTR
+    - DBC
+    - DCM
+    - DGW
+    - DHA
+    - DHG
+    - DPM
+    - DPR
+    - DSN
+    - ELC
+    - EVF
+    - EVG
+    - FCN
+    - FIR
+    - FIT
+    - FTS
+    - GEG
+    - HCM
+    - HDC
+    - HHS
+    - HHV
+    - HNA
+    - HPX
+    - HSG
+    - HTN
+    - IDC
+    - IJC
+    - IMP
+    - ITA
+    - KDC
+    - KHG
+    - KSB
+    - LCG
+    - LDG
+    - LGL
+    - LIX
+    - MIG
+    - MWG
+    - NKG
+    - NTL
+    - OGC
+    - ORS
+    - PAN
+    - PC1
+    - PET
+    - PGV
+    - PHR
+    - PLC
+    - PPC
+    - PTB
+    - PVD
+    - PVT
+    - QNS
+    - RAL
+    - SAM
+    - SBS
+    - SCR
+    - SCS
+    - SGR
+    - SHS
+    - SKG
+    - SMC
+    - SZC
+    - TCH
+    - TCM
+    - TDC
+    - THI
+    - TIP
+    - TLG
+    - TMS
+    - TNG
+    - TTA
+    - TTF
+    - TV2
+    - VCG
+    - VCI
+    - VCS
+    - VDS
+    - VFG
+    - VGC
+    - VHC
+    - VIX
+    - VNE
+    - VPG
+    - VRC
+    - VSC
+    - VTO
+    - YEG
 
 # Indices benchmark cho spec ML (VN-Index bắt buộc)
 indices:
