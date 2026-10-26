@@ -100,6 +100,18 @@ def main():
     if not os.environ.get("DATABASE_URL"):
         sys.exit("ERROR: set DATABASE_URL in .env or environment")
 
+    dsn = os.environ["DATABASE_URL"]
+    masked = re.sub(r":([^:@]+)@", ":***@", dsn)
+    print(f"[seed] DATABASE_URL = {masked}")
+    print(f"[seed] URL length = {len(dsn)}")
+
+    # Diagnostic: in URL (che password) để verify seed.py thấy đúng URL
+    dsn = os.environ["DATABASE_URL"]
+    import re
+    masked = re.sub(r":([^:@]+)@", ":***@", dsn)
+    print(f"[seed] DATABASE_URL = {masked}")
+    print(f"[seed] URL length = {len(dsn)}")
+
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--mode",
