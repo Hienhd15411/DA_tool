@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -99,6 +100,11 @@ def main():
     load_dotenv()
     if not os.environ.get("DATABASE_URL"):
         sys.exit("ERROR: set DATABASE_URL in .env or environment")
+
+    dsn = os.environ["DATABASE_URL"]
+    masked = re.sub(r":([^:@]+)@", ":***@", dsn)
+    print(f"[seed] DATABASE_URL = {masked}")
+    print(f"[seed] URL length = {len(dsn)}")
 
     ap = argparse.ArgumentParser()
     ap.add_argument(
