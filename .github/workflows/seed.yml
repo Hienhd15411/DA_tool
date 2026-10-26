@@ -75,7 +75,12 @@ jobs:
             MODE="${MODE:-migrate}"
           fi
           echo "=== Mode: $MODE ==="
-          python seed.py --mode=$MODE
+          # mode=diag chạy diagnostic script thay cho seed
+          if [ "$MODE" = "diag" ]; then
+            python diag_endpoints.py
+          else
+            python seed.py --mode=$MODE
+          fi
 
       - name: Import exercises
         if: ${{ inputs.import_exercises && hashFiles('docs/exercises/*.md') != '' }}
