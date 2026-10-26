@@ -1,77 +1,13 @@
 """Fetch indices (VN-Index, VN30, HNX-Index) → stock.fact_index_daily.
 
-Spec yêu cầu VN-Index làm benchmark cho đánh giá rổ 10 mã.
+Dùng TCBS bars-long-term endpoint với type=index.
 """
 from __future__ import annotations
-import time
+from datetime import datetime
 from typing import Any
 
-import pandas as pd
-
 from .utils import bulk_insert, date_key
-
-
-def _fetch_history(code: str, source: str, start: str, end: str,
-                   interval: str, max_retries: int) -> pd.DataFrame | None:
-    from vnstock import Vnstock  # type: ignore
-
-    last_err: Exception | None = None
-    for attempt in range(max_retries):
-        try:
-            # VNINDEX / VN30 / HNXINDEX được treat như symbol đặc biệt trong VCI
-            s = Vnstock().stock(symbol=code, source=source)
-            df = s.quote.history(start=start, end=end, interval=interval)
-            if df is None or df.empty:
-                return None
-            return df
-        except Exception as e:
-            last_err = e
-            time.sleep(1.5 ** attempt)
-    print(f"  [skip] {code}: {last_err}")
-    return None
-
-
-def _normalize(df: pd.DataFrame) -> list[tuple[Any, ...]]:
-    cols_lower = {c.lower(): c for c in df.columns}
-
-    def pick(*candidates: str) -> str | None:
-        for c in candidates:
-            if c.lower() in cols_lower:
-                return cols_lower[c.lower()]
-        return None
-
-    col_date = pick("time", "date", "trading_date")
-    col_open = pick("open", "openprice")
-    col_high = pick("high", "highprice")
-    col_low = pick("low", "lowprice")
-    col_close = pick("close", "closeprice")
-    col_vol = pick("volume", "totalvolume")
-    col_val = pick("value", "totalvalue", "trade_value")
-
-    required = [col_date, col_open, col_close]
-    if any(c is None for c in required):
-        return []
-
-    df = df.copy()
-    df[col_date] = pd.to_datetime(df[col_date], errors="coerce").dt.date
-    df = df.dropna(subset=[col_date, col_open, col_close])
-
-    out: list[tuple[Any, ...]] = []
-    for _, r in df.iterrows():
-        d = r[col_date]
-        try:
-            o = float(r[col_open])
-            c = float(r[col_close])
-            if o <= 0 or c <= 0 or pd.isna(o) or pd.isna(c):
-                continue
-            h = float(r[col_high]) if col_high and pd.notna(r[col_high]) else None
-            lo = float(r[col_low]) if col_low and pd.notna(r[col_low]) else None
-            vol = int(r[col_vol]) if col_vol and pd.notna(r[col_vol]) and r[col_vol] >= 0 else None
-            val = int(r[col_val]) if col_val and pd.notna(r[col_val]) and r[col_val] >= 0 else None
-        except (TypeError, ValueError):
-            continue
-        out.append((None, date_key(d), d, o, h, lo, c, vol, val))
-    return out
+from .vn_api import VnApi
 
 
 def run(conn, cfg: dict) -> int:
@@ -80,47 +16,77 @@ def run(conn, cfg: dict) -> int:
         print("[index] Không có index nào trong config → skip.")
         return 0
 
-    start = cfg["dates"]["start"]
-    end = cfg["dates"]["end"]
-    interval = cfg["vnstock"]["interval"]
+    start_date = datetime.strptime(cfg["dates"]["start"], "%Y-%m-%d").date()
+    end_date = datetime.strptime(cfg["dates"]["end"], "%Y-%m-%d").date()
     throttle = float(cfg["vnstock"]["throttle_sec"])
     max_retries = int(cfg["vnstock"]["max_retries"])
+    api = VnApi(throttle_sec=throttle, max_retries=max_retries)
 
     with conn.cursor() as cur:
         cur.execute("SELECT date_key FROM stock.dim_date")
         valid_date_keys = {k for (k,) in cur.fetchall()}
 
-    print(f"[index] Fetching {len(indices)} indices ({start} → {end})...")
+    print(f"[index] Fetching {len(indices)} indices "
+          f"({start_date} → {end_date})...")
 
     total_rows = 0
     for idx in indices:
         code = idx["code"]
-        source = idx.get("source") or cfg["vnstock"]["source"]
-        df = _fetch_history(code, source, start, end, interval, max_retries)
-        if df is None or df.empty:
+        try:
+            bars = api.get_bars(code, start_date, end_date, kind="index")
+        except Exception as e:
+            print(f"  [skip] {code}: fetch err {type(e).__name__}: {str(e)[:120]}")
+            api.throttle()
+            continue
+
+        if not bars:
             print(f"  [skip] {code}: no data")
-            time.sleep(throttle)
+            api.throttle()
             continue
 
-        raw_rows = _normalize(df)
-        if not raw_rows:
-            print(f"  [skip] {code}: unexpected columns {list(df.columns)}")
-            time.sleep(throttle)
-            continue
+        rows: list[tuple[Any, ...]] = []
+        for b in bars:
+            d = b.get("trade_date")
+            o = b.get("open")
+            c = b.get("close")
+            if d is None or o is None or c is None:
+                continue
+            try:
+                o = float(o); c = float(c)
+                h = float(b["high"]) if b.get("high") is not None else None
+                lo = float(b["low"]) if b.get("low") is not None else None
+            except (TypeError, ValueError):
+                continue
+            if o <= 0 or c <= 0:
+                continue
+            vol = None
+            if b.get("volume") is not None:
+                try:
+                    v = int(b["volume"])
+                    vol = v if v >= 0 else None
+                except (TypeError, ValueError):
+                    vol = None
+            val = None
+            if b.get("value") is not None:
+                try:
+                    vv = int(b["value"])
+                    val = vv if vv >= 0 else None
+                except (TypeError, ValueError):
+                    val = None
 
-        filled = [
-            (code, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8])
-            for r in raw_rows if r[1] in valid_date_keys
-        ]
+            dk = date_key(d)
+            if dk not in valid_date_keys:
+                continue
+            rows.append((code, dk, d, o, h, lo, c, vol, val))
 
-        if filled:
+        if rows:
             with conn.cursor() as cur:
                 bulk_insert(
                     cur, "stock.fact_index_daily",
                     ["index_code", "date_key", "trade_date",
                      "open_price", "high_price", "low_price", "close_price",
                      "volume", "trade_value"],
-                    filled,
+                    rows,
                     on_conflict=(
                         "(index_code, date_key) DO UPDATE SET "
                         "open_price = EXCLUDED.open_price, "
@@ -133,12 +99,12 @@ def run(conn, cfg: dict) -> int:
                     page_size=500,
                 )
             conn.commit()
-            total_rows += len(filled)
-            print(f"  [index] {code} ← {len(filled):,} rows")
+            total_rows += len(rows)
+            print(f"  [index] {code} ← {len(rows):,} rows")
         else:
-            print(f"  [index] {code}: 0 rows pass date_key filter")
+            print(f"  [index] {code}: 0 rows pass filter")
 
-        time.sleep(throttle)
+        api.throttle()
 
     print(f"[index] Finished: {total_rows:,} total rows.")
     return total_rows

@@ -4,5 +4,5 @@
 CREATE SCHEMA IF NOT EXISTS stock;
 CREATE SCHEMA IF NOT EXISTS learning;
 
-COMMENT ON SCHEMA stock    IS 'Vietnam stock market dataset (HOSE) for SQL exercises. Re-seedable from vnstock.';
+COMMENT ON SCHEMA stock    IS 'Vietnam stock market dataset (HOSE) for SQL exercises. Re-seedable from TCBS+vndirect API.';
 COMMENT ON SCHEMA learning IS 'Student activity: query log, attempts, progress. Persistent.';

@@ -2,6 +2,4 @@ psycopg2-binary==2.9.9
 PyYAML==6.0.1
 python-dotenv==1.0.1
 tqdm==4.66.4
-# vnstock: lib API đổi khá nhiều giữa minor version → pin lỏng, chấp nhận 3.2+
-vnstock>=3.2,<4.0
-pandas>=2.2,<3.0
+requests==2.32.3
