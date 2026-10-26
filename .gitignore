@@ -12,3 +12,7 @@ engine/reports/
 !engine/data/seed/
 .netlify/
 supabase/.temp/
+
+# Node leftovers (not needed for VNQ static web)
+web/node_modules/
+web/dist/
