@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -101,13 +102,6 @@ def main():
         sys.exit("ERROR: set DATABASE_URL in .env or environment")
 
     dsn = os.environ["DATABASE_URL"]
-    masked = re.sub(r":([^:@]+)@", ":***@", dsn)
-    print(f"[seed] DATABASE_URL = {masked}")
-    print(f"[seed] URL length = {len(dsn)}")
-
-    # Diagnostic: in URL (che password) để verify seed.py thấy đúng URL
-    dsn = os.environ["DATABASE_URL"]
-    import re
     masked = re.sub(r":([^:@]+)@", ":***@", dsn)
     print(f"[seed] DATABASE_URL = {masked}")
     print(f"[seed] URL length = {len(dsn)}")
