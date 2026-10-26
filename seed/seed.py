@@ -1,40 +1,33 @@
 #!/usr/bin/env python
-"""Seed orchestrator.
+"""Seed orchestrator cho dataset chứng khoán VN (vnstock → Supabase).
 
 Usage:
-  # Apply all migrations + generate full dataset
+  # Full: migrations + fetch tickers + price + fundamentals
   python seed.py --mode=full
 
-  # Only run migrations (no data change)
+  # Chỉ chạy migrations (không fetch data)
   python seed.py --mode=migrate
 
-  # Only generate data (assumes schema exists)
+  # Chỉ fetch data (giả định schema đã có)
   python seed.py --mode=data
 
-  # Drop all shopee data and re-seed (learning schema preserved)
+  # Drop toàn bộ stock + chạy lại từ đầu (learning schema giữ nguyên)
   python seed.py --mode=reset
+
+  # Chỉ fetch price daily (bỏ qua tickers + fundamentals — nhanh cho refresh)
+  python seed.py --mode=price-only
 """
 from __future__ import annotations
 import argparse
 import os
-import random
 import sys
 from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
-from faker import Faker
 
-from generators.utils import get_conn, transaction
-from generators import (
-    gen_dim_date, gen_dim_location, gen_dim_category,
-    gen_dim_customer, gen_dim_seller, gen_dim_product,
-    gen_dim_campaign, gen_dim_voucher,
-    gen_fact_orders, gen_fact_shipment, gen_fact_returns,
-    gen_fact_ad_spend, gen_fact_ad_performance,
-    gen_fact_voucher_usage, gen_fact_traffic,
-    gen_fact_inventory, gen_fact_cs_tickets,
-)
+from generators.utils import get_conn
+from generators import gen_dim_date, fetch_tickers, fetch_price, fetch_fundamental
 
 ROOT = Path(__file__).parent
 MIGRATIONS = ROOT / "migrations"
@@ -55,53 +48,42 @@ def apply_migrations(conn):
     conn.commit()
 
 
-def reset_shopee_data(conn):
-    print("Dropping all shopee.* tables (learning schema preserved)...")
+def reset_stock_data(conn):
+    print("Dropping stock schema (learning preserved)...")
     with conn.cursor() as cur:
-        cur.execute("DROP SCHEMA shopee CASCADE;")
-        cur.execute("CREATE SCHEMA shopee;")
+        cur.execute("DROP SCHEMA IF EXISTS stock CASCADE;")
+        cur.execute("CREATE SCHEMA stock;")
     conn.commit()
 
 
-def generate_data(conn, cfg):
-    rng = random.Random(cfg["seed"])
-    Faker.seed(cfg["seed"])
+def generate_data(conn, cfg, *, skip_tickers=False, skip_fundamental=False):
+    print("\n[seed] dim_date...")
+    n = gen_dim_date.run(conn, cfg)
+    print(f"[seed] dim_date ← {n:,} rows")
 
-    pipeline = [
-        ("dim_date",               lambda: gen_dim_date.run(conn, cfg)),
-        ("dim_location",           lambda: gen_dim_location.run(conn, cfg)),
-        ("dim_category",           lambda: gen_dim_category.run(conn, cfg)),
-        ("dim_customer",           lambda: gen_dim_customer.run(conn, cfg, rng)),
-        ("dim_seller",             lambda: gen_dim_seller.run(conn, cfg, rng)),
-        ("dim_product",            lambda: gen_dim_product.run(conn, cfg, rng)),
-        ("dim_campaign",           lambda: gen_dim_campaign.run(conn, cfg, rng)),
-        ("dim_voucher",            lambda: gen_dim_voucher.run(conn, cfg, rng)),
-        ("fact_orders + items",    lambda: gen_fact_orders.run(conn, cfg, rng)),
-        ("fact_shipment",          lambda: gen_fact_shipment.run(conn, cfg, rng)),
-        ("fact_returns",           lambda: gen_fact_returns.run(conn, cfg, rng)),
-        ("fact_ad_spend",          lambda: gen_fact_ad_spend.run(conn, cfg, rng)),
-        ("fact_ad_performance",    lambda: gen_fact_ad_performance.run(conn, cfg, rng)),
-        ("fact_voucher_usage",     lambda: gen_fact_voucher_usage.run(conn, cfg, rng)),
-        ("fact_traffic_session",   lambda: gen_fact_traffic.run(conn, cfg, rng)),
-        ("fact_inventory_weekly",  lambda: gen_fact_inventory.run(conn, cfg, rng)),
-        ("fact_cs_ticket",         lambda: gen_fact_cs_tickets.run(conn, cfg, rng)),
-    ]
+    if not skip_tickers:
+        print("\n[seed] dim_industry + dim_ticker (via vnstock)...")
+        n_ind, n_tick = fetch_tickers.run(conn, cfg)
+        print(f"[seed] dim_industry ← {n_ind} rows, dim_ticker ← {n_tick} rows")
 
-    for name, fn in pipeline:
-        print(f"\n[seed] {name} ...")
-        n = fn()
-        print(f"[seed] {name} ← {n:,} rows")
+    print("\n[seed] fact_price_daily (via vnstock OHLCV)...")
+    n_price = fetch_price.run(conn, cfg)
+    print(f"[seed] fact_price_daily ← {n_price:,} rows")
 
-    # ANALYZE để update stats (n_live_tup dùng trong get_schema_info) + query planner.
-    # Cần autocommit vì ANALYZE không chạy trong transaction block ở 1 số version.
-    print("\n[seed] ANALYZE shopee.* ...")
+    if not skip_fundamental:
+        print("\n[seed] fact_fundamental_quarterly (via vnstock BCTC)...")
+        n_fund = fetch_fundamental.run(conn, cfg)
+        print(f"[seed] fact_fundamental_quarterly ← {n_fund:,} rows")
+
+    # ANALYZE to refresh planner stats + n_live_tup cho get_schema_info
+    print("\n[seed] ANALYZE stock.* ...")
     conn.commit()
     old_autocommit = conn.autocommit
     conn.autocommit = True
     with conn.cursor() as cur:
         cur.execute(
             "SELECT schemaname || '.' || tablename "
-            "FROM pg_tables WHERE schemaname = 'shopee' ORDER BY tablename"
+            "FROM pg_tables WHERE schemaname = 'stock' ORDER BY tablename"
         )
         for (fq,) in cur.fetchall():
             cur.execute(f"ANALYZE {fq}")
@@ -114,7 +96,11 @@ def main():
         sys.exit("ERROR: set DATABASE_URL in .env or environment")
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=["full", "migrate", "data", "reset"], default="full")
+    ap.add_argument(
+        "--mode",
+        choices=["full", "migrate", "data", "reset", "price-only"],
+        default="full",
+    )
     args = ap.parse_args()
 
     cfg = load_config()
@@ -122,13 +108,15 @@ def main():
 
     try:
         if args.mode == "reset":
-            reset_shopee_data(conn)
+            reset_stock_data(conn)
             apply_migrations(conn)
             generate_data(conn, cfg)
         elif args.mode == "migrate":
             apply_migrations(conn)
         elif args.mode == "data":
             generate_data(conn, cfg)
+        elif args.mode == "price-only":
+            generate_data(conn, cfg, skip_tickers=True, skip_fundamental=True)
         else:  # full
             apply_migrations(conn)
             generate_data(conn, cfg)

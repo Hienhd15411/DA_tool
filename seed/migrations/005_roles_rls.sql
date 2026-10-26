@@ -1,17 +1,17 @@
 -- 005_roles_rls.sql
 -- Grants + RLS. Security model:
---   • `authenticated` (Supabase built-in, caller của run_sql): SELECT trên shopee.*
+--   • `authenticated` (Supabase built-in, caller của run_sql): SELECT trên stock.*
 --     + INSERT vào learning.query_log. Không có DELETE/UPDATE/DROP.
 --   • `anon`: chỉ xem được public.exercise (đề bài public).
 --   • RLS trên learning.* bảo đảm học viên chỉ đọc/ghi log của chính mình.
---   • Teacher: bypass RLS (seed role, phase 2 sẽ map qua JWT claim).
+--   • Teacher: whitelist email trong public.teacher_emails (migration 010).
 
 -- -----------------------------------------------------------------
--- SHOPEE schema: read-only cho mọi authenticated user
+-- STOCK schema: read-only cho mọi authenticated user
 -- -----------------------------------------------------------------
-GRANT USAGE  ON SCHEMA shopee TO authenticated;
-GRANT SELECT ON ALL TABLES IN SCHEMA shopee TO authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA shopee GRANT SELECT ON TABLES TO authenticated;
+GRANT USAGE  ON SCHEMA stock TO authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA stock TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA stock GRANT SELECT ON TABLES TO authenticated;
 
 -- -----------------------------------------------------------------
 -- LEARNING schema: internal. authenticated chỉ INSERT qua run_sql.

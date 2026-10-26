@@ -1,7 +1,7 @@
-name: Restore shopee data
+name: Restore stock data
 
 # Restore từ 1 backup release lên DB hiện tại.
-# ⚠️ CHÚ Ý: sẽ DROP schema shopee hiện tại trước khi restore.
+# ⚠️ CHÚ Ý: sẽ DROP schema stock hiện tại trước khi restore.
 #   learning + public giữ nguyên (backup có ghi đè nếu row conflict).
 
 on:
@@ -50,21 +50,21 @@ jobs:
             --pattern "*.dump"
           ls -lh /tmp/restore/
 
-      - name: Drop schema shopee (fresh restore)
+      - name: Drop schema stock (fresh restore)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          psql "$DATABASE_URL" -c "DROP SCHEMA IF EXISTS shopee CASCADE; CREATE SCHEMA shopee;"
+          psql "$DATABASE_URL" -c "DROP SCHEMA IF EXISTS stock CASCADE; CREATE SCHEMA stock;"
 
-      - name: Restore shopee schema
+      - name: Restore stock schema
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          SHOPEE_DUMP=$(ls /tmp/restore/shopee-*.dump | head -1)
-          echo "Restoring: $SHOPEE_DUMP"
+          STOCK_DUMP=$(ls /tmp/restore/stock-*.dump | head -1)
+          echo "Restoring: $STOCK_DUMP"
           pg_restore --no-owner --no-privileges --disable-triggers \
             -d "$DATABASE_URL" \
-            "$SHOPEE_DUMP"
+            "$STOCK_DUMP"
 
       - name: Restore learning schema (optional)
         if: ${{ inputs.restore_learning == 'true' }}
@@ -103,7 +103,7 @@ jobs:
             SELECT schemaname, relname, n_live_tup AS rows,
                    pg_size_pretty(pg_total_relation_size(quote_ident(schemaname)||'.'||quote_ident(relname))::BIGINT) AS size
             FROM pg_stat_user_tables
-            WHERE schemaname = 'shopee'
+            WHERE schemaname = 'stock'
             ORDER BY relname;
           "
 

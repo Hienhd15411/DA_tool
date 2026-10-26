@@ -25,7 +25,7 @@ export function Header({
         background: "var(--panel)",
       }}
     >
-      <div style={{ fontWeight: 700 }}>DA Tool — SQL học qua Shopee case study</div>
+      <div style={{ fontWeight: 700 }}>DA Tool — SQL học qua Vietnam Stock case study</div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <button
           className="secondary"

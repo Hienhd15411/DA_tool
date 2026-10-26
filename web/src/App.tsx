@@ -13,16 +13,21 @@ import { pushHistory } from "./lib/queryHistory";
 import { useTeacher } from "./lib/useTeacher";
 import { envError } from "./supabase";
 
-const INITIAL_SQL = `-- Query mẫu: GMV theo tuần 3 tháng qua
+const INITIAL_SQL = `-- Query mẫu: Top 10 mã VN30 có giá đóng cửa cao nhất
+-- phiên gần nhất
 SELECT
-    DATE_TRUNC('week', d.full_date)::date AS week_start
-  , SUM(o.total_amount)                   AS gmv
-  , COUNT(*)                              AS orders
-FROM shopee.fact_orders o
-JOIN shopee.dim_date d ON d.date_key = o.order_date_key
-WHERE o.payment_status = 'paid'
-GROUP BY 1
-ORDER BY 1`;
+    p.ticker
+  , t.company_name
+  , p.trade_date
+  , p.close_price
+  , p.volume
+  , p.trade_value
+FROM stock.fact_price_daily p
+JOIN stock.dim_ticker t ON t.ticker = p.ticker
+WHERE t.is_vn30
+  AND p.trade_date = (SELECT MAX(trade_date) FROM stock.fact_price_daily)
+ORDER BY p.close_price DESC
+LIMIT 10`;
 
 const TABS_STORAGE_KEY = "datool.tabs.v1";
 const COLLAPSE_KEY = "datool.schema.collapsed";

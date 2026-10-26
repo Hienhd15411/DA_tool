@@ -1,12 +1,12 @@
 -- 009_schema_info_rpc.sql
--- RPC public.get_schema_info(): trả về toàn bộ bảng + cột trong schema shopee
+-- RPC public.get_schema_info(): trả về toàn bộ bảng + cột trong schema stock
 -- để frontend render schema browser (sidebar bên trái).
 
 CREATE OR REPLACE FUNCTION public.get_schema_info()
 RETURNS JSONB
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = shopee, public
+SET search_path = stock, public
 AS $$
   WITH tables AS (
     SELECT
@@ -16,13 +16,13 @@ AS $$
       GREATEST(
         COALESCE(
           (SELECT n_live_tup FROM pg_stat_user_tables s
-           WHERE s.schemaname = 'shopee' AND s.relname = t.table_name),
+           WHERE s.schemaname = 'stock' AND s.relname = t.table_name),
           0
         ),
         COALESCE(
           (SELECT c.reltuples::BIGINT FROM pg_class c
            JOIN pg_namespace n ON n.oid = c.relnamespace
-           WHERE n.nspname = 'shopee' AND c.relname = t.table_name),
+           WHERE n.nspname = 'stock' AND c.relname = t.table_name),
           0
         )
       )::BIGINT AS row_count,
@@ -32,7 +32,7 @@ AS $$
         ELSE 'other'
       END AS group_name
     FROM information_schema.tables t
-    WHERE t.table_schema = 'shopee' AND t.table_type = 'BASE TABLE'
+    WHERE t.table_schema = 'stock' AND t.table_type = 'BASE TABLE'
   ),
   cols AS (
     SELECT
@@ -46,7 +46,7 @@ AS $$
         ) ORDER BY c.ordinal_position
       ) AS columns
     FROM information_schema.columns c
-    WHERE c.table_schema = 'shopee'
+    WHERE c.table_schema = 'stock'
     GROUP BY c.table_name
   )
   SELECT COALESCE(
@@ -68,4 +68,4 @@ REVOKE ALL ON FUNCTION public.get_schema_info() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_schema_info() TO authenticated, anon;
 
 COMMENT ON FUNCTION public.get_schema_info IS
-  'Return all tables+columns in shopee schema (with live row counts) for frontend schema browser.';
+  'Return all tables+columns in stock schema (with live row counts) for frontend schema browser.';

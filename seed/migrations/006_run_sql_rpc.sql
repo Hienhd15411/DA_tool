@@ -3,7 +3,7 @@
 --
 -- Security model (v6 — SECURITY INVOKER + JSON ordering fix):
 --   1. SECURITY INVOKER → chạy với quyền caller (authenticated).
---   2. authenticated được GRANT SELECT shopee.* + INSERT learning.query_log
+--   2. authenticated được GRANT SELECT stock.* + INSERT learning.query_log
 --      → DML/DDL inject bị Postgres chặn ở permission layer.
 --   3. Input sanitization: strip leading ws/comments, strip trailing `;`,
 --      reject `;` giữa, whitelist SELECT/WITH/EXPLAIN.
@@ -25,7 +25,7 @@ CREATE OR REPLACE FUNCTION public.run_sql(
 RETURNS JSON   -- ⭐ JSON, không JSONB — preserve key order
 LANGUAGE plpgsql
 SECURITY INVOKER
-SET search_path = shopee, public
+SET search_path = stock, public
 AS $$
 DECLARE
   MAX_ROWS         CONSTANT INT := 1000;

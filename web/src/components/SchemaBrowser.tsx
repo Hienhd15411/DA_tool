@@ -75,7 +75,7 @@ export function SchemaBrowser({
       <div style={{ padding: "0.7rem", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <div style={{ fontWeight: 700, fontSize: 13 }}>
-            🗂️ Dataset · <code>shopee</code>
+            🗂️ Dataset · <code>stock</code>
           </div>
           <button
             onClick={onToggleCollapsed}
@@ -182,7 +182,7 @@ function TableNode({
           {expanded ? "▾" : "▸"}
         </button>
         <button
-          onClick={() => onInsert(`shopee.${table.table_name}`)}
+          onClick={() => onInsert(`stock.${table.table_name}`)}
           style={{
             flex: 1,
             textAlign: "left",
@@ -192,7 +192,7 @@ function TableNode({
             fontSize: 13,
             fontFamily: "ui-monospace, monospace",
           }}
-          title="Click để chèn 'shopee.tên_bảng' vào editor"
+          title="Click để chèn 'stock.tên_bảng' vào editor"
         >
           {table.table_name}{" "}
           <span className="muted" style={{ fontSize: 11 }}>
