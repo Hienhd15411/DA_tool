@@ -1,28 +1,44 @@
 # Seed config cho dataset chứng khoán VN (vnstock → Supabase).
+#
+# Range đã mở rộng để match spec ML (docs/ml_trend_5d_spec.md):
+#   - Warmup : trước 2025-01-01, cần ≥252 phiên → start 2023-10-01
+#   - Train  : 2025-01-01 → 2026-06-30
+#   - Test   : 2026-07-01 → hôm nay (2026-10-26)
 
 seed: 42
 
 dates:
-  start:  "2024-01-01"
-  end:    "2025-12-31"
+  start:  "2023-10-01"
+  end:    "2026-10-26"
 
 tickers:
   exchange: "HSX"            # HOSE / HSX (vnstock dùng 'HSX')
   limit:   null              # null = lấy hết; set số để test nhanh (VD 20)
   skip:    []                # mã bỏ qua (VD mã đã huỷ niêm yết)
 
+# Indices benchmark cho spec ML (VN-Index bắt buộc)
+indices:
+  - { code: "VNINDEX",     name: "VN-Index",       source: "VCI" }
+  - { code: "VN30",        name: "VN30",           source: "VCI" }
+  - { code: "HNXINDEX",    name: "HNX-Index",      source: "VCI" }
+
 vnstock:
   source:          "VCI"      # VCI | TCBS | DNSE | MSN
   interval:        "1D"       # daily
-  throttle_sec:    0.3        # sleep giữa request để tránh rate limit
-  max_retries:     3
+  throttle_sec:    0.5        # sleep giữa request (bump 0.3→0.5 vì range dài hơn)
+  max_retries:     5          # bump 3→5 cho robustness
 
 fundamentals:
   period: "quarter"           # quarter | year
-  lang:   "en"                # en | vi
+  lang:   "en"
+  # Fetch từ 2023Q1 để có TTM cho đầu 2024 (4 quý trailing)
+  min_year: 2023
 
+# Nghỉ lễ VN — loại khỏi trading day (loại khỏi fact_price_daily nếu không giao dịch)
 holidays:
-  # Nghỉ lễ VN 2024-2025 (bỏ market closed → is_trading_day = false)
+  2023:
+    - { date: "2023-10-02", name: "Nghỉ bù Quốc khánh (nếu áp dụng)" }
+    # Oct-Dec 2023 không có lễ chính thức
   2024:
     - { date: "2024-01-01", name: "Tết Dương lịch" }
     - { date: "2024-02-08", name: "Tết Nguyên đán" }
@@ -48,6 +64,17 @@ holidays:
     - { date: "2025-05-01", name: "Quốc tế Lao động" }
     - { date: "2025-05-02", name: "Nghỉ bù 30/4-1/5" }
     - { date: "2025-09-02", name: "Quốc khánh" }
+  2026:
+    - { date: "2026-01-01", name: "Tết Dương lịch" }
+    - { date: "2026-02-16", name: "Tết Nguyên đán (nghỉ bù)" }
+    - { date: "2026-02-17", name: "Tết Nguyên đán" }
+    - { date: "2026-02-18", name: "Tết Nguyên đán" }
+    - { date: "2026-02-19", name: "Tết Nguyên đán" }
+    - { date: "2026-02-20", name: "Tết Nguyên đán" }
+    - { date: "2026-04-27", name: "Giỗ Tổ Hùng Vương (nghỉ bù)" }
+    - { date: "2026-04-30", name: "Giải phóng miền Nam" }
+    - { date: "2026-05-01", name: "Quốc tế Lao động" }
+    - { date: "2026-09-02", name: "Quốc khánh" }
 
 # VN30 constituents (snapshot cuối 2024 — dùng flag is_vn30 trong dim_ticker)
 vn30:

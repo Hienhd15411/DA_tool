@@ -12,6 +12,14 @@
 GRANT USAGE  ON SCHEMA stock TO authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA stock TO authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA stock GRANT SELECT ON TABLES TO authenticated;
+-- Index table cũng SELECT được (CREATE sau migration này cần GRANT riêng)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables
+             WHERE table_schema = 'stock' AND table_name = 'fact_index_daily') THEN
+    EXECUTE 'GRANT SELECT ON stock.fact_index_daily TO authenticated';
+  END IF;
+END $$;
 
 -- -----------------------------------------------------------------
 -- LEARNING schema: internal. authenticated chỉ INSERT qua run_sql.

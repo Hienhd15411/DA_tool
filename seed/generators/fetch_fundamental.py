@@ -167,7 +167,9 @@ def run(conn, cfg: dict) -> int:
     period = cfg["fundamentals"]["period"]
     lang = cfg["fundamentals"]["lang"]
 
-    start_year = int(cfg["dates"]["start"][:4])
+    # start_year từ config fundamentals.min_year (ưu tiên) hoặc từ dates.start
+    cfg_fund_year = cfg["fundamentals"].get("min_year")
+    start_year = int(cfg_fund_year) if cfg_fund_year else int(cfg["dates"]["start"][:4])
     end_year = int(cfg["dates"]["end"][:4])
 
     with conn.cursor() as cur:
@@ -175,42 +177,60 @@ def run(conn, cfg: dict) -> int:
         tickers = [t for (t,) in cur.fetchall()]
 
     print(f"[fund] Fetching fundamentals ({period}, {start_year}-{end_year}) "
-          f"for {len(tickers)} tickers...")
+          f"for {len(tickers)} tickers (throttle={throttle}s)...")
 
     total_rows = 0
     total_ok = 0
+    skip_fetch = 0
+    skip_empty = 0
     for i, ticker in enumerate(tickers, 1):
         data = _fetch_one(ticker, source, period, lang, max_retries)
         if data is None:
+            skip_fetch += 1
             time.sleep(throttle)
             continue
 
         rows = _extract_rows(ticker, data, start_year, end_year)
-        if rows:
-            with conn.cursor() as cur:
-                from .utils import bulk_insert
-                bulk_insert(
-                    cur, "stock.fact_fundamental_quarterly",
-                    ["ticker", "period", "year", "quarter", "report_date",
-                     "revenue", "gross_profit", "operating_profit",
-                     "profit_before_tax", "profit_after_tax",
-                     "total_assets", "total_equity", "total_debt",
-                     "eps", "bvps", "roe_pct", "roa_pct", "debt_to_equity"],
-                    rows,
-                    on_conflict=(
-                        "(ticker, period) DO UPDATE SET "
-                        "revenue = EXCLUDED.revenue, "
-                        "profit_after_tax = EXCLUDED.profit_after_tax, "
-                        "eps = EXCLUDED.eps, roe_pct = EXCLUDED.roe_pct"
-                    ),
-                )
-            conn.commit()
-            total_rows += len(rows)
-            total_ok += 1
+        if not rows:
+            skip_empty += 1
+            time.sleep(throttle)
+            continue
+
+        with conn.cursor() as cur:
+            from .utils import bulk_insert
+            bulk_insert(
+                cur, "stock.fact_fundamental_quarterly",
+                ["ticker", "period", "year", "quarter", "report_date",
+                 "revenue", "gross_profit", "operating_profit",
+                 "profit_before_tax", "profit_after_tax",
+                 "total_assets", "total_equity", "total_debt",
+                 "eps", "bvps", "roe_pct", "roa_pct", "debt_to_equity"],
+                rows,
+                on_conflict=(
+                    "(ticker, period) DO UPDATE SET "
+                    "revenue = EXCLUDED.revenue, "
+                    "gross_profit = EXCLUDED.gross_profit, "
+                    "operating_profit = EXCLUDED.operating_profit, "
+                    "profit_before_tax = EXCLUDED.profit_before_tax, "
+                    "profit_after_tax = EXCLUDED.profit_after_tax, "
+                    "total_assets = EXCLUDED.total_assets, "
+                    "total_equity = EXCLUDED.total_equity, "
+                    "total_debt = EXCLUDED.total_debt, "
+                    "eps = EXCLUDED.eps, bvps = EXCLUDED.bvps, "
+                    "roe_pct = EXCLUDED.roe_pct, roa_pct = EXCLUDED.roa_pct, "
+                    "debt_to_equity = EXCLUDED.debt_to_equity"
+                ),
+            )
+        conn.commit()
+        total_rows += len(rows)
+        total_ok += 1
 
         if i % 20 == 0:
-            print(f"  [fund] {i}/{len(tickers)} done — {total_rows:,} rows")
+            print(f"  [fund] {i}/{len(tickers)} done — "
+                  f"{total_rows:,} rows, {total_ok} OK, "
+                  f"{skip_fetch} fetch-fail, {skip_empty} empty")
         time.sleep(throttle)
 
     print(f"[fund] Finished: {total_ok}/{len(tickers)} tickers OK, {total_rows:,} rows.")
+    print(f"  Skips: {skip_fetch} fetch-fail, {skip_empty} empty")
     return total_rows

@@ -22,9 +22,20 @@ def _parse_holidays(cfg: dict) -> dict[date, str]:
     return holidays
 
 
+def _check_holidays_coverage(cfg: dict, start: date, end: date) -> None:
+    """Cảnh báo nếu range có năm mà config.holidays chưa có entry."""
+    cfg_years = set((cfg.get("holidays") or {}).keys())
+    needed_years = set(range(start.year, end.year + 1))
+    missing = needed_years - cfg_years
+    if missing:
+        print(f"  ⚠️  [dim_date] Thiếu holidays config cho năm: {sorted(missing)}. "
+              f"Các ngày đó sẽ coi là trading day → is_trading_day có thể sai.")
+
+
 def run(conn, cfg: dict) -> int:
     start = datetime.strptime(cfg["dates"]["start"], "%Y-%m-%d").date()
     end = datetime.strptime(cfg["dates"]["end"], "%Y-%m-%d").date()
+    _check_holidays_coverage(cfg, start, end)
     holidays = _parse_holidays(cfg)
 
     rows: list[tuple[Any, ...]] = []

@@ -27,3 +27,7 @@ CREATE INDEX IF NOT EXISTS ix_date_trading
   ON stock.dim_date (full_date) WHERE is_trading_day;
 CREATE INDEX IF NOT EXISTS ix_date_year_month
   ON stock.dim_date (year, month);
+
+-- fact_index_daily: filter theo date để JOIN benchmark
+CREATE INDEX IF NOT EXISTS ix_index_date
+  ON stock.fact_index_daily (date_key);

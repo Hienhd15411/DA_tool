@@ -1,7 +1,8 @@
 """Fetch OHLCV daily cho mỗi ticker trong dim_ticker → stock.fact_price_daily.
 
 vnstock sometimes returns None, raises network errors, or returns partial data.
-Defensive: retry per-ticker, skip on failure, continue."""
+Defensive: retry per-ticker, skip on failure, continue.
+"""
 from __future__ import annotations
 import time
 from typing import Any
@@ -33,7 +34,11 @@ def _fetch_history(ticker: str, start: str, end: str, source: str,
 def _normalize(df: pd.DataFrame) -> list[tuple[Any, ...]]:
     """Normalize vnstock OHLCV DataFrame → list of tuples cho insert.
 
-    Columns thường gặp: time/date, open, high, low, close, volume, value
+    Validation:
+      - Drop rows có date NaN
+      - Drop rows có open/high/low/close NaN hoặc <= 0
+      - Drop rows có high < low hoặc close vượt khoảng [low, high]
+      - Volume < 0 → set 0 thay vì drop (có thể là báo lỗi API)
     """
     cols_lower = {c.lower(): c for c in df.columns}
 
@@ -57,22 +62,51 @@ def _normalize(df: pd.DataFrame) -> list[tuple[Any, ...]]:
 
     df = df.copy()
     df[col_date] = pd.to_datetime(df[col_date], errors="coerce").dt.date
-    df = df.dropna(subset=[col_date])
+    df = df.dropna(subset=[col_date, col_open, col_high, col_low, col_close])
 
     out: list[tuple[Any, ...]] = []
     for _, r in df.iterrows():
         d = r[col_date]
-        out.append((
-            None,                                  # ticker — fill ngoài
-            date_key(d),
-            d,
-            float(r[col_open]),
-            float(r[col_high]),
-            float(r[col_low]),
-            float(r[col_close]),
-            int(r[col_vol]) if pd.notna(r[col_vol]) else 0,
-            int(r[col_val]) if col_val and pd.notna(r[col_val]) else None,
-        ))
+        try:
+            o = float(r[col_open])
+            h = float(r[col_high])
+            lo = float(r[col_low])
+            c = float(r[col_close])
+        except (TypeError, ValueError):
+            continue
+
+        # Validate prices
+        if any(pd.isna(x) for x in (o, h, lo, c)):
+            continue
+        if o <= 0 or h <= 0 or lo <= 0 or c <= 0:
+            continue
+        if h < lo:
+            continue
+        # Allow small floating slack ở close vs [low, high] (vnstock đôi khi lệch)
+        slack = 0.001 * h
+        if c < lo - slack or c > h + slack:
+            continue
+
+        # Volume: NaN → 0, âm → 0
+        if col_vol and pd.notna(r[col_vol]):
+            try:
+                v = int(r[col_vol])
+                vol = max(0, v)
+            except (TypeError, ValueError):
+                vol = 0
+        else:
+            vol = 0
+
+        # Trade value: NaN → None (nullable), âm → None
+        val = None
+        if col_val and pd.notna(r[col_val]):
+            try:
+                raw_val = int(r[col_val])
+                val = raw_val if raw_val >= 0 else None
+            except (TypeError, ValueError):
+                val = None
+
+        out.append((None, date_key(d), d, o, h, lo, c, vol, val))
     return out
 
 
@@ -91,18 +125,23 @@ def run(conn, cfg: dict) -> int:
         valid_date_keys = {k for (k,) in cur.fetchall()}
 
     print(f"[price] Fetching OHLCV for {len(tickers)} tickers "
-          f"({start} → {end}, source={source})...")
+          f"({start} → {end}, source={source}, throttle={throttle}s)...")
 
     total_rows = 0
     total_ok = 0
+    skip_fetch = 0
+    skip_parse = 0
+    skip_empty = 0
     for i, ticker in enumerate(tickers, 1):
         df = _fetch_history(ticker, start, end, source, interval, max_retries)
         if df is None:
+            skip_fetch += 1
             time.sleep(throttle)
             continue
 
         rows = _normalize(df)
         if not rows:
+            skip_parse += 1
             print(f"  [skip] {ticker}: unexpected columns {list(df.columns)}")
             time.sleep(throttle)
             continue
@@ -113,32 +152,41 @@ def run(conn, cfg: dict) -> int:
             for r in rows if r[1] in valid_date_keys
         ]
 
-        if filled:
-            with conn.cursor() as cur:
-                bulk_insert(
-                    cur, "stock.fact_price_daily",
-                    ["ticker", "date_key", "trade_date",
-                     "open_price", "high_price", "low_price", "close_price",
-                     "volume", "trade_value"],
-                    filled,
-                    on_conflict=(
-                        "(ticker, date_key) DO UPDATE SET "
-                        "open_price = EXCLUDED.open_price, "
-                        "high_price = EXCLUDED.high_price, "
-                        "low_price = EXCLUDED.low_price, "
-                        "close_price = EXCLUDED.close_price, "
-                        "volume = EXCLUDED.volume, "
-                        "trade_value = EXCLUDED.trade_value"
-                    ),
-                    page_size=500,
-                )
-            conn.commit()
-            total_rows += len(filled)
-            total_ok += 1
+        if not filled:
+            skip_empty += 1
+            print(f"  [skip] {ticker}: 0 rows pass date filter "
+                  f"(raw={len(rows)}, min_date={rows[0][2]}, max_date={rows[-1][2]})")
+            time.sleep(throttle)
+            continue
+
+        with conn.cursor() as cur:
+            bulk_insert(
+                cur, "stock.fact_price_daily",
+                ["ticker", "date_key", "trade_date",
+                 "open_price", "high_price", "low_price", "close_price",
+                 "volume", "trade_value"],
+                filled,
+                on_conflict=(
+                    "(ticker, date_key) DO UPDATE SET "
+                    "open_price = EXCLUDED.open_price, "
+                    "high_price = EXCLUDED.high_price, "
+                    "low_price = EXCLUDED.low_price, "
+                    "close_price = EXCLUDED.close_price, "
+                    "volume = EXCLUDED.volume, "
+                    "trade_value = EXCLUDED.trade_value"
+                ),
+                page_size=500,
+            )
+        conn.commit()
+        total_rows += len(filled)
+        total_ok += 1
 
         if i % 20 == 0:
-            print(f"  [price] {i}/{len(tickers)} done — {total_rows:,} rows")
+            print(f"  [price] {i}/{len(tickers)} done — "
+                  f"{total_rows:,} rows, {total_ok} OK, "
+                  f"{skip_fetch} fetch-fail, {skip_parse} parse-fail, {skip_empty} empty")
         time.sleep(throttle)
 
     print(f"[price] Finished: {total_ok}/{len(tickers)} tickers OK, {total_rows:,} price rows.")
+    print(f"  Skips: {skip_fetch} fetch-fail, {skip_parse} parse-fail, {skip_empty} empty")
     return total_rows

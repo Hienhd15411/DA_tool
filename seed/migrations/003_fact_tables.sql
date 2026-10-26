@@ -49,3 +49,22 @@ COMMENT ON COLUMN stock.fact_fundamental_quarterly.revenue IS 'Doanh thu thuần
 COMMENT ON COLUMN stock.fact_fundamental_quarterly.profit_after_tax IS 'Lợi nhuận sau thuế (LNST / Net income), đơn vị tỷ VND.';
 COMMENT ON COLUMN stock.fact_fundamental_quarterly.eps IS 'Earnings per share — LNST / số CP lưu hành bình quân, đơn vị VND/CP.';
 COMMENT ON COLUMN stock.fact_fundamental_quarterly.roe_pct IS 'Return on Equity, đơn vị % (VD: 15.50 = 15.5%).';
+
+-- --------------------------------------------------------------------
+-- Index benchmarks (VN-Index, HNX-Index, VN30 index)
+-- --------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS stock.fact_index_daily (
+  index_code    VARCHAR(20)   NOT NULL,            -- VNINDEX / VN30 / HNXINDEX
+  date_key      INT           NOT NULL REFERENCES stock.dim_date(date_key),
+  trade_date    DATE          NOT NULL,
+  open_price    NUMERIC(14,4) NOT NULL,
+  high_price    NUMERIC(14,4),
+  low_price     NUMERIC(14,4),
+  close_price   NUMERIC(14,4) NOT NULL,
+  volume        BIGINT,
+  trade_value   BIGINT,
+  PRIMARY KEY (index_code, date_key)
+);
+
+COMMENT ON TABLE stock.fact_index_daily IS 'Chỉ số thị trường daily — VN-Index (benchmark cho ML), VN30, HNX-Index.';
+COMMENT ON COLUMN stock.fact_index_daily.close_price IS 'Giá trị đóng cửa chỉ số, đơn vị điểm (dùng NUMERIC(14,4) vì index có nhiều số lẻ).';

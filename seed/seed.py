@@ -27,7 +27,7 @@ import yaml
 from dotenv import load_dotenv
 
 from generators.utils import get_conn
-from generators import gen_dim_date, fetch_tickers, fetch_price, fetch_fundamental
+from generators import gen_dim_date, fetch_tickers, fetch_price, fetch_fundamental, fetch_index
 
 ROOT = Path(__file__).parent
 MIGRATIONS = ROOT / "migrations"
@@ -56,7 +56,7 @@ def reset_stock_data(conn):
     conn.commit()
 
 
-def generate_data(conn, cfg, *, skip_tickers=False, skip_fundamental=False):
+def generate_data(conn, cfg, *, skip_tickers=False, skip_fundamental=False, skip_index=False):
     print("\n[seed] dim_date...")
     n = gen_dim_date.run(conn, cfg)
     print(f"[seed] dim_date ← {n:,} rows")
@@ -69,6 +69,11 @@ def generate_data(conn, cfg, *, skip_tickers=False, skip_fundamental=False):
     print("\n[seed] fact_price_daily (via vnstock OHLCV)...")
     n_price = fetch_price.run(conn, cfg)
     print(f"[seed] fact_price_daily ← {n_price:,} rows")
+
+    if not skip_index:
+        print("\n[seed] fact_index_daily (VN-Index + benchmarks)...")
+        n_idx = fetch_index.run(conn, cfg)
+        print(f"[seed] fact_index_daily ← {n_idx:,} rows")
 
     if not skip_fundamental:
         print("\n[seed] fact_fundamental_quarterly (via vnstock BCTC)...")
@@ -98,7 +103,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--mode",
-        choices=["full", "migrate", "data", "reset", "price-only"],
+        choices=["full", "migrate", "data", "reset", "price-only", "price-and-index"],
         default="full",
     )
     args = ap.parse_args()
@@ -116,6 +121,8 @@ def main():
         elif args.mode == "data":
             generate_data(conn, cfg)
         elif args.mode == "price-only":
+            generate_data(conn, cfg, skip_tickers=True, skip_fundamental=True, skip_index=True)
+        elif args.mode == "price-and-index":
             generate_data(conn, cfg, skip_tickers=True, skip_fundamental=True)
         else:  # full
             apply_migrations(conn)
