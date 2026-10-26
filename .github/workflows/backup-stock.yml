@@ -1,6 +1,6 @@
-name: Backup shopee data
+name: Backup stock data
 
-# Snapshot toàn bộ schema shopee thành .dump.gz + upload lên GitHub Release.
+# Snapshot toàn bộ schema stock thành .dump.gz + upload lên GitHub Release.
 # Restore: download file từ release → gunzip → pg_restore.
 #
 # Trigger manual từ Actions tab. Nên chạy trước khi:
@@ -53,13 +53,13 @@ jobs:
           mkdir -p /tmp/backup
           echo "ts=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
 
-      - name: pg_dump schema shopee (custom format, compressed)
+      - name: pg_dump schema stock (custom format, compressed)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          FILE="/tmp/backup/shopee-${{ steps.meta.outputs.ts }}.dump"
+          FILE="/tmp/backup/stock-${{ steps.meta.outputs.ts }}.dump"
           pg_dump "$DATABASE_URL" \
-            --schema=shopee \
+            --schema=stock \
             --no-owner \
             --no-privileges \
             --format=custom \
@@ -94,7 +94,7 @@ jobs:
             SELECT schemaname, relname, n_live_tup AS rows,
                    pg_size_pretty(pg_total_relation_size(quote_ident(schemaname)||'.'||quote_ident(relname))::BIGINT) AS size
             FROM pg_stat_user_tables
-            WHERE schemaname IN ('shopee', 'learning', 'public')
+            WHERE schemaname IN ('stock', 'learning', 'public')
             ORDER BY schemaname, relname;
           " > /tmp/backup/stats.txt
           cat /tmp/backup/stats.txt
@@ -105,7 +105,7 @@ jobs:
         run: |
           TAG="${{ inputs.tag_name }}-${{ steps.meta.outputs.ts }}"
           NOTE="${{ inputs.note }}"
-          BODY="Backup của schema shopee + learning + public.
+          BODY="Backup của schema stock + learning + public.
           Timestamp: ${{ steps.meta.outputs.ts }}
           Note: $NOTE
 
@@ -113,9 +113,9 @@ jobs:
           \`\`\`bash
           # 1. Download 2 file dump từ release này
           # 2. Drop schema hiện tại (nếu muốn overwrite hoàn toàn)
-          psql \$DATABASE_URL -c 'DROP SCHEMA shopee CASCADE; CREATE SCHEMA shopee;'
+          psql \$DATABASE_URL -c 'DROP SCHEMA stock CASCADE; CREATE SCHEMA stock;'
           # 3. Restore
-          pg_restore --no-owner --no-privileges -d \$DATABASE_URL shopee-*.dump
+          pg_restore --no-owner --no-privileges -d \$DATABASE_URL stock-*.dump
           pg_restore --no-owner --no-privileges -d \$DATABASE_URL learning-*.dump
           \`\`\`
 
@@ -127,7 +127,7 @@ jobs:
           gh release create "$TAG" \
             --title "Dataset backup — ${{ steps.meta.outputs.ts }}" \
             --notes "$BODY" \
-            /tmp/backup/shopee-*.dump \
+            /tmp/backup/stock-*.dump \
             /tmp/backup/learning-*.dump \
             /tmp/backup/stats.txt
 

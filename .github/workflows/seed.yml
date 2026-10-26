@@ -1,6 +1,7 @@
 name: Seed database
 
-# Chạy seed script trên GitHub Actions runner (có Python + network).
+# Chạy seed script trên GitHub Actions runner.
+# Fetch dữ liệu chứng khoán VN từ vnstock → Supabase.
 # Trigger thủ công từ tab Actions → chọn mode → Run workflow.
 
 on:
@@ -12,12 +13,13 @@ on:
         default: "full"
         type: choice
         options:
-          - full      # apply migrations + generate all data
-          - migrate   # apply migrations only (no data change)
-          - data      # generate data only (assumes schema exists)
-          - reset     # drop shopee schema + re-seed from scratch
+          - full          # apply migrations + fetch all data
+          - migrate       # apply migrations only (no data change)
+          - data          # fetch data only (assumes schema exists)
+          - reset         # drop stock schema + re-seed from scratch
+          - price-only    # chỉ refresh fact_price_daily (nhanh)
       import_exercises:
-        description: "Also import docs/exercises/*.md vào bảng learning.exercise"
+        description: "Also import docs/exercises/*.md vào bảng public.exercise"
         required: true
         default: true
         type: boolean
@@ -25,7 +27,7 @@ on:
 jobs:
   seed:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,7 +53,6 @@ jobs:
             echo "::error::DATABASE_URL secret not set. Add it in Settings → Secrets and variables → Actions"
             exit 1
           fi
-          # không echo URL ra log, chỉ xác nhận có
           echo "DATABASE_URL is set (length ${#DATABASE_URL})"
 
       - name: Run seed
@@ -64,7 +65,7 @@ jobs:
           python seed.py --mode=${{ inputs.mode }}
 
       - name: Import exercises
-        if: ${{ inputs.import_exercises }}
+        if: ${{ inputs.import_exercises && hashFiles('docs/exercises/*.md') != '' }}
         working-directory: seed
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -83,7 +84,7 @@ jobs:
               cur.execute("""
                 SELECT schemaname, relname, n_live_tup
                 FROM pg_stat_user_tables
-                WHERE schemaname IN ('shopee','learning')
+                WHERE schemaname IN ('stock','learning')
                 ORDER BY schemaname, relname
               """)
               print(f"{'schema':<10} {'table':<35} {'rows':>15}")
