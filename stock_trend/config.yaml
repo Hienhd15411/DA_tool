@@ -1,0 +1,84 @@
+# Universe / horizon
+horizon_days: 5
+train_start: "2025-01-01"
+train_end:   "2026-06-30"
+test_start:  "2026-07-01"
+# test_end: null → chạy đến ngày mới nhất trong fact_price_daily
+
+warmup_min_history: 252   # phiên tối thiểu để tính EMA200 + z-score 250
+
+# Universe filter (mỗi ngày)
+universe:
+  min_avg_value_20d_vnd: 5_000_000_000    # 5 tỷ VND / phiên trung bình 20D → is_illiquid
+  min_rows_per_symbol:   252
+
+# Target label
+label:
+  # Entry open t+1, exit close t+5. threshold ngưỡng = coef × atr14_pct
+  thr_atr_coef: 0.5
+  # Loại mẫu nếu t+1..t+5 có >= N phiên ceil/floor liên tiếp
+  drop_if_lock_days_ge: 2
+
+# Features
+features:
+  roll_z_window: 250
+  winsor_lower_pct: 0.01
+  winsor_upper_pct: 0.99
+  # Ceiling/floor khi vnstock không trả → suy ra ±X% từ close[t-1]
+  ceiling_floor_bps:
+    HOSE:  700     # ±7%
+    HSX:   700     # alias
+    HNX:   1000    # ±10%
+    UPCOM: 1500    # ±15%
+
+# Fundamentals / value mode
+value:
+  # 'auto' = ưu tiên fund nếu tất cả metric có đủ, fallback technical_proxy
+  # 'technical_proxy' = ép dùng proxy (do vnstock chưa có report_date đáng tin)
+  # 'fund' = ép fund (chỉ dùng khi đã verify report_date)
+  mode: "technical_proxy"
+  top_pct: 0.30     # top 30% theo value_score để sàng lọc
+
+# Model
+model:
+  type: "lightgbm"        # baseline | lightgbm
+  lightgbm:
+    objective: "binary"
+    metric: "binary_logloss"
+    num_leaves: 15
+    min_data_in_leaf: 200
+    learning_rate: 0.03
+    feature_fraction: 0.7
+    bagging_fraction: 0.7
+    bagging_freq: 1
+    num_boost_round: 2000
+    early_stopping_rounds: 100
+    verbose: -1
+
+# Daily picks
+select:
+  n_picks: 10
+  max_per_industry: 3
+
+# Costs (trade sim)
+costs:
+  broker_fee_pct_per_side: 0.0015   # 0.15% mỗi chiều — placeholder, xác nhận với CTCK
+  sell_tax_pct:            0.001    # 0.1% thuế bán
+
+# Walk-forward CV (chia train)
+cv_folds:
+  - { train_end: "2025-06-30", val_start: "2025-07-01", val_end: "2025-08-31" }
+  - { train_end: "2025-08-31", val_start: "2025-09-01", val_end: "2025-10-31" }
+  - { train_end: "2025-10-31", val_start: "2025-11-01", val_end: "2025-12-31" }
+  - { train_end: "2025-12-31", val_start: "2026-01-01", val_end: "2026-02-28" }
+
+# Output
+output:
+  dir: "stock_trend/outputs"
+  write_supabase_table: "stock.fact_prediction"
+  write_csv: true
+
+# Telegram (daily push). Env vars: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+telegram:
+  enabled: true
+  format: "markdown"
