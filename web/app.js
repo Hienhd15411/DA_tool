@@ -72,8 +72,10 @@ function renderGate(g) {
   $('gateSub').textContent = `test từ ${fmtDate(g.test_start)}, ${g.n_test_days} ngày có nhãn`;
   const m = g.metrics?.lightgbm || {}, b = g.metrics?.logistic || {};
   const checks = Array.isArray(g.checks) ? g.checks.map((c) => [c.name, c.pass]) : Object.entries(g.checks);
+  const failed = checks.filter(([, v]) => !v).length;
   $('gate').innerHTML = `<ul class="checks">${checks.map(([k, v]) =>
     `<li><span aria-label="${v ? 'đạt' : 'không đạt'}">${v ? '✅' : '❌'}</span>${esc(k)}</li>`).join('')}</ul>` +
+    `<p class="mut" style="margin:6px 0">${failed ? `Gate chưa đạt: ${failed} mục ❌. Các mục ✅ không đủ để kết luận.` : 'Tất cả mục đều đạt.'}</p>` +
     (m.n_days ? `<dl class="kv">
       <dt>Hit top10</dt><dd>${pct(m.hit_top10)} · base pool ${pct(m.base_pool)} · lift ${m.lift != null ? (m.lift * 100).toFixed(1) : '—'} đđ</dd>
       <dt>Net top10 / 5 phiên</dt><dd>${pct(m.net_top10, 2)}</dd>
@@ -124,7 +126,7 @@ function barChart(rows) {
 
 function renderTrack(rec, daily) {
   const all = rec.find((r) => r.action === '(tất cả)');
-  if (!all) { $('track').innerHTML = '<p class="mut">Chưa có tín hiệu nào đủ 5 phiên để quyết toán.</p>'; return; }
+  if (!all || !all.n_settled) { $('track').innerHTML = '<p class="mut">Chưa có tín hiệu nào đủ 5 phiên để quyết toán. Kết quả sẽ hiện khi có dữ liệu sau ngày tín hiệu.</p>'; return; }
   const by = rec.filter((r) => r.action !== '(tất cả)');
   $('track').innerHTML = `<div class="band" style="margin-bottom:8px">
       <div class="tile"><div class="k">Đã quyết toán</div><div class="v">${all.n_settled}</div><div class="s">${all.n_days} ngày tín hiệu</div></div>
