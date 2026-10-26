@@ -3,29 +3,24 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../supabase";
 
 /**
- * Single-user mode với AUTO-LOGIN:
+ * Single-user mode, zero-friction auth:
+ *   1. Lần đầu: user gõ password 1 lần → store vào localStorage
+ *   2. Lần sau: auto signIn silent → ko hiện form
+ *   3. Login invalid → clear localStorage + show form lại
  *
- * Env vars:
+ * Env vars (optional):
  *   VITE_OWNER_EMAIL     — default hienhd15411@gmail.com
- *   VITE_OWNER_PASSWORD  — nếu có → tự động signInWithPassword khi mount
- *   VITE_ALLOWED_EMAILS  — CSV; nếu không set, chỉ owner được vào
- *
- * Flow:
- *   1. getSession → nếu đã có session & email hợp lệ → render app
- *   2. Chưa có session + có VITE_OWNER_PASSWORD → auto signIn silent
- *   3. Session không hợp lệ (email ≠ whitelist) → signOut
- *   4. Chỉ hiện form login nếu auto-login fail hoặc không config password
- *
- * Session persist (Supabase client default) → login 1 lần, sống cho đến khi
- * refresh token hết hạn (default 60 ngày). Supabase auto-refresh nếu còn active.
+ *   VITE_OWNER_PASSWORD  — nếu set, override localStorage (dùng cho deployment mới)
+ *   VITE_ALLOWED_EMAILS  — CSV; default chỉ owner
  */
 const DEFAULT_OWNER_EMAIL = "hienhd15411@gmail.com";
+const REMEMBER_KEY = "datool.auth.pw";
 
 const OWNER_EMAIL = (
   (import.meta.env.VITE_OWNER_EMAIL as string | undefined)?.trim().toLowerCase() ||
   DEFAULT_OWNER_EMAIL
 );
-const OWNER_PASSWORD = (import.meta.env.VITE_OWNER_PASSWORD as string | undefined) ?? "";
+const ENV_PASSWORD = (import.meta.env.VITE_OWNER_PASSWORD as string | undefined) ?? "";
 
 const ALLOWED_EMAILS: Set<string> = (() => {
   const raw = (import.meta.env.VITE_ALLOWED_EMAILS as string | undefined) ?? "";
@@ -38,10 +33,27 @@ function isAllowed(email: string): boolean {
   return ALLOWED_EMAILS.has(email.trim().toLowerCase());
 }
 
+function readRemembered(): string {
+  try {
+    return localStorage.getItem(REMEMBER_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+function writeRemembered(pw: string) {
+  try {
+    localStorage.setItem(REMEMBER_KEY, pw);
+  } catch { /* quota */ }
+}
+function clearRemembered() {
+  try {
+    localStorage.removeItem(REMEMBER_KEY);
+  } catch { /* ignore */ }
+}
+
 export function AuthGate({ children }: { children: (session: Session) => ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [autoTried, setAutoTried] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -49,7 +61,7 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // Mount: watch session + try auto-login
+  // Mount: watch session + try auto-login từ env hoặc localStorage
   useEffect(() => {
     const hash = window.location.hash;
     if (hash.includes("type=recovery")) {
@@ -60,19 +72,22 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
 
-      // Auto-login nếu chưa có session + đã config password
-      if (!data.session && OWNER_PASSWORD) {
+      // Auto-login nếu chưa có session + đã có pw (env ưu tiên, fallback localStorage)
+      const autoPw = ENV_PASSWORD || readRemembered();
+      if (!data.session && autoPw) {
         try {
           const { error } = await supabase.auth.signInWithPassword({
             email: OWNER_EMAIL,
-            password: OWNER_PASSWORD,
+            password: autoPw,
           });
-          if (error) setError(mapError(error.message));
-        } catch (e) {
-          setError((e as Error).message);
-        }
+          if (error) {
+            // Stored pw sai (bị thay đổi) → clear để user gõ lại
+            if (!ENV_PASSWORD && error.message.toLowerCase().includes("invalid")) {
+              clearRemembered();
+            }
+          }
+        } catch { /* network err — fall through to form */ }
       }
-      setAutoTried(true);
       setLoading(false);
     })();
 
@@ -83,10 +98,11 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
     return () => sub.data.subscription.unsubscribe();
   }, []);
 
-  // Nếu session có nhưng email không trong whitelist → signOut
+  // Session có nhưng email không trong whitelist → signOut
   useEffect(() => {
     if (session && session.user?.email && !isAllowed(session.user.email)) {
       supabase.auth.signOut();
+      clearRemembered();
       setError("Tài khoản này không có quyền truy cập.");
     }
   }, [session]);
@@ -109,8 +125,13 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
       password,
     });
     setBusy(false);
-    if (error) setError(mapError(error.message));
-    else setPassword("");
+    if (error) {
+      setError(mapError(error.message));
+      return;
+    }
+    // Login OK → nhớ password cho lần sau
+    writeRemembered(password);
+    setPassword("");
   }
 
   async function handleUpdatePassword(e: React.FormEvent) {
@@ -131,12 +152,13 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
       setError(mapError(error.message));
       return;
     }
+    // Cập nhật localStorage với password mới → lần sau auto-login luôn
+    writeRemembered(password);
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    await supabase.auth.signOut();
     setRecovery(false);
     setPassword("");
     setPassword2("");
-    setInfo("Đã đổi password. Reload trang để auto-login lại.");
+    setInfo("Đã đổi password. Session hiện tại giữ nguyên.");
   }
 
   if (loading) {
@@ -147,13 +169,10 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
     );
   }
 
-  // 1. Recovery flow — đặt password mới
+  // 1. Recovery flow
   if (recovery) {
     return (
       <AuthCard title="Đổi password">
-        <p className="muted" style={{ marginTop: 0 }}>
-          Nhập password mới cho tài khoản {session?.user?.email || OWNER_EMAIL}.
-        </p>
         <form onSubmit={handleUpdatePassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
             type="password"
@@ -181,29 +200,15 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
     );
   }
 
-  // 2. Chưa login → fallback form (chỉ khi auto-login không có password hoặc fail)
+  // 2. Chưa login → form đơn giản
   if (!session) {
     return (
       <AuthCard title="DA Tool">
-        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-          Private tool. Owner: {OWNER_EMAIL}
-        </p>
-        {OWNER_PASSWORD && autoTried && (
-          <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-            Auto-login đã thử nhưng fail. Có thể do Supabase đang pause hoặc password env sai.
-            Nhập password thủ công bên dưới hoặc wake Supabase project.
-          </div>
-        )}
-        {!OWNER_PASSWORD && (
-          <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-            Chưa set <code>VITE_OWNER_PASSWORD</code> ở Netlify → auto-login tắt.
-            Nhập password thủ công hoặc set env var rồi redeploy.
-          </div>
-        )}
         <form onSubmit={handleManualLogin} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
             type="password"
             required
+            autoFocus
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -212,6 +217,9 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
           <button type="submit" disabled={busy}>
             {busy ? "Đang xử lý…" : "Đăng nhập"}
           </button>
+          <div className="muted" style={{ fontSize: 11, textAlign: "center" }}>
+            {OWNER_EMAIL} · password sẽ được nhớ cho lần sau
+          </div>
           {error && <div className="error">{error}</div>}
           {info && <div className="success">{info}</div>}
         </form>
@@ -226,14 +234,14 @@ function AuthCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div
       style={{
-        maxWidth: 400,
-        margin: "10vh auto",
+        maxWidth: 360,
+        margin: "15vh auto",
         padding: 24,
         background: "var(--panel)",
         borderRadius: 8,
       }}
     >
-      <h2 style={{ marginTop: 0 }}>{title}</h2>
+      <h2 style={{ marginTop: 0, textAlign: "center" }}>{title}</h2>
       {children}
     </div>
   );
@@ -241,13 +249,13 @@ function AuthCard({ title, children }: { title: string; children: ReactNode }) {
 
 function mapError(msg: string): string {
   const m = msg.toLowerCase();
-  if (m.includes("invalid login credentials")) return "Password sai (hoặc chưa set đúng ở Netlify env var).";
+  if (m.includes("invalid login credentials")) return "Password sai.";
   if (m.includes("email not confirmed")) return "Email chưa được confirm trong Supabase.";
   if (m.includes("rate limit")) return "Quá nhiều lần thử. Đợi 1 phút rồi thử lại.";
   if (m.includes("password should be")) return "Password quá ngắn (tối thiểu 6 ký tự).";
   if (m.includes("same as the old")) return "Password mới không được trùng password cũ.";
   if (m.includes("failed to fetch") || m.includes("fetch failed")) {
-    return "Không kết nối được Supabase — project có thể đang pause. Vô dashboard → Restore project.";
+    return "Không kết nối được Supabase — có thể project đang pause. Vô dashboard → Restore project.";
   }
   return msg;
 }
