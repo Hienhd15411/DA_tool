@@ -1,0 +1,50 @@
+# ===== VNQ daily tool — cấu hình (theo ledger dự án ML stock) =====
+model_version: tn07          # model đang dùng để chấm điểm (đóng băng trong models/<version>)
+
+paths:
+  panel: data/panel.parquet        # OHLCV + GTGD từng mã (giá đã điều chỉnh quyền)
+  vnindex: data/vnindex.parquet
+  industry: data/industry.csv      # ticker,industry
+  exchange_map: data/exchange_map.csv   # ticker,exchange (HOSE/HNX/UPCOM) — nếu thiếu sẽ suy luận
+  inbox: data/inbox                # thả file cập nhật (csv/parquet) vào đây
+  archive: data/archive
+  models: models
+  reports: reports
+  state: state
+
+data_source: file      # file = đọc file thả vào inbox | vnstock = tự kéo (thử nghiệm, cần cài vnstock)
+vnstock:
+  source: VCI
+  lookback_days: 20     # số ngày lịch kéo lại mỗi lần để so khớp phần chồng lấn
+  min_liq_vnd: 1.0e9    # chỉ kéo mã có GTGD TB20 gần nhất >= ngưỡng này (giảm số request)
+
+ledger:
+  horizon: 5
+  train_start: '2025-01-01'
+  train_end: '2026-06-30'
+  test_start: '2026-07-01'
+  topk: 10
+  value_top_pct: 0.30
+  max_per_industry: 3
+  label_atr_mult: 0.5
+  wf_folds: [['2025-07-01','2025-09-30'], ['2025-10-01','2025-12-31'], ['2026-01-01','2026-03-31'], ['2026-04-01','2026-06-30']]
+
+costs:
+  fee_per_side: 0.0015   # GIẢ ĐỊNH
+  sell_tax: 0.001
+  fee_confirmed: false   # đổi thành true khi đã xác nhận mức phí thật
+
+universe:
+  ticker_regex: '[A-Z0-9]{3}'   # loại chứng quyền
+  liq_min_vnd: 5.0e9
+  liq_confirmed: false
+  min_bars: 200
+
+gate:                    # điều kiện mục 6
+  min_test_days: 60      # ĐỀ XUẤT: số ngày test có nhãn tối thiểu mới được xét gate
+  bootstrap: 2000
+  block: 5
+
+qc:
+  adjust_tol: 0.005      # lệch giá đóng cửa >0.5% ở ngày chồng lấn => nghi điều chỉnh quyền
+  max_stale_days: 5      # dữ liệu cũ hơn N ngày lịch so với hôm nay => cảnh báo

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VNQ Tín hiệu</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">VNQ</span><span class="sub">Tín hiệu trend 5 phiên</span></div>
+    <div class="controls">
+      <label class="sel">Ngày dữ liệu <select id="dateSel" aria-label="Chọn ngày dữ liệu"></select></label>
+      <span id="user" class="mut"></span>
+      <button id="logout" class="btn ghost" hidden>Đăng xuất</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <section id="login" class="card narrow" hidden>
+      <h1>Đăng nhập</h1>
+      <p class="mut">Nhập email để nhận link đăng nhập. Chỉ tài khoản được cấp quyền mới xem được dữ liệu.</p>
+      <form id="loginForm"><input id="email" type="email" required placeholder="email@domain.com" autocomplete="email">
+        <button class="btn" type="submit">Gửi link</button></form>
+      <p id="loginMsg" class="mut"></p>
+    </section>
+
+    <div id="content" hidden>
+      <section id="status" class="band"></section>
+      <section id="warnings" class="card warn"></section>
+
+      <div class="grid2">
+        <section class="card"><h2>Gate mục 6 <span class="mut" id="gateSub"></span></h2><div id="gate"></div></section>
+        <section class="card"><h2>Theo dõi thực tế <span class="mut">paper trading, sau phí</span></h2><div id="track"></div></section>
+      </div>
+
+      <section class="card">
+        <h2>Top 10 <span class="mut">thanh khoản → value top 30% → xếp hạng p_up_5, ≤3 mã/ngành</span></h2>
+        <div class="wrap"><table id="sigTable" class="tbl"></table></div>
+      </section>
+
+      <section class="card">
+        <h2>Tra cứu mã <span class="mut">lịch sử điểm trong universe</span></h2>
+        <form id="lookupForm" class="row"><input id="tickerIn" placeholder="VD: HPG" maxlength="3" autocomplete="off">
+          <button class="btn" type="submit">Xem</button></form>
+        <div id="lookup"></div>
+      </section>
+
+      <footer class="foot">
+        <p id="source" class="mut"></p>
+        <p class="risk">⚠️ Đây là tín hiệu thống kê, không phải khuyến nghị đảm bảo lợi nhuận. Đây là tín hiệu để theo dõi và cân nhắc, không phải lệnh. Quyết định và rủi ro thuộc về người dùng.</p>
+      </footer>
+    </div>
+    <p id="err" class="err" hidden></p>
+  </main>
+  <div id="tip" class="tip" role="tooltip" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

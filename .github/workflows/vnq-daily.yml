@@ -1,0 +1,46 @@
+name: vnq-daily
+# 18:30 giờ VN (UTC+7) thứ 2–6. GitHub cron có thể trễ 5–30 phút.
+on:
+  schedule:
+    - cron: '30 11 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      skip_update:
+        description: 'Bỏ qua inbox (chỉ chạy lại báo cáo)'
+        type: boolean
+        default: false
+concurrency:
+  group: vnq-daily
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: engine
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VNQ_BUCKET: vnq-data
+      TZ: Asia/Ho_Chi_Minh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: engine/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: cloud-run
+        run: python -m vnq cloud-run ${{ inputs.skip_update && '--skip-update' || '' }}
+      - name: Lưu log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vnq-run-${{ github.run_id }}
+          path: |
+            engine/state/run.log
+            engine/state/last_run.json
+            engine/reports/
+          retention-days: 30

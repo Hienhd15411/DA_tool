@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+web/config.js
+engine/data/*.parquet
+engine/data/*.csv
+engine/data/inbox/
+engine/data/archive/
+engine/state/
+engine/reports/
+!engine/data/seed/
+.netlify/
+supabase/.temp/
