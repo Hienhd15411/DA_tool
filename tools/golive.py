@@ -78,12 +78,16 @@ def main():
     stamp = '20260710'
     for key in ['data/panel.parquet', 'data/vnindex.parquet']:
         old = storage_get(key)
-        storage_put(key.replace('data/', f'data/backup/{key.split("/")[-1].replace(".parquet", "")}_{stamp}.parquet'), old)
+        name = key.split('/')[-1].replace('.parquet', '')
+        storage_put(f'data/backup/{name}_{stamp}.parquet', old)
         print(f'Sao lưu {key} → data/backup/')
 
     buf = io.BytesIO(); panel.to_parquet(buf, index=False); storage_put('data/panel.parquet', buf.getvalue())
     buf = io.BytesIO(); idx.to_parquet(buf, index=False); storage_put('data/vnindex.parquet', buf.getvalue())
-    print('Đã ghi panel.parquet và vnindex.parquet lên Storage.')
+    back = pd.read_parquet(io.BytesIO(storage_get('data/panel.parquet')), columns=['date'])
+    if back.date.max() != panel.date.max():
+        sys.exit(f'Xác minh thất bại: Storage trả về panel đến {back.date.max():%Y-%m-%d}, cần {panel.date.max():%Y-%m-%d}')
+    print(f'Xác minh OK: Storage panel đến {back.date.max():%Y-%m-%d}, {len(back):,} dòng.')
 
 
 if __name__ == '__main__':
