@@ -29,3 +29,5 @@ jobs:
         run: python tools/trader_sim.py --panel engine/data/panel.parquet --vnindex engine/data/vnindex.parquet --industry engine/data/industry.csv --publish
       - name: Bản tin thị trường
         run: python tools/agent_brief.py || true
+      - name: Ứng viên theo agent
+        run: python tools/agent_candidates.py || true
