@@ -1,0 +1,24 @@
+name: vnq-tn06r2
+on:
+  push:
+    paths:
+      - '.github/vnq-tn06r2'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r engine/requirements.txt
+      - run: cd engine && python -m vnq storage pull
+      - run: python tools/tn06r2.py engine/data/panel.parquet engine/data/vnindex.parquet
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tn06r2
+          path: tools/out/tn06r2/
