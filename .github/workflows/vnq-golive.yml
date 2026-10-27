@@ -1,0 +1,39 @@
+name: vnq-golive
+# Thay panel bằng lịch sử VCI từ 2022 (đã duyệt), sao lưu bản cũ, rồi chạy daily một lần.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/vnq-golive'
+jobs:
+  golive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VNQ_BUCKET: vnq-data
+      TZ: Asia/Ho_Chi_Minh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install pandas pyarrow requests
+      - name: Thay panel (sao lưu bản cũ trước)
+        run: python tools/golive.py
+      - name: Cài engine
+        working-directory: engine
+        run: pip install -r requirements.txt
+      - name: Chạy daily và publish
+        working-directory: engine
+        run: python -m vnq cloud-run --skip-update
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: golive-${{ github.run_id }}
+          path: |
+            engine/state/run.log
+            engine/state/last_run.json
+            engine/reports/
+          retention-days: 30
