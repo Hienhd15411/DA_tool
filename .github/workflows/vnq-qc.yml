@@ -1,0 +1,45 @@
+name: vnq-qc-prod
+# QC production sau mọi lần deploy web (Netlify build từ vnq-deploy), sau mỗi lần job dữ liệu chạy, và khi có migration.
+on:
+  push:
+    branches: [vnq-deploy]
+    paths:
+      - 'web/**'
+      - 'scripts/**'
+      - 'supabase/migrations/**'
+      - 'engine/vnq/**'
+      - 'tools/qc_prod.py'
+      - '.github/workflows/vnq-qc.yml'
+      - '.github/vnq-qc'
+  workflow_run:
+    workflows: [vnq-daily, vnq-cdc]
+    types: [completed]
+  workflow_dispatch:
+concurrency:
+  group: vnq-qc
+  cancel-in-progress: true
+jobs:
+  qc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PROD_URL: https://hienhd.netlify.app
+      # sau job dữ liệu: web không đổi → không cần chờ deploy
+      QC_SKIP_DEPLOY_WAIT: ${{ github.event_name == 'workflow_run' && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: vnq-deploy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests playwright && python -m playwright install --with-deps chromium
+      - run: python tools/qc_prod.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qc-prod-screenshot
+          path: qc_out/
+          if-no-files-found: ignore
