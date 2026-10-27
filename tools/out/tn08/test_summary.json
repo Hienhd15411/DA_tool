@@ -1,0 +1,147 @@
+{
+ "TN08_V4_soft_value": {
+  "n_days": 3,
+  "net_per_trade": -0.02755,
+  "hit": 0.13333,
+  "random_pctile_avg": 0.38667,
+  "portfolio_cum": -0.01645,
+  "vs_random": -0.00371,
+  "vs_random_ci": [
+   null,
+   null
+  ],
+  "vs_random_win_days": 0.33333,
+  "random_cum": -0.01423,
+  "vs_market_ew": -0.00397,
+  "vs_market_ew_ci": [
+   null,
+   null
+  ],
+  "vs_market_ew_win_days": 0.33333,
+  "market_ew_cum": -0.01408,
+  "vs_vnindex": -0.01178,
+  "vs_vnindex_ci": [
+   null,
+   null
+  ],
+  "vs_vnindex_win_days": 0.0,
+  "vnindex_cum": -0.00281,
+  "ic": 0.1039
+ },
+ "TN07_style_V0": {
+  "n_days": 3,
+  "net_per_trade": -0.02342,
+  "hit": 0.16667,
+  "random_pctile_avg": 0.778,
+  "portfolio_cum": -0.01399,
+  "vs_random": 0.0077,
+  "vs_random_ci": [
+   null,
+   null
+  ],
+  "vs_random_win_days": 1.0,
+  "random_cum": -0.01855,
+  "vs_market_ew": 0.00016,
+  "vs_market_ew_ci": [
+   null,
+   null
+  ],
+  "vs_market_ew_win_days": 0.66667,
+  "market_ew_cum": -0.01408,
+  "vs_vnindex": -0.00534,
+  "vs_vnindex_ci": [
+   null,
+   null
+  ],
+  "vs_vnindex_win_days": 0.0,
+  "vnindex_cum": -0.00281,
+  "ic": 0.1039
+ },
+ "R1_momentum20": {
+  "n_days": 3,
+  "net_per_trade": -0.02961,
+  "hit": 0.06667,
+  "random_pctile_avg": 0.51733,
+  "portfolio_cum": -0.01767,
+  "vs_random": 0.00066,
+  "vs_random_ci": [
+   null,
+   null
+  ],
+  "vs_random_win_days": 0.33333,
+  "random_cum": -0.01805,
+  "vs_market_ew": -0.00603,
+  "vs_market_ew_ci": [
+   null,
+   null
+  ],
+  "vs_market_ew_win_days": 0.33333,
+  "market_ew_cum": -0.01408,
+  "vs_vnindex": -0.00336,
+  "vs_vnindex_ci": [
+   null,
+   null
+  ],
+  "vs_vnindex_win_days": 0.0,
+  "vnindex_cum": -0.00281,
+  "ic": 0.1827
+ },
+ "R2_trend_score": {
+  "n_days": 3,
+  "net_per_trade": -0.02561,
+  "hit": 0.06667,
+  "random_pctile_avg": 0.67933,
+  "portfolio_cum": -0.01529,
+  "vs_random": 0.00505,
+  "vs_random_ci": [
+   null,
+   null
+  ],
+  "vs_random_win_days": 0.66667,
+  "random_cum": -0.01828,
+  "vs_market_ew": -0.00203,
+  "vs_market_ew_ci": [
+   null,
+   null
+  ],
+  "vs_market_ew_win_days": 0.33333,
+  "market_ew_cum": -0.01408,
+  "vs_vnindex": 0.00027,
+  "vs_vnindex_ci": [
+   null,
+   null
+  ],
+  "vs_vnindex_win_days": 1.0,
+  "vnindex_cum": -0.00281,
+  "ic": 0.1694
+ },
+ "R3_value_score": {
+  "n_days": 3,
+  "net_per_trade": -0.03503,
+  "hit": 0.1,
+  "random_pctile_avg": 0.34533,
+  "portfolio_cum": -0.02087,
+  "vs_random": -0.00395,
+  "vs_random_ci": [
+   null,
+   null
+  ],
+  "vs_random_win_days": 0.0,
+  "random_cum": -0.01853,
+  "vs_market_ew": -0.01145,
+  "vs_market_ew_ci": [
+   null,
+   null
+  ],
+  "vs_market_ew_win_days": 0.0,
+  "market_ew_cum": -0.01408,
+  "vs_vnindex": -0.01452,
+  "vs_vnindex_ci": [
+   null,
+   null
+  ],
+  "vs_vnindex_win_days": 0.0,
+  "vnindex_cum": -0.00281,
+  "ic": -0.1981
+ }
+}
