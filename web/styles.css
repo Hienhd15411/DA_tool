@@ -71,5 +71,9 @@ main { max-width: 1180px; margin: 0 auto; padding: 16px; }
 .tip { position: fixed; pointer-events: none; background: var(--text); color: var(--surface); font-size: 12px; padding: 6px 8px; border-radius: 6px; z-index: 20; white-space: nowrap; }
 svg text { fill: var(--muted); font-size: 11px; }
 .axis line { stroke: var(--line); }
-form#loginForm { display: flex; gap: 8px; } form#loginForm input { flex: 1; }
+.authform { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.authform input { width: 100%; box-sizing: border-box; padding: 9px 12px; font-size: 15px; }
+.authform .btn { width: 100%; padding: 10px 12px; font-size: 15px; font-weight: 600; }
+.authform .btn.ghost { font-weight: 400; font-size: 14px; }
+.card.narrow h1 { margin: 0 0 6px; font-size: 22px; }
 .card svg { display: block; max-width: 620px; }
