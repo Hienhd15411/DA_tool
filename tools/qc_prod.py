@@ -97,7 +97,9 @@ def check_rls(anon):
     for t in req + opt:
         r = requests.get(f'{SB}/rest/v1/{t}', headers={'apikey': anon, 'Authorization': f'Bearer {anon}'},
                          params={'select': '*', 'limit': 1}, timeout=30)
-        if r.status_code == 200 and r.json(): leaked.append(t)
+        # view tổng hợp luôn trả 1 dòng (đếm = 0, giá trị null) dù RLS chặn hết → chỉ tính là lộ khi có giá trị thật
+        rows = r.json() if r.status_code == 200 else []
+        if any(any(v not in (None, 0, '(tất cả)') for v in row.values()) for row in rows): leaked.append(t)
     if leaked: fail(f'anon đọc được dữ liệu: {leaked}')
     else: ok(f'{len(req + opt)} bảng/view đều chặn anon')
 
