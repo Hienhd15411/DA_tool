@@ -291,6 +291,10 @@ def main():
     if a.publish: publish(nav, trades, pos, orders, rej)
 
 
+INT_COLS = {'trader_nav': ['n_pos'], 'trader_trades': ['seq'], 'trader_orders': ['idx', 'horizon_sessions'],
+            'trader_agents': ['max_per_industry']}
+
+
 def publish(nav, trades, pos, orders, rej):
     sys.path.insert(0, str(ROOT / 'engine'))
     from vnq.supa import Supa, records
@@ -300,22 +304,30 @@ def publish(nav, trades, pos, orders, rej):
         for c in cols:
             if c in df: df[c] = pd.to_datetime(df[c]).dt.strftime('%Y-%m-%d')
         return df
+    def rows(table, df):   # cột integer: pandas giữ 40.0 khi có NaN → PostgREST từ chối
+        out = records(df)
+        for r in out:
+            for c in INT_COLS.get(table, []):
+                if r.get(c) is not None: r[c] = int(r[c])
+        return out
+    n = {}
     try:
-        n = {}
-        if len(nav): n['trader_nav'] = sb.upsert('trader_nav', records(ds(nav, ['date'])), 'date,portfolio')
+        if len(nav): n['trader_nav'] = sb.upsert('trader_nav', rows('trader_nav', ds(nav, ['date'])), 'date,portfolio')
         if len(trades):
             tr = ds(trades, ['session']).reset_index(drop=True); tr['seq'] = tr.index
-            n['trader_trades'] = sb.upsert('trader_trades', records(tr), 'seq')
+            n['trader_trades'] = sb.upsert('trader_trades', rows('trader_trades', tr), 'seq')
         sb.delete_where('trader_positions', 'portfolio', 'neq.__none__')
-        if len(pos): n['trader_positions'] = sb.upsert('trader_positions', records(ds(pos, ['as_of', 'first_buy'])), 'portfolio,ticker')
+        if len(pos): n['trader_positions'] = sb.upsert('trader_positions', rows('trader_positions', ds(pos, ['as_of', 'first_buy'])), 'portfolio,ticker')
         if len(orders):
             o = orders.copy(); o['idx'] = o.groupby(['agent', 'session']).cumcount()
-            n['trader_orders'] = sb.upsert('trader_orders', records(o), 'agent,session,idx')
-        n['trader_agents'] = sb.upsert('trader_agents', records(pd.DataFrame([{k: (json.dumps(v, ensure_ascii=False) if isinstance(v, list) else v)
+            n['trader_orders'] = sb.upsert('trader_orders', rows('trader_orders', o), 'agent,session,idx')
+        n['trader_agents'] = sb.upsert('trader_agents', rows('trader_agents', pd.DataFrame([{k: (json.dumps(v, ensure_ascii=False) if isinstance(v, list) else v)
                                                                                for k, v in g.items()} for g in AGENTS])), 'id')
         print('publish', n)
     except RuntimeError as e:
-        print('BỎ QUA publish (bảng trader_* chưa có?):', str(e)[:200])
+        if 'PGRST205' in str(e):   # bảng chưa được tạo (migration chưa apply) → bỏ qua, không làm hỏng
+            print('BỎ QUA publish — bảng trader_* chưa có:', str(e)[:200]); return
+        print('LỖI publish:', str(e)[:400]); raise SystemExit(1)   # lỗi thật → workflow đỏ, có mail
 
 
 if __name__ == '__main__':
