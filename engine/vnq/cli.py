@@ -47,6 +47,12 @@ def cmd_daily(cfg, skip_update=False, asof=None, today=None):
 
     panel = pd.read_parquet(cfg['paths']['panel'])
     if asof: panel = panel[panel.date <= asof]  # mô phỏng: không thấy dữ liệu sau asof
+    now_ict = dt.datetime.now(dt.timezone(dt.timedelta(hours=7)))
+    if not asof and now_ict.time() < dt.time(15, 30):   # phiên hôm nay chưa đóng → không dùng nến dở
+        n_open = int((panel.date.dt.date >= now_ict.date()).sum())
+        if n_open:
+            log.warning('Bỏ %d nến của phiên %s chưa đóng cửa (%s ICT)', n_open, now_ict.date(), now_ict.strftime('%H:%M'))
+            panel = panel[panel.date.dt.date < now_ict.date()]
     e = features.build(cfg, panel=panel)
     fz = model.Frozen(cfg)
     sc = fz.score(e)
@@ -70,7 +76,6 @@ def cmd_daily(cfg, skip_update=False, asof=None, today=None):
         picks = {d: set(backtest.pick(full[full.date == d], 'p_up_5', L['topk'], L['max_per_industry']).get('ticker', []))
                  for d in back}
         snapshot.record(cfg, full, picks, 'backfill')
-    now_ict = dt.datetime.now(dt.timezone(dt.timedelta(hours=7)))
     if d0.date() == now_ict.date() and now_ict.time() < dt.time(15, 30):
         log.warning('Phiên %s chưa đóng cửa (%s ICT) → không ghi snapshot live', d0.date(), now_ict.strftime('%H:%M'))
     else:
