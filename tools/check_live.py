@@ -30,3 +30,13 @@ for t in tr:
     if t['status'] in ('planned', 'open'): print(t)
 pr, _ = get('predictions_daily', select='data_date,ticker,regime,trend_score,industry', ticker='eq.PET', order='data_date', limit=3)
 print('PET regime sample', pr)
+
+import statistics as S
+def win(rs):
+    ic = [r['ic'] for r in rs if r['ic'] is not None]; ex = [r['tn07_net'] - r['market_net'] for r in rs if r['tn07_net'] is not None]
+    return dict(n=len(rs), ic=S.mean(ic), ic_se2=2 * S.stdev(ic) / len(ic) ** .5, ex=S.mean(ex), ex_se2=2 * S.stdev(ex) / len(ex) ** .5,
+                lift=S.mean(r['tn07_hit'] - r['pool_hit'] for r in rs if r['tn07_hit'] is not None),
+                calib=S.mean(r['pred_mean'] - r['tn07_hit'] for r in rs if r['pred_mean'] is not None))
+print('HEALTH last20', ev[-20][ 'data_date'], '→', ev[-1]['data_date'], win(ev[-20:]))
+print('HEALTH prev20', ev[-40]['data_date'], '→', ev[-21]['data_date'], win(ev[-40:-20]))
+print('HEALTH first20', win(ev[:20]))
