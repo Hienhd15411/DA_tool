@@ -173,7 +173,7 @@ def scope():
     if ev == 'data': return {'schema', 'data'}, 'job dữ liệu vừa chạy'
     if ev != 'push': return {'deploy', 'config', 'schema', 'rls', 'data', 'browser'}, 'chạy tay / toàn bộ'
     files = [f for f in os.environ.get('QC_CHANGED', '').split() if f]
-    if not files or any(f.startswith(('tools/qc_prod.py', '.github/workflows/vnq-qc.yml')) for f in files):
+    if not files or any(f.startswith(('tools/qc_prod.py', '.github/workflows/vnq-qc.yml', '.github/vnq-qc')) for f in files):
         return {'deploy', 'config', 'schema', 'rls', 'data', 'browser'}, 'QC thay đổi hoặc không xác định được file đổi'
     st = set()
     if any(f.startswith(('web/', 'scripts/')) for f in files): st |= {'deploy', 'config', 'browser'}
