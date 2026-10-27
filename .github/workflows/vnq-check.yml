@@ -18,3 +18,4 @@ jobs:
       - run: pip install pandas pyarrow requests
       - run: python tools/check_storage.py
       - run: python tools/check_gate.py
+      - run: python tools/check_live.py
