@@ -71,3 +71,19 @@ Vì vậy thêm phép đo **T1 — chỉ canh thời điểm**: mỗi ngày tầ
 Kết luận OOS tách 2 phần:
 - **Chọn mã (GO TN06-R)**: giữ nguyên 4 tiêu chí §8.
 - **Canh thời điểm (GO T1)**: ≥ 20 ngày BẬT, lãi TB/ngày-vào sau phí của T1 > 0 với CI95 không chứa 0, VÀ > lãi TB của mua đều mọi ngày (không canh) trong cùng OOS.
+
+---
+# TN06-R2 — thêm chốt lời sớm (đăng ký trước 27/10/2026, commit TRƯỚC khi chạy)
+Giữ nguyên toàn bộ TN06-R (tầng 1 VNI < EMA50, sự kiện capitulation, vào open t+1, 10 slot, ≤3/ngành, ưu tiên RSI thấp,
+phí 0,15%/chiều + thuế bán 0,1%). **Chỉ thêm luật thoát sớm:**
+- Đặt lệnh bán giới hạn (LO) ở giá mục tiêu `P_tp = giá mua × (1 + TP)`.
+- **Ràng buộc T+2:** cổ phiếu mua ở phiên t+1 chỉ bán được từ phiên t+3. Chốt lời chỉ được xét ở các phiên t+3, t+4, t+5.
+- Khớp trong phiên d: nếu `open_d ≥ P_tp` → bán ở `open_d` (giá mở cửa đã vượt mục tiêu); ngược lại nếu `high_d ≥ P_tp` → bán ở `P_tp`.
+- Không chạm mục tiêu → bán ATC t+5 như TN06-R (kẹt sàn t+5 → t+6).
+- Lưới TP đăng ký trước: **{2%, 3%, 5%, 8%}**. Không có cắt lỗ (thay đổi khác = version khác).
+
+**Chọn TP chỉ trên IS (2022-10-24 → 2026-06-30)**, luật chọn cố định: TP có lãi TB/lệnh sau phí cao nhất,
+và phải cao hơn TN06-R không chốt lời trên IS; không TP nào hơn → TN06-R2 = không đổi, dừng.
+**OOS 2026-07-01 → ngày có nhãn cuối** chấm một lần với TP đã chọn, so với: TN06-R gốc, thị trường (EW), random, VNINDEX.
+Lưu ý: OOS này đã được dùng để chấm TN06-R (cùng luật vào lệnh), nên chỉ là bằng chứng bổ sung; bằng chứng sạch = paper trading live.
+GO cho paper trading thay TN06-R khi trên OOS: ≥ 30 lệnh, lãi TB/lệnh > TN06-R, và vs thị trường > 0.
