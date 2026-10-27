@@ -112,6 +112,14 @@ def check_data():
     today = dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).date()
     bdays = sum(1 for i in range(1, (today - d).days + 1) if (d + dt.timedelta(days=i)).weekday() < 5)
     (fail if bdays > 3 else warn if bdays > 1 else ok)(f'ngày dữ liệu mới nhất {d} (trễ {bdays} ngày làm việc)')
+    now = dt.datetime.now(dt.timezone(dt.timedelta(hours=7)))
+    if d == now.date() and now.time() < dt.time(15, 30):
+        fail(f'dữ liệu ngày {d} được publish lúc phiên chưa đóng ({now:%H:%M} ICT) — nến chưa chốt')
+    pr = requests.get(f'{SB}/rest/v1/predictions_daily', headers=SH, params={'select': 'vol_ratio20', 'data_date': f'eq.{d}'}, timeout=30)
+    vr = sorted(x['vol_ratio20'] for x in (pr.json() if pr.status_code == 200 else []) if x['vol_ratio20'] is not None)
+    if vr:
+        med = vr[len(vr) // 2]
+        (fail if med < 0.5 else ok)(f'khối lượng trung vị ngày {d} = {med:.2f}× TB20 (< 0,5× → nghi nến chưa chốt)')
     g = requests.get(f'{SB}/rest/v1/gate_snapshots', headers=SH, params={'select': 'data_date', 'data_date': f'eq.{d}'}, timeout=30)
     (ok if g.status_code == 200 and g.json() else fail)(f'gate snapshot cho {d}')
 
