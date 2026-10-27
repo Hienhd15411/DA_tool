@@ -55,7 +55,7 @@ def main():
         time.sleep(0.3)
     all_ = pd.concat(frames)
     all_.to_csv(OUT / 'inbox_candidate.csv', index=False, encoding='utf-8')
-    ratios = pd.Series({k: v for k, v in ovl.items() if v is not None and t != 'VNINDEX'})
+    ratios = pd.Series({k: v for k, v in ovl.items() if v is not None and k != 'VNINDEX'}, dtype=float)
     rep = {'tickers': len(TICKERS), 'ok': len(frames), 'fail': fail,
            'rows': int(len(all_)), 'date_min': str(all_.date.min().date()), 'date_max': str(all_.date.max().date()),
            'overlap_0710_ratio_within_0.5pct': int(((ratios - 1).abs() <= 0.005).sum()),
