@@ -40,3 +40,6 @@ def win(rs):
 print('HEALTH last20', ev[-20][ 'data_date'], '→', ev[-1]['data_date'], win(ev[-20:]))
 print('HEALTH prev20', ev[-40]['data_date'], '→', ev[-21]['data_date'], win(ev[-40:-20]))
 print('HEALTH first20', win(ev[:20]))
+p27, cr = get('predictions_daily', select='data_date', data_date='eq.2026-10-27', limit=1); print('predictions 27/10 rows', cr)
+s20, _ = get('predictions_daily', select='ticker,status,net', data_date='eq.2026-10-20', ticker='eq.SBT'); print('SBT 20/10', s20)
+s19, _ = get('predictions_daily', select='ticker,status,net', data_date='eq.2026-10-19', ticker='eq.SBT'); print('SBT 19/10', s19)

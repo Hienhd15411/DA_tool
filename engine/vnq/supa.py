@@ -3,7 +3,7 @@ PostgREST để publish kết quả cho dashboard. Credential lấy từ biến 
   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   (chỉ dùng ở server/GitHub Actions — KHÔNG đưa ra web)
   VNQ_BUCKET (mặc định vnq-data)
 """
-import os, json, logging, math
+import os, json, logging, math, time
 from pathlib import Path
 import requests
 import pandas as pd
@@ -34,7 +34,9 @@ class Supa:
 
     # ---------- Storage ----------
     def download(self, key, dest):
-        r = requests.get(f'{self.url}/storage/v1/object/{self.bucket}/{key}', headers=self.h, timeout=120)
+        # bỏ qua cache (Storage/CDN có thể trả bản cũ ngay sau khi ghi)
+        r = requests.get(f'{self.url}/storage/v1/object/{self.bucket}/{key}', headers={**self.h, 'Cache-Control': 'no-cache'},
+                         params={'t': f'{time.time():.0f}'}, timeout=120)
         if r.status_code in (400, 404):
             return False
         r.raise_for_status()
