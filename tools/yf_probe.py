@@ -21,8 +21,8 @@ ADJUST_TOL = 0.005
 SLEEP = 0.3
 
 
-def fetch_yahoo(sym: str, start: str, end: str) -> pd.DataFrame | None:
-    h = yf.Ticker(sym).history(start=start, end=end, auto_adjust=True)
+def fetch_yahoo(sym: str, start: str, end: str, auto_adjust: bool = True) -> pd.DataFrame | None:
+    h = yf.Ticker(sym).history(start=start, end=end, auto_adjust=auto_adjust)
     if h is None or h.empty:
         return None
     h = h.reset_index()
@@ -51,7 +51,7 @@ def main() -> None:
 
     today = dt.date.today()
     end = (today + dt.timedelta(days=1)).isoformat()
-    frames, diffs, report, ev_info = [], [], {'ok': [], 'no_data': [], 'error': []}, {}
+    frames, diffs, raw_diffs, report, ev_info = [], [], [], {'ok': [], 'no_data': [], 'error': []}, {}
     for i, t in enumerate(tickers, 1):
         try:
             h = fetch_yahoo(f'{t}.VN', OVERLAP_START, end)
@@ -64,6 +64,14 @@ def main() -> None:
             time.sleep(SLEEP)
             continue
         cand = to_candidate(t, h)
+        try:
+            raw = fetch_yahoo(f'{t}.VN', OVERLAP_START, end, auto_adjust=False)
+            if raw is not None:
+                rp = ov[ov.ticker == t][['date', 'close']].merge(raw[['date', 'close']], on='date', suffixes=('_p', '_r'))
+                if len(rp):
+                    raw_diffs.append(pd.DataFrame({'ticker': t, 'diff': (rp.close_r / rp.close_p - 1).abs().values}))
+        except Exception:
+            pass
         frames.append(cand.drop(columns=['events']))
         report['ok'].append(t)
         # đối chiếu chồng lấn
@@ -104,6 +112,10 @@ def main() -> None:
         worst = per.sort_values('max', ascending=False).head(10).round(5)
         summary['worst10'] = {k: {'max_pct': round(v['max'] * 100, 3), 'n': int(v['count'])}
                               for k, v in worst.iterrows()}
+    if raw_diffs:
+        rd = pd.concat(raw_diffs).groupby('ticker')['diff'].max()
+        summary['raw_unadjusted_tickers_over_tol'] = int((rd > ADJUST_TOL).sum())
+        summary['raw_unadjusted_tickers_match'] = int((rd <= ADJUST_TOL).sum())
     report['summary'] = summary
     (OUT / 'probe_report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print('SUMMARY ' + json.dumps(summary, ensure_ascii=False))
