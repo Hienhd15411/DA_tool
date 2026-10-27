@@ -60,8 +60,8 @@ class Supa:
         r.raise_for_status()
 
     # ---------- PostgREST ----------
-    def delete_all(self, table):
-        r = requests.delete(f'{self.url}/rest/v1/{table}', params={'signal_date': 'gte.1900-01-01'}, headers=self.h, timeout=60)
+    def delete_stale(self, table, data_date):
+        r = requests.delete(f'{self.url}/rest/v1/{table}', params={'data_date': f'neq.{data_date}'}, headers=self.h, timeout=60)
         if r.status_code >= 300:
             raise RuntimeError(f'delete {table} lỗi {r.status_code}: {r.text[:300]}')
 
@@ -205,8 +205,13 @@ def publish(cfg, sb):
             tr['data_date'] = d0
             cols = ['signal_date', 'ticker', 'industry', 'rsi14', 'source', 'status', 'weight', 'amount', 'entry_date', 'entry_price',
                     'exit_date', 'exit_price', 'mark_price', 'signal_close', 'pnl', 'held_sessions', 'sessions_left', 'data_date']
-            sb.delete_all('paper_trades')   # bảng nhỏ, tính lại toàn bộ mỗi ngày từ snapshot
-            n['paper_trades'] = sb.upsert('paper_trades', records(tr.reindex(columns=cols)), 'signal_date,ticker')
+            rows = records(tr.reindex(columns=cols))
+            for r in rows:   # cột integer trong DB (pandas giữ dạng 4.0)
+                for c in ('held_sessions', 'sessions_left'):
+                    if r[c] is not None: r[c] = int(r[c])
+            # ghi trước, rồi mới xóa dòng của lần tính cũ (không để bảng rỗng nếu ghi lỗi)
+            n['paper_trades'] = sb.upsert('paper_trades', rows, 'signal_date,ticker')
+            sb.delete_stale('paper_trades', d0)
             nv = pd.read_csv(st / 'paper_nav.csv'); nv['date'] = pd.to_datetime(nv.date).dt.strftime('%Y-%m-%d')
             n['paper_nav'] = sb.upsert('paper_nav', records(nv), 'date')
     except RuntimeError as ex:   # bảng chưa được tạo (migration 20261027000000 chưa apply) → không làm hỏng lần chạy
