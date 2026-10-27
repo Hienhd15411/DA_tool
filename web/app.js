@@ -38,7 +38,9 @@ const db = {
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 60)),
   tickerSignals: (tk) => db.q('signals', (t) => t.select('data_date,rank_sel,action,status,net,excess').eq('ticker', tk).order('data_date', { ascending: false }),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date))),
-  async login(email) { return sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } }); },
+  async login(email, password) { return sb.auth.signInWithPassword({ email, password }); },
+  async forgot(email) { return sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); },
+  async setPassword(password) { return sb.auth.updateUser({ password }); },
   async logout() { await sb.auth.signOut(); location.reload(); },
 };
 
@@ -171,15 +173,49 @@ async function loadDate(d) {
   history.replaceState(null, '', `?${DEMO && new URLSearchParams(location.search).has('demo') ? 'demo&' : ''}d=${d}`);
 }
 
+function loginError(msg) {
+  const m = (msg || '').toLowerCase();
+  if (m.includes('invalid login')) return 'Email hoặc mật khẩu không đúng.';
+  if (m.includes('email not confirmed')) return 'Email chưa được xác nhận.';
+  if (m.includes('rate limit')) return 'Thử quá nhiều lần. Đợi vài phút rồi thử lại.';
+  return msg;
+}
+
+function showLogin() {
+  $('login').hidden = false;
+  $('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const { error } = await db.login($('email').value.trim(), $('password').value);
+    if (error) { $('loginMsg').textContent = loginError(error.message); return; }
+    location.reload();
+  });
+  $('forgot').addEventListener('click', async () => {
+    const email = $('email').value.trim();
+    if (!email) { $('loginMsg').textContent = 'Nhập email trước, rồi bấm Quên mật khẩu.'; return; }
+    const { error } = await db.forgot(email);
+    $('loginMsg').textContent = error ? loginError(error.message) : 'Đã gửi link đặt lại mật khẩu. Kiểm tra email (kể cả thư rác).';
+  });
+}
+
+function showSetPassword() {
+  $('login').hidden = true;
+  $('setpw').hidden = false;
+  $('setpwForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if ($('pw1').value !== $('pw2').value) { $('setpwMsg').textContent = 'Hai mật khẩu không khớp.'; return; }
+    const { error } = await db.setPassword($('pw1').value);
+    if (error) { $('setpwMsg').textContent = error.message; return; }
+    history.replaceState(null, '', location.pathname + location.search);
+    location.reload();
+  });
+}
+
 async function main() {
   try {
+    const recoveryFlow = !DEMO && /type=(recovery|invite)/.test(location.hash);
     const session = await db.init();
-    if (!session) {
-      $('login').hidden = false;
-      $('loginForm').addEventListener('submit', async (e) => { e.preventDefault();
-        const { error } = await db.login($('email').value); $('loginMsg').textContent = error ? error.message : 'Đã gửi link — kiểm tra email.'; });
-      return;
-    }
+    if (recoveryFlow && session) { showSetPassword(); return; }
+    if (!session) { showLogin(); return; }
     $('user').textContent = DEMO ? 'Chế độ demo (dữ liệu mẫu 01–10/07/2026)' : session.user.email;
     if (!DEMO) { $('logout').hidden = false; $('logout').onclick = () => db.logout(); }
     const runs = await db.runs();

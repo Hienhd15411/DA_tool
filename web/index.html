@@ -21,10 +21,25 @@
   <main id="app">
     <section id="login" class="card narrow" hidden>
       <h1>Đăng nhập</h1>
-      <p class="mut">Nhập email để nhận link đăng nhập. Chỉ tài khoản được cấp quyền mới xem được dữ liệu.</p>
-      <form id="loginForm"><input id="email" type="email" required placeholder="email@domain.com" autocomplete="email">
-        <button class="btn" type="submit">Gửi link</button></form>
+      <p class="mut">Chỉ tài khoản được cấp quyền mới xem được dữ liệu.</p>
+      <form id="loginForm">
+        <input id="email" type="email" required placeholder="email@domain.com" autocomplete="email">
+        <input id="password" type="password" required placeholder="Mật khẩu" autocomplete="current-password">
+        <button class="btn" type="submit">Đăng nhập</button>
+        <button class="btn ghost" type="button" id="forgot">Quên mật khẩu?</button>
+      </form>
       <p id="loginMsg" class="mut"></p>
+    </section>
+
+    <section id="setpw" class="card narrow" hidden>
+      <h1>Đặt mật khẩu</h1>
+      <p class="mut">Đặt mật khẩu cho tài khoản của bạn (tối thiểu 8 ký tự).</p>
+      <form id="setpwForm">
+        <input id="pw1" type="password" required minlength="8" placeholder="Mật khẩu mới" autocomplete="new-password">
+        <input id="pw2" type="password" required minlength="8" placeholder="Nhập lại mật khẩu" autocomplete="new-password">
+        <button class="btn" type="submit">Lưu mật khẩu</button>
+      </form>
+      <p id="setpwMsg" class="mut"></p>
     </section>
 
     <div id="content" hidden>
