@@ -47,3 +47,7 @@ _, cnt = get('predictions_daily', select='data_date', data_date=f'eq.{plast}', l
 print(f'LATEST daily_runs={dlast} predictions={plast} rows={cnt}')
 cut = (_dt.date.fromisoformat(dlast) - _dt.timedelta(days=11)).isoformat() if dlast else '1900-01-01'
 _, cr = get('predictions_daily', select='data_date', status='eq.open', data_date=f'lt.{cut}', limit=1); print(f'open rows before {cut} (phải = 0)', cr)
+dr, _ = get('daily_runs', select='data_date,run_at', order='data_date.desc', limit=3); print('DAILY_RUNS', dr)
+to, cr = get('trader_orders', select='agent,session,side,ticker', order='session.desc', limit=50); print('TRADER_ORDERS', cr, to[:12])
+ta, cr = get('trader_agents', select='id,name', limit=10); print('TRADER_AGENTS', cr, ta)
+sc, cr = get('scores_daily', select='data_date', order='data_date.desc', limit=1); print('SCORES latest', sc)
