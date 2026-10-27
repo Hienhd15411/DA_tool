@@ -32,6 +32,8 @@ const db = {
   gate: (d) => db.q('gate_snapshots', (t) => t.select('*').eq('data_date', d).maybeSingle(), (r) => r.find((x) => x.data_date === d)),
   signals: (d) => db.q('signals', (t) => t.select('*').eq('data_date', d).order('rank_sel'),
     (r) => r.filter((x) => x.data_date === d && x.rank_sel != null).sort((a, b) => a.rank_sel - b.rank_sel)),
+  uptrend: (d) => db.q('scores_daily', (t) => t.select('ticker,industry,close,p_up_5,trend_score,atr14_pct,value_top30,near_ceiling,near_floor').eq('data_date', d).eq('regime', 'Uptrend').order('trend_score', { ascending: false }).limit(10),
+    (r) => r.filter((x) => x.data_date === d && x.regime === 'Uptrend').sort((a, b) => b.trend_score - a.trend_score).slice(0, 10)),
   track: () => db.q('v_track_record', (t) => t.select('*'), (r) => r),
   trackDaily: () => db.q('v_track_daily', (t) => t.select('*').order('data_date'), (r) => r),
   tickerScores: (tk) => db.q('scores_daily', (t) => t.select('data_date,p_up_5,rank_all,value_score,value_top30,regime,trend_score,close').eq('ticker', tk).order('data_date', { ascending: false }).limit(60),
@@ -86,6 +88,16 @@ function renderGate(g) {
       <dt>Decile spread</dt><dd>${sgn(m.decile_spread)}</dd>
       <dt>Calibration</dt><dd>${m.calib_monotone ? 'đơn điệu' : 'không đơn điệu'}</dd>
       <dt>Baseline logistic</dt><dd>${b.n_days ? `hit ${pct(b.hit_top10)} · excess ${sgn(b.excess_ret_5)} · IC ${f3(b.ic_daily)}` : '—'}</dd></dl>` : '');
+}
+
+function renderUptrend(rows) {
+  const head = '<tr><th>Mã</th><th>Ngành</th><th class="num">Đóng cửa</th><th class="num">p_up_5</th><th class="num">Trend</th><th class="num">ATR%</th><th>Cờ</th></tr>';
+  const body = rows.map((r) => {
+    const flags = [r.near_ceiling ? 'kịch trần' : '', r.near_floor ? 'kịch sàn' : '', r.value_top30 ? '' : 'ngoài value top 30%'].filter(Boolean).join(', ');
+    return `<tr><td><b>${esc(r.ticker)}</b></td><td>${esc(r.industry || '')}</td><td class="num">${r.close ?? '—'}</td>
+      <td class="num">${pct(r.p_up_5)}</td><td class="num">${f3(r.trend_score)}</td><td class="num">${pct(r.atr14_pct)}</td><td>${esc(flags || '—')}</td></tr>`;
+  }).join('');
+  $('upTable').innerHTML = `<thead>${head}</thead><tbody>${body || '<tr><td colspan="7" class="mut">Không có mã nào đang Uptrend trong ngày này.</td></tr>'}</tbody>`;
 }
 
 function renderSignals(rows) {
@@ -177,8 +189,8 @@ async function lookup(tk) {
 }
 
 async function loadDate(d) {
-  const [run, gate, sig] = await Promise.all([db.run(d), db.gate(d), db.signals(d)]);
-  renderStatus(run, gate); renderGate(gate); renderSignals(sig);
+  const [run, gate, sig, up] = await Promise.all([db.run(d), db.gate(d), db.signals(d), db.uptrend(d)]);
+  renderStatus(run, gate); renderGate(gate); renderSignals(sig); renderUptrend(up);
   history.replaceState(null, '', `?${DEMO && new URLSearchParams(location.search).has('demo') ? 'demo&' : ''}d=${d}`);
 }
 
