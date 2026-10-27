@@ -1,0 +1,41 @@
+name: vnq-cdc
+# CDC mỗi ngày một lần sau phiên (17:00 ICT, thứ 2–6), rồi chạy daily.
+on:
+  schedule:
+    - cron: '0 10 * * 1-5'
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/vnq-cdc'
+jobs:
+  cdc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VNQ_BUCKET: vnq-data
+      TZ: Asia/Ho_Chi_Minh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install pandas pyarrow requests
+      - name: CDC panel
+        run: python tools/cdc.py
+      - name: Cài engine
+        working-directory: engine
+        run: pip install -r requirements.txt
+      - name: Daily
+        working-directory: engine
+        run: python -m vnq cloud-run --skip-update
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cdc-${{ github.run_id }}
+          path: |
+            engine/state/run.log
+            engine/state/last_run.json
+            engine/reports/
+          retention-days: 30
