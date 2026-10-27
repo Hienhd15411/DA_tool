@@ -20,3 +20,4 @@ jobs:
       - run: python tools/check_storage.py
       - run: python tools/check_gate.py
       - run: python tools/check_live.py
+      - run: python tools/agent_brief.py

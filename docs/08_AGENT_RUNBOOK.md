@@ -36,12 +36,18 @@ GitHub Actions (đẩy file trigger), đọc kết quả bằng log job (GitHub 
 - Tạo PR, đổi secrets, đổi cấu hình Netlify/Supabase.
 
 ## 4. Báo cáo (1 thông báo/ngày, tiếng Việt, ngắn)
+Nguồn số liệu: log bước `agent_brief.py` của `vnq-check` (mục MARKET / PLAN / BREAKEVEN) + kết quả kiểm tra ở mục 1.
+Chỉ chép số từ log, không tự suy diễn số mới.
 ```
 VNQ <dd/mm> — <🟢 Ổn | 🟡 Có sự cố đã xử lý | 🔴 Cần bạn xử lý>
-• Pipeline: cdc ✓/✗ · daily ✓/✗ · QC ✓/✗ · dữ liệu đến <ngày>
-• Phiên tới (mô phỏng TN06-R): vào <mã… hoặc "không">; thoát <mã…>; đang giữ <n>
-• Model TN07: đèn <🟢/🟡/🔴/⚪> (IC20 <x>, top10−TT <y>)
-• Sự cố & xử lý: <không | mô tả + đã làm gì + link run>
-• Cần bạn: <không | việc cụ thể + link>
+① Thị trường: VNINDEX <giá> (<1 phiên>, <20 phiên>); <trên/dưới> EMA50; <x> tăng/<y> giảm; <z>% mã trên EMA50; thanh khoản <k>× TB20
+② Phiên tới (mô phỏng TN06-R, chưa đạt kiểm định):
+   Vào: <mã — số cp ≈ số tiền (10% NAV, vốn 100 tr) — hòa vốn khi ≥ giá> | không
+   Thoát: <mã — bán 100% ATC — lãi/lỗ tạm tính> | không
+   Đang giữ: <mã — còn n phiên — lãi/lỗ> | không
+③ Giữ bao lâu thì hòa vốn: cần +0,40% sau phí; lịch sử <x>% lệnh chạm hòa vốn trong 5 phiên (trung vị phiên thứ <n>);
+   kỳ vọng hiện tại <±y>%/lệnh (<dương/âm>)
+• Pipeline: cdc ✓/✗ · daily ✓/✗ · QC ✓/✗ · Model TN07: đèn <…>
+• Sự cố & xử lý: <không | …> · Cần bạn: <không | việc cụ thể + link>
 ```
-Không lặp lại cảnh báo rủi ro dài; nhưng luôn ghi rõ lệnh là **mô phỏng, chưa đạt kiểm định**.
+Luôn ghi rõ lệnh là **mô phỏng, chưa đạt kiểm định**; không dùng chữ "nên mua/nên bán".
