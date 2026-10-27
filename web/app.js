@@ -26,6 +26,11 @@ const db = {
     if (error) throw new Error(`${table}: ${error.message}`);
     return data;
   },
+  // bảng của tính năng mới: thiếu bảng (migration chưa apply) / lỗi → trả [] để không chặn cả dashboard
+  async opt(table, build, demoFn) {
+    try { return await db.q(table, build, demoFn); } catch (e) { console.warn(e.message); db.missing.add(table); return []; }
+  },
+  missing: new Set(),
   runs: () => db.q('daily_runs', (t) => t.select('data_date').order('data_date', { ascending: false }).limit(250),
     (r) => [...r].sort((a, b) => b.data_date.localeCompare(a.data_date))),
   run: (d) => db.q('daily_runs', (t) => t.select('*').eq('data_date', d).single(), (r) => r.find((x) => x.data_date === d)),
@@ -36,18 +41,18 @@ const db = {
     (r) => r.filter((x) => x.data_date === d && x.regime === 'Uptrend').sort((a, b) => b.trend_score - a.trend_score).slice(0, 10)),
   track: () => db.q('v_track_record', (t) => t.select('*'), (r) => r),
   trackDaily: () => db.q('v_track_daily', (t) => t.select('*').order('data_date'), (r) => r),
-  tickerPreds: (tk) => db.q('predictions_daily', (t) => t.select('data_date,close,p_up_5,rank_all,value_top30,regime,trend_score,tn07_pick,tn06r_signal,status,net').eq('ticker', tk).order('data_date', { ascending: false }).limit(120),
+  tickerPreds: (tk) => db.opt('predictions_daily', (t) => t.select('data_date,close,p_up_5,rank_all,value_top30,regime,trend_score,tn07_pick,tn06r_signal,status,net').eq('ticker', tk).order('data_date', { ascending: false }).limit(120),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 120)),
   tickerScores: (tk) => db.q('scores_daily', (t) => t.select('data_date,p_up_5,rank_all,value_score,value_top30,regime,trend_score,close').eq('ticker', tk).order('data_date', { ascending: false }).limit(60),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 60)),
   tickerSignals: (tk) => db.q('signals', (t) => t.select('data_date,rank_sel,action,status,net,excess').eq('ticker', tk).order('data_date', { ascending: false }),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date))),
-  paperTrades: () => db.q('paper_trades', (t) => t.select('*').order('signal_date', { ascending: false }), (r) => [...r].sort((a, b) => b.signal_date.localeCompare(a.signal_date))),
-  paperNav: () => db.q('paper_nav', (t) => t.select('*').order('date'), (r) => [...r].sort((a, b) => a.date.localeCompare(b.date))),
-  liveEval: () => db.q('live_eval_daily', (t) => t.select('*').order('data_date'), (r) => [...r].sort((a, b) => a.data_date.localeCompare(b.data_date))),
-  tn06r: (d) => db.q('predictions_daily', (t) => t.select('ticker,close,rsi14,vol_ratio20,status,net').eq('data_date', d).eq('tn06r_signal', true).order('rsi14'),
+  paperTrades: () => db.opt('paper_trades', (t) => t.select('*').order('signal_date', { ascending: false }), (r) => [...r].sort((a, b) => b.signal_date.localeCompare(a.signal_date))),
+  paperNav: () => db.opt('paper_nav', (t) => t.select('*').order('date'), (r) => [...r].sort((a, b) => a.date.localeCompare(b.date))),
+  liveEval: () => db.opt('live_eval_daily', (t) => t.select('*').order('data_date'), (r) => [...r].sort((a, b) => a.data_date.localeCompare(b.data_date))),
+  tn06r: (d) => db.opt('predictions_daily', (t) => t.select('ticker,close,rsi14,vol_ratio20,status,net').eq('data_date', d).eq('tn06r_signal', true).order('rsi14'),
     (r) => r.filter((x) => x.data_date === d && x.tn06r_signal).sort((a, b) => a.rsi14 - b.rsi14)),
-  tn06rRegime: (d) => db.q('predictions_daily', (t) => t.select('tn06r_regime_on').eq('data_date', d).limit(1), (r) => r.filter((x) => x.data_date === d).slice(0, 1)),
+  tn06rRegime: (d) => db.opt('predictions_daily', (t) => t.select('tn06r_regime_on').eq('data_date', d).limit(1), (r) => r.filter((x) => x.data_date === d).slice(0, 1)),
   async login(email, password) { return sb.auth.signInWithPassword({ email, password }); },
   async forgot(email) { return sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); },
   async setPassword(password) { return sb.auth.updateUser({ password }); },
@@ -243,7 +248,9 @@ function navChart(nav) {
 }
 
 function renderPlan(trades, nav) {
-  if (!trades.length && !nav.length) { $('plan').innerHTML = '<p class="mut">Chưa có dữ liệu danh mục mô phỏng.</p>'; return; }
+  if (!trades.length && !nav.length) {
+    $('plan').innerHTML = `<p class="mut">${db.missing.has('paper_trades') || db.missing.has('paper_nav') ? 'Bảng danh mục mô phỏng chưa được tạo trên Supabase (cần apply migration 20261027010000_vnq_paper.sql).' : 'Chưa có dữ liệu danh mục mô phỏng — sẽ có sau lần chạy job daily kế tiếp.'}</p>`; return;
+  }
   const asof = trades[0]?.data_date || nav.at(-1)?.date;
   const last = nav.at(-1) || { nav: 1, cash_pct: 1, n_open: 0, vnindex_rel: 1 };
   const buy = trades.filter((t) => t.status === 'planned');
