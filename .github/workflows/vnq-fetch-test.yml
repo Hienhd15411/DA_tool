@@ -17,6 +17,9 @@ jobs:
       - run: pip install pandas pyarrow yfinance requests
       - name: Probe Yahoo Finance (.VN)
         run: python tools/yf_probe.py
+      - name: Probe Yahoo VN-Index
+        if: always()
+        run: python tools/yf_index_probe.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
