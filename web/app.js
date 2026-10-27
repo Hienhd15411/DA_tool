@@ -105,25 +105,34 @@ function renderSignals(rows) {
   $('sigTable').querySelectorAll('tr.main').forEach((tr) => tr.addEventListener('click', () => { tr.nextElementSibling.hidden = !tr.nextElementSibling.hidden; }));
 }
 
-function barChart(rows) {
-  // Diverging: lãi = xanh, lỗ = đỏ, baseline 0. Một trục.
-  const W = 520, H = 160, P = { l: 44, r: 8, t: 8, b: 22 };
-  const vals = rows.map((r) => r.avg_net), mx = Math.max(0.005, ...vals.map(Math.abs));
+function trackChart(rows) {
+  const days = [...rows].sort((a, b) => a.data_date.localeCompare(b.data_date));
+  const W = 520, H = 180, P = { l: 52, r: 12, t: 10, b: 24 };
+  let cn = 0, ce = 0;
+  const pts = [{ n: 0, e: 0 }].concat(days.map((r) => {
+    cn += r.avg_net; ce += r.avg_excess;
+    return { n: cn, e: ce, r, dn: r.avg_net, de: r.avg_excess };
+  }));
+  const mx = Math.max(0.01, ...pts.flatMap((p) => [Math.abs(p.n), Math.abs(p.e)]));
+  const x = (i) => P.l + (pts.length === 1 ? 0 : i * (W - P.l - P.r) / (pts.length - 1));
   const y = (v) => P.t + (H - P.t - P.b) * (1 - (v + mx) / (2 * mx));
-  const bw = Math.max(3, Math.min(22, (W - P.l - P.r) / rows.length - 2));
-  const step = (W - P.l - P.r) / rows.length;
+  const line = (k) => pts.map((p, i) => `${i ? 'L' : 'M'}${x(i)},${y(p[k])}`).join('');
   const ticks = [-mx, 0, mx];
-  const bars = rows.map((r, i) => {
-    const x = P.l + i * step + (step - bw) / 2, y0 = y(0), y1 = y(r.avg_net), top = Math.min(y0, y1), h = Math.max(1, Math.abs(y1 - y0));
-    return `<rect x="${x}" y="${top}" width="${bw}" height="${h}" rx="2" fill="var(${r.avg_net >= 0 ? '--pos' : '--neg'})"
-      data-tip="${fmtDate(r.data_date)}: net ${sgn(r.avg_net)} · excess ${sgn(r.avg_excess)} · hit ${pct(r.hit)} (n=${r.n})"/>
-      <rect x="${P.l + i * step}" y="${P.t}" width="${step}" height="${H - P.t - P.b}" fill="transparent" data-tip="${fmtDate(r.data_date)}: net ${sgn(r.avg_net)} · excess ${sgn(r.avg_excess)} · hit ${pct(r.hit)} (n=${r.n})"/>`;
+  const dots = pts.slice(1).map((p, i) => {
+    const tip = `${fmtDate(p.r.data_date)}: lũy kế rổ ${sgn(p.n)} · lũy kế excess ${sgn(p.e)} · trong ngày net ${sgn(p.dn)} (n=${p.r.n}, hit ${pct(p.r.hit)})`;
+    return `<circle cx="${x(i + 1)}" cy="${y(p.n)}" r="4" fill="var(--accent)" data-tip="${tip}"/>`;
   }).join('');
-  const first = rows[0]?.data_date, last = rows.at(-1)?.data_date;
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Lãi/lỗ ròng trung bình top 10 theo ngày tín hiệu">
+  const first = days[0]?.data_date, last = days.at(-1)?.data_date;
+  const xlabels = first === last
+    ? `<text x="${x(1)}" y="${H - 6}" text-anchor="middle">${first ? fmtDate(first) : ''}</text>`
+    : `<text x="${P.l}" y="${H - 6}">${first ? fmtDate(first) : ''}</text><text x="${W - P.r}" y="${H - 6}" text-anchor="end">${last ? fmtDate(last) : ''}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Lũy kế lãi/lỗ rổ top 10 và excess so với universe, theo ngày tín hiệu">
     <g class="axis">${ticks.map((t) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" ${t === 0 ? '' : 'stroke-dasharray="2 3"'}/><text x="${P.l - 6}" y="${y(t) + 4}" text-anchor="end">${sgn(t, 1)}</text>`).join('')}</g>
-    ${bars}
-    <text x="${P.l}" y="${H - 6}">${first ? fmtDate(first) : ''}</text><text x="${W - P.r}" y="${H - 6}" text-anchor="end">${last ? fmtDate(last) : ''}</text></svg>`;
+    <path d="${line('e')}" fill="none" stroke="var(--muted)" stroke-dasharray="4 3" stroke-width="1.5"/>
+    <path d="${line('n')}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    ${dots}
+    ${xlabels}</svg>
+    <p class="mut" style="font-size:12px;margin:4px 0 0">— rổ top 10 (lũy kế) &nbsp; ┅ excess so với universe (lũy kế) &nbsp; · trục X là ngày tín hiệu</p>`;
 }
 
 function renderTrack(rec, daily) {
@@ -134,7 +143,7 @@ function renderTrack(rec, daily) {
       <div class="tile"><div class="k">Đã quyết toán</div><div class="v">${all.n_settled}</div><div class="s">${all.n_days} ngày tín hiệu</div></div>
       <div class="tile"><div class="k">Hit rate</div><div class="v">${pct(all.hit_rate)}</div><div class="s">y_bin = 1</div></div>
       <div class="tile"><div class="k">Net TB / 5 phiên</div><div class="v">${sgn(all.avg_net)}</div><div class="s">excess ${sgn(all.avg_excess)}</div></div></div>
-    ${barChart(daily)}
+    ${trackChart(daily)}${daily.length < 20 ? `<p class="warn" style="margin:6px 0 0;padding:6px 8px;font-size:12px">Chỉ có ${daily.length} ngày tín hiệu đã quyết toán. Chưa đủ dữ liệu để kết luận.</p>` : ''}
     <details><summary class="mut">Xem dạng bảng</summary><table class="tbl"><tr><th>Ngày</th><th class="num">n</th><th class="num">Net</th><th class="num">Excess</th><th class="num">Hit</th></tr>
       ${daily.map((r) => `<tr><td>${fmtDate(r.data_date)}</td><td class="num">${r.n}</td><td class="num">${sgn(r.avg_net)}</td><td class="num">${sgn(r.avg_excess)}</td><td class="num">${pct(r.hit)}</td></tr>`).join('')}</table></details>
     ${by.length ? `<table class="tbl" style="margin-top:8px"><tr><th>Nhận định</th><th class="num">n</th><th class="num">Hit</th><th class="num">Net</th><th class="num">Excess</th></tr>
