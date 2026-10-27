@@ -47,6 +47,7 @@ const db = {
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 60)),
   tickerSignals: (tk) => db.q('signals', (t) => t.select('data_date,rank_sel,action,status,net,excess').eq('ticker', tk).order('data_date', { ascending: false }),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date))),
+  tAgents: () => db.opt('trader_agents', (t) => t.select('*').order('id'), (r) => r),
   tNav: () => db.opt('trader_nav', (t) => t.select('*').order('date'), (r) => r),
   tPos: () => db.opt('trader_positions', (t) => t.select('*'), (r) => r),
   tTrades: () => db.opt('trader_trades', (t) => t.select('*').order('seq', { ascending: false }).limit(2000), (r) => [...r].sort((a, b) => b.seq - a.seq)),
@@ -292,45 +293,46 @@ function renderLive(rows) {
   $('live').querySelectorAll('[data-tip]').forEach((el) => { el.addEventListener('mousemove', (e) => showTip(e, esc(el.dataset.tip))); el.addEventListener('mouseleave', hideTip); });
 }
 
-// ---------- thi đấu 4 danh mục (paper trading 100 tr mỗi danh mục từ 28/10/2026) ----------
-const PF = { A: ['Agent trader', 'var(--accent)'], B: ['Luật TN06-R', 'var(--good)'], C: ['VNINDEX', 'var(--muted)'], D: ['Ngẫu nhiên', 'var(--warnline)'] };
-const vnd = (x) => (x == null ? '—' : `${Math.round(x).toLocaleString('vi-VN')} đ`);
-function renderArena(nav, pos, trades, orders) {
-  const el = $('arena');
-  if (!nav.length) {
-    el.innerHTML = `<p class="mut">${db.missing.has('trader_nav') ? 'Bảng thí nghiệm chưa được tạo trên Supabase (cần apply migration 20261027030000_vnq_trader.sql).' : 'Bắt đầu từ phiên 28/10/2026 — kết quả xuất hiện sau phiên đầu tiên.'}</p>`
-      + (orders.length ? `<h3 style="font-size:14px">Sổ lệnh Agent cho phiên ${fmtDate(orders[0].session)}</h3>${ordersTable(orders.filter((o) => o.session === orders[0].session))}` : '');
-    return;
-  }
-  const last = nav.at(-1).date, today = Object.fromEntries(nav.filter((r) => r.date === last).map((r) => [r.portfolio, r]));
-  const tiles = [...'ABCD'].map((k) => { const r = today[k]; return r ? `<div class="tile"><div class="k"><span style="color:${PF[k][1]}">●</span> ${k} · ${PF[k][0]}</div>
-    <div class="v">${sgn(r.ret_cum)}</div><div class="s">${vnd(r.nav)} · hôm nay ${r.pnl_day >= 0 ? '+' : ''}${vnd(r.pnl_day)}</div></div>` : ''; }).join('');
-  // biểu đồ NAV
-  const dates = [...new Set(nav.map((r) => r.date))].sort(), W = 560, H = 170, P = { l: 52, r: 12, t: 10, b: 22 };
-  const vals = nav.map((r) => r.ret_cum), mx = Math.max(0.01, ...vals.map(Math.abs));
-  const x = (i) => P.l + (dates.length < 2 ? 0 : (W - P.l - P.r) * i / (dates.length - 1)), y = (v) => P.t + (H - P.t - P.b) * (1 - (v + mx) / (2 * mx));
-  const lines = [...'ABCD'].map((k) => { const pts = dates.map((d, i) => { const r = nav.find((n) => n.date === d && n.portfolio === k); return r ? `${x(i).toFixed(1)},${y(r.ret_cum).toFixed(1)}` : null; }).filter(Boolean);
-    return pts.length ? `<polyline points="${pts.join(' ')}" fill="none" stroke="${PF[k][1]}" stroke-width="${k === 'A' ? 2.5 : 1.6}"/>` : ''; }).join('');
-  const chart = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Lời lỗ lũy kế 4 danh mục"><g class="axis">${[-mx, 0, mx].map((t) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" ${t === 0 ? '' : 'stroke-dasharray="2 3"'}/><text x="${P.l - 6}" y="${y(t) + 4}" text-anchor="end">${sgn(t, 1)}</text>`).join('')}</g>${lines}
-    <text x="${P.l}" y="${H - 5}">${fmtDate(dates[0])}</text><text x="${W - P.r}" y="${H - 5}" text-anchor="end">${fmtDate(last)}</text></svg>`;
-  const posA = pos.filter((p) => p.portfolio === 'A');
-  const tr = trades.filter((t) => t.portfolio !== 'C').slice(0, 25);
-  el.innerHTML = `<div class="band" style="margin-bottom:8px">${tiles}</div>${chart}
-    <h3 style="font-size:14px;margin:12px 0 4px">A · Agent đang giữ</h3>${posA.length ? `<div class="wrap"><table class="tbl"><tr><th>Mã</th><th class="num">Số lượng</th><th class="num">Giá vốn</th><th class="num">Giá hiện tại</th><th class="num">Giá trị</th><th class="num">Lời/lỗ</th><th>Mua từ</th></tr>
-      ${posA.map((p) => `<tr><td><b>${esc(p.ticker)}</b></td><td class="num">${p.qty.toLocaleString('vi-VN')}</td><td class="num">${p.avg_cost?.toFixed(2)}</td><td class="num">${p.last_price?.toFixed(2)}</td><td class="num">${vnd(p.mkt_value)}</td><td class="num">${p.pnl >= 0 ? '+' : ''}${vnd(p.pnl)}</td><td>${fmtDate(p.first_buy)}</td></tr>`).join('')}</table></div>` : '<p class="mut">Đang giữ 100% tiền mặt.</p>'}
-    ${orders.length ? `<h3 style="font-size:14px;margin:12px 0 4px">Sổ lệnh Agent phiên ${fmtDate(orders[0].session)}</h3>${ordersTable(orders.filter((o) => o.session === orders[0].session))}` : ''}
-    <details><summary class="mut">Lệnh gần đây (A, B, D)</summary><div class="wrap"><table class="tbl"><tr><th>Phiên</th><th>DM</th><th>Lệnh</th><th>Mã</th><th>Kết quả</th><th class="num">SL</th><th class="num">Giá</th><th class="num">Lời/lỗ</th><th>Ghi chú</th></tr>
-      ${tr.map((t) => `<tr><td>${fmtDate(t.session)}</td><td>${t.portfolio}</td><td>${t.side === 'BUY' ? 'Mua' : 'Bán'} ${esc(t.type || '')}</td><td><b>${esc(t.ticker)}</b></td><td>${t.status === 'filled' ? 'khớp' : esc(t.status)}</td><td class="num">${t.qty ? t.qty.toLocaleString('vi-VN') : ''}</td><td class="num">${t.price?.toFixed(2) ?? ''}</td><td class="num">${t.pnl != null ? vnd(t.pnl) : ''}</td><td class="mut">${esc(t.note || '')}</td></tr>`).join('')}</table></div></details>`;
+// ---------- thi đấu: 4 agent (A1–A4) + bốc thăm đối ứng (R1–R4) + TN06-R (B) + VNINDEX (C), 100 tr mỗi danh mục từ 28/10/2026 ----------
+let AGENTS = [];
+const PF = { B: ['Luật TN06-R', '#7a5af8'], C: ['VNINDEX', 'var(--muted)'] };
+function setAgents(list) {
+  AGENTS = list;
+  for (const g of list) { PF[g.id] = [g.name, g.color]; PF[`R${g.id.slice(1)}`] = [`Bốc thăm đối ứng ${g.id}`, g.color]; }
 }
+const KEYS = () => [...AGENTS.map((g) => g.id), 'B', 'C', ...AGENTS.map((g) => `R${g.id.slice(1)}`)];
+const vnd = (x) => (x == null ? '—' : `${Math.round(x).toLocaleString('vi-VN')} đ`);
+const isR = (k) => /^R\d/.test(k);
+function arenaChart(nav, W = 620, H = 200) {
+  const dates = [...new Set(nav.map((r) => r.date))].sort(), P = { l: 52, r: 12, t: 10, b: 22 };
+  if (!dates.length) return '';
+  const mx = Math.max(0.01, ...nav.map((r) => Math.abs(r.ret_cum)));
+  const x = (i) => P.l + (dates.length < 2 ? 0 : (W - P.l - P.r) * i / (dates.length - 1)), y = (v) => P.t + (H - P.t - P.b) * (1 - (v + mx) / (2 * mx));
+  const lines = KEYS().map((k) => { const pts = dates.map((d, i) => { const r = nav.find((n) => n.date === d && n.portfolio === k); return r ? `${x(i).toFixed(1)},${y(r.ret_cum).toFixed(1)}` : null; }).filter(Boolean);
+    return pts.length && PF[k] ? `<polyline points="${pts.join(' ')}" fill="none" stroke="${PF[k][1]}" stroke-width="${isR(k) ? 1 : k.startsWith('A') ? 2.4 : 1.6}" ${isR(k) ? 'stroke-dasharray="3 3" opacity=".6"' : ''}/>` : ''; }).join('');
+  const legend = KEYS().filter((k) => !isR(k) && PF[k]).map((k) => `<span style="color:${PF[k][1]}">━</span> ${k} ${esc(PF[k][0])}`).join(' &nbsp; ');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Lời lỗ lũy kế các danh mục"><g class="axis">${[-mx, 0, mx].map((t) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" ${t === 0 ? '' : 'stroke-dasharray="2 3"'}/><text x="${P.l - 6}" y="${y(t) + 4}" text-anchor="end">${sgn(t, 1)}</text>`).join('')}</g>${lines}
+    <text x="${P.l}" y="${H - 5}">${fmtDate(dates[0])}</text><text x="${W - P.r}" y="${H - 5}" text-anchor="end">${fmtDate(dates.at(-1))}</text></svg>
+    <p class="mut" style="font-size:12px;margin:2px 0 0">${legend} &nbsp; ┅ bốc thăm đối ứng (cùng màu, nét đứt)</p>`;
+}
+function renderArena(nav) {   // tóm tắt ở trang Tổng quan
+  const el = $('arena');
+  if (!nav.length) { el.innerHTML = `<p class="mut">${db.missing.has('trader_nav') ? 'Bảng thí nghiệm chưa được tạo trên Supabase.' : 'Bắt đầu từ phiên 28/10/2026 — kết quả xuất hiện sau phiên đầu tiên.'}</p>`; return; }
+  const last = nav.at(-1).date, t = Object.fromEntries(nav.filter((r) => r.date === last).map((r) => [r.portfolio, r]));
+  el.innerHTML = `<div class="band" style="margin-bottom:8px">${KEYS().filter((k) => !isR(k) && t[k]).map((k) => `<div class="tile"><div class="k"><span style="color:${PF[k][1]}">●</span> ${k} · ${esc(PF[k][0])}</div>
+    <div class="v">${sgn(t[k].ret_cum)}</div><div class="s">hôm nay ${t[k].pnl_day >= 0 ? '+' : ''}${vnd(t[k].pnl_day)}</div></div>`).join('')}</div>${arenaChart(nav)}`;
+}
+
 // ---------- đề xuất phiên tới của agent (sổ lệnh danh mục A, mô phỏng) ----------
-function renderProposal(el, orders, nav, pos) {
+function renderProposalOne(el, orders, nav, pos, aid) {
   if (!el) return;
+  orders = orders.filter((o) => (o.agent || 'A1') === aid); pos = pos.filter((p) => p.portfolio === aid);
   const sessions = [...new Set(orders.map((o) => o.session))].sort();
   const lastNav = nav.length ? nav.at(-1).date : '';
   const next = sessions.filter((d) => d > lastNav).at(0) || sessions.at(-1);
-  if (!next) { el.innerHTML = '<p class="mut">Agent chưa ra đề xuất. Đề xuất đầu tiên có sau 19:30 tối nay, cho phiên 28/10/2026.</p>'; return; }
+  if (!next) { el.innerHTML = '<p class="mut">Chưa ra đề xuất — đề xuất đầu tiên có sau 19:30 tối nay, cho phiên 28/10/2026.</p>'; return; }
   const os = orders.filter((o) => o.session === next), h = os[0];
-  const navA = nav.filter((r) => r.portfolio === 'A').at(-1)?.nav ?? 100e6;
+  const navA = nav.filter((r) => r.portfolio === aid).at(-1)?.nav ?? 100e6;
   const pctFrom = (a, b) => (a && b ? `${((b / a - 1) * 100).toFixed(1)}%` : '—');
   const src = (o) => { let a = []; try { a = JSON.parse(o.sources || '[]'); } catch (e) { /* bỏ qua */ } return a.map((u) => /^https?:/.test(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">nguồn</a>` : `<span class="mut">${esc(u)}</span>`).join(' · '); };
   const card = (o) => { const buy = o.side === 'BUY', entry = o.limit || null;
@@ -344,7 +346,7 @@ function renderProposal(el, orders, nav, pos) {
       <p class="prop-r">${esc(o.reason || '')}${o.sources && o.sources !== '[]' ? `<br>${src(o)}` : ''}</p></div>`; };
   const trades = os.filter((o) => o.side === 'BUY' || o.side === 'SELL');
   const holds = os.filter((o) => o.side === 'HOLD'), watch = os.filter((o) => o.side === 'WATCH');
-  const px = Object.fromEntries(pos.filter((p) => p.portfolio === 'A').map((p) => [p.ticker, p]));
+  const px = Object.fromEntries(pos.map((p) => [p.ticker, p]));
   el.innerHTML = `<p class="mut" style="margin:0 0 8px;font-size:13px">Phiên <b>${fmtDate(next)}</b> · quyết định ${esc(h.decided_at || '')}${h.committed_at ? ` · khóa lúc ${esc(h.committed_at)}` : ''}</p>
     <p style="margin:0 0 4px"><b>Nhận định:</b> ${esc(h.market_view || '—')}</p><p style="margin:0 0 10px"><b>Rủi ro:</b> ${esc(h.risk_plan || '—')}</p>
     ${trades.length ? `<div class="props">${trades.map(card).join('')}</div>` : '<p><b>Không mở/đóng vị thế ở phiên này</b> — agent đứng ngoài.</p>'}
@@ -354,60 +356,65 @@ function renderProposal(el, orders, nav, pos) {
       ${watch.map((o) => `<tr><td><b>${esc(o.ticker)}</b></td><td style="white-space:normal">${esc(o.condition || '—')}</td><td style="white-space:normal">${esc(o.reason || '')}</td></tr>`).join('')}</table></div>` : ''}`;
 }
 
-// ---------- trang báo cáo riêng: Thi đấu 4 danh mục ----------
+function renderProposal(el, orders, nav, pos) {
+  if (!el) return;
+  if (!AGENTS.length) { el.innerHTML = '<p class="mut">Chưa có cấu hình agent (bảng trader_agents).</p>'; return; }
+  el.innerHTML = AGENTS.map((g) => `<div class="agent-prop" style="border-left-color:${g.color}"><h3><span style="color:${g.color}">●</span> ${g.id} · ${esc(g.name)}
+    <span class="mut" style="font-weight:400;font-size:12px">rủi ro ${esc(g.risk)} · giữ ${esc(g.horizon)}</span></h3><div id="prop-${el.id}-${g.id}"></div></div>`).join('');
+  for (const g of AGENTS) renderProposalOne($(`prop-${el.id}-${g.id}`), orders, nav, pos, g.id);
+}
+
+// ---------- trang báo cáo riêng: Thi đấu ----------
 function pfStats(nav, trades, k) {
   const n = nav.filter((r) => r.portfolio === k);
   if (!n.length) return null;
   let peak = -Infinity, mdd = 0;
   for (const r of n) { peak = Math.max(peak, r.nav); mdd = Math.min(mdd, r.nav / peak - 1); }
   const closed = trades.filter((t) => t.portfolio === k && t.side === 'SELL' && t.status === 'filled' && t.pnl != null);
-  const last = n.at(-1), c = nav.filter((r) => r.portfolio === 'C').at(-1);
+  const last = n.at(-1), c = nav.filter((r) => r.portfolio === 'C').at(-1), rr = nav.filter((r) => r.portfolio === `R${k.slice(1)}`).at(-1);
   return { last, mdd, closed: closed.length, win: closed.length ? closed.filter((t) => t.pnl > 0).length / closed.length : null,
     avgPnl: closed.length ? mean(closed.map((t) => t.pnl)) : null, vsC: c ? last.ret_cum - c.ret_cum : null,
+    vsR: /^A\d/.test(k) && rr ? last.ret_cum - rr.ret_cum : null,
     buys: trades.filter((t) => t.portfolio === k && t.side === 'BUY' && t.status === 'filled').length };
 }
 function renderTraderPage(nav, pos, trades, orders) {
   const el = $('traderPage');
-  if (!nav.length && !orders.length) {
-    el.innerHTML = `<p class="mut">${db.missing.has('trader_nav') ? 'Bảng thí nghiệm chưa được tạo trên Supabase (cần apply migration 20261027030000_vnq_trader.sql).' : 'Thí nghiệm bắt đầu từ phiên 28/10/2026 — báo cáo xuất hiện sau phiên đầu tiên.'}</p>`;
+  const personas = AGENTS.length ? `<div class="personas">${AGENTS.map((g) => { let inds = []; try { inds = JSON.parse(g.industries || '[]'); } catch (e) { /* bỏ qua */ }
+    return `<div class="persona" style="border-top-color:${g.color}"><h3><span style="color:${g.color}">●</span> ${g.id} · ${esc(g.name)}</h3>
+      <p class="mut" style="margin:2px 0 6px;font-size:12px">${esc(g.style)}</p><dl class="kv">
+      <dt>Rủi ro</dt><dd>${esc(g.risk)} · ${pct(g.risk_per_trade, 0)}/lệnh</dd><dt>Giới hạn</dt><dd>≤ ${pct(g.max_weight, 0)}/mã · tiền mặt ≥ ${pct(g.min_cash, 0)}</dd>
+      <dt>Thời gian giữ</dt><dd>${esc(g.horizon)}</dd><dt>Ngắn hạn</dt><dd>${esc(g.goal_short)}</dd><dt>Dài hạn</dt><dd>${esc(g.goal_long)}</dd>
+      <dt>Ngành</dt><dd style="white-space:normal">${inds.map(esc).join(', ')}</dd></dl></div>`; }).join('')}</div>` : '';
+  if (!nav.length) {
+    el.innerHTML = personas + `<p class="mut">${db.missing.has('trader_nav') ? 'Bảng thí nghiệm chưa được tạo trên Supabase.' : 'Thi đấu bắt đầu từ phiên 28/10/2026 — bảng xếp hạng xuất hiện sau phiên đầu tiên.'}</p>`;
     return;
   }
-  const S = Object.fromEntries([...'ABCD'].map((k) => [k, pfStats(nav, trades, k)]));
   const dates = [...new Set(nav.map((r) => r.date))].sort();
-  const score = `<div class="wrap"><table class="tbl"><tr><th>Danh mục</th><th class="num">Tài sản (NAV)</th><th class="num">Hôm nay</th><th class="num">Lũy kế</th><th class="num">So với VNINDEX</th><th class="num">Sụt giảm lớn nhất</th><th class="num">Lệnh mua</th><th class="num">Lệnh đã đóng</th><th class="num">Tỷ lệ thắng</th><th class="num">Lãi TB/lệnh</th><th class="num">Tiền mặt</th></tr>
-    ${[...'ABCD'].map((k) => { const s = S[k]; if (!s) return ''; const r = s.last;
-      return `<tr><td><span style="color:${PF[k][1]}">●</span> <b>${k}</b> · ${PF[k][0]}</td><td class="num">${vnd(r.nav)}</td><td class="num">${r.pnl_day >= 0 ? '+' : ''}${vnd(r.pnl_day)}</td>
-        <td class="num"><b>${sgn(r.ret_cum)}</b></td><td class="num">${k === 'C' ? '—' : sgn(s.vsC)}</td><td class="num">${sgn(s.mdd)}</td><td class="num">${k === 'C' ? '—' : s.buys}</td>
-        <td class="num">${k === 'C' ? '—' : s.closed}</td><td class="num">${s.win == null ? '—' : pct(s.win, 0)}</td><td class="num">${s.avgPnl == null ? '—' : vnd(s.avgPnl)}</td>
-        <td class="num">${k === 'C' ? '0%' : pct(r.cash / r.nav, 0)}</td></tr>`; }).join('')}</table></div>`;
-  // bảng lời/lỗ theo ngày
-  const daily = `<details open><summary class="mut">Lời/lỗ theo ngày</summary><div class="wrap"><table class="tbl"><tr><th>Phiên</th>${[...'ABCD'].map((k) => `<th class="num">${k} · ${PF[k][0]}</th>`).join('')}</tr>
-    ${[...dates].reverse().map((d) => `<tr><td>${fmtDate(d)}</td>${[...'ABCD'].map((k) => { const r = nav.find((n) => n.date === d && n.portfolio === k);
+  const keys = KEYS().filter((k) => nav.some((r) => r.portfolio === k));
+  const S = Object.fromEntries(keys.map((k) => [k, pfStats(nav, trades, k)]));
+  const row = (k) => { const s = S[k]; if (!s) return ''; const r = s.last;
+    return `<tr${isR(k) ? ' class="mut"' : ''}><td><span style="color:${PF[k][1]}">●</span> <b>${k}</b> · ${esc(PF[k][0])}</td><td class="num">${vnd(r.nav)}</td><td class="num">${r.pnl_day >= 0 ? '+' : ''}${vnd(r.pnl_day)}</td>
+      <td class="num"><b>${sgn(r.ret_cum)}</b></td><td class="num">${k === 'C' ? '—' : sgn(s.vsC)}</td><td class="num">${s.vsR == null ? '—' : sgn(s.vsR)}</td><td class="num">${sgn(s.mdd)}</td>
+      <td class="num">${k === 'C' ? '—' : s.buys}</td><td class="num">${k === 'C' ? '—' : s.closed}</td><td class="num">${s.win == null ? '—' : pct(s.win, 0)}</td><td class="num">${s.avgPnl == null ? '—' : vnd(s.avgPnl)}</td>
+      <td class="num">${k === 'C' ? '0%' : pct(r.cash / r.nav, 0)}</td></tr>`; };
+  const score = `<div class="wrap"><table class="tbl"><tr><th>Danh mục</th><th class="num">NAV</th><th class="num">Hôm nay</th><th class="num">Lũy kế</th><th class="num">vs VNINDEX</th><th class="num">vs bốc thăm</th><th class="num">Sụt giảm max</th><th class="num">Lệnh mua</th><th class="num">Đã đóng</th><th class="num">Thắng</th><th class="num">Lãi TB/lệnh</th><th class="num">Tiền mặt</th></tr>
+    ${keys.filter((k) => !isR(k)).sort((a, b) => S[b].last.ret_cum - S[a].last.ret_cum).map(row).join('')}${keys.filter(isR).map(row).join('')}</table></div>`;
+  const main = keys.filter((k) => !isR(k));
+  const daily = `<details><summary class="mut">Lời/lỗ theo ngày</summary><div class="wrap"><table class="tbl"><tr><th>Phiên</th>${main.map((k) => `<th class="num">${k}</th>`).join('')}</tr>
+    ${[...dates].reverse().map((d) => `<tr><td>${fmtDate(d)}</td>${main.map((k) => { const r = nav.find((n) => n.date === d && n.portfolio === k);
       return `<td class="num">${r ? `${r.pnl_day >= 0 ? '+' : ''}${vnd(r.pnl_day)} <span class="mut">(${sgn(r.ret_cum)})</span>` : '—'}</td>`; }).join('')}</tr>`).join('')}</table></div></details>`;
-  // nhật ký agent theo phiên
-  const sessions = [...new Set(orders.map((o) => o.session))].sort().reverse();
-  const fillOf = (o) => trades.find((t) => t.portfolio === 'A' && t.session === o.session && t.ticker === (o.ticker || '').toUpperCase() && t.side === o.side);
   const stLabel = { filled: 'khớp', unfilled_ceiling: 'không khớp (trần)', unfilled_floor: 'không khớp (sàn)', unfilled_limit: 'không khớp (giá LO)', 'not_sellable_T+2': 'chưa bán được (T+2)', no_cash: 'thiếu tiền', no_position: 'không có cổ phiếu', no_price: 'không có giá' };
-  const journal = sessions.map((sd) => { const os = orders.filter((o) => o.session === sd), h = os[0];
-    const rows = os.filter((o) => o.side === 'BUY' || o.side === 'SELL').map((o) => { const f = fillOf(o); let src = []; try { src = JSON.parse(o.sources || '[]'); } catch (e) { /* bỏ qua */ }
-      const res = f ? (f.status === 'filled' ? `khớp ${f.qty?.toLocaleString('vi-VN')} cp @ ${f.price?.toFixed(2)}${f.pnl != null ? ` · ${f.pnl >= 0 ? '+' : ''}${vnd(f.pnl)}` : ''}` : stLabel[f.status] || f.status) : (dates.includes(sd) ? 'bị từ chối (xem ràng buộc)' : 'chờ phiên');
-      return `<tr><td>${o.side === 'BUY' ? 'Mua' : 'Bán'} ${esc(o.type || '')}${o.limit ? ` ${o.limit}` : ''}</td><td><b>${esc(o.ticker)}</b></td><td class="num">${o.value_vnd ? vnd(o.value_vnd) : esc(o.qty || '')}</td>
-        <td>${esc(res)}</td><td style="white-space:normal">${esc(o.reason || '')}${src.length ? `<br>${src.map((u) => /^https?:/.test(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">nguồn</a>` : `<span class="mut">${esc(u)}</span>`).join(' · ')}` : ''}</td></tr>`; }).join('');
-    return `<div class="planbox" style="margin-bottom:10px"><h3>Phiên ${fmtDate(sd)} <span class="mut" style="font-weight:400;font-size:12px">quyết định ${esc(h.decided_at || '')} · commit ${esc(h.committed_at || '—')}</span></h3>
-      <p style="margin:4px 0;font-size:13px"><b>Nhận định:</b> ${esc(h.market_view || '—')}</p><p style="margin:4px 0 8px;font-size:13px"><b>Quản trị rủi ro:</b> ${esc(h.risk_plan || '—')}</p>
-      ${rows ? `<div class="wrap"><table class="tbl"><tr><th>Lệnh</th><th>Mã</th><th class="num">Giá trị / SL</th><th>Kết quả</th><th>Lý do & nguồn</th></tr>${rows}</table></div>` : '<p class="mut">Đứng ngoài, không đặt lệnh.</p>'}</div>`; }).join('');
+  const journal = AGENTS.map((g) => { const os = orders.filter((o) => (o.agent || 'A1') === g.id && (o.side === 'BUY' || o.side === 'SELL'));
+    const rows = os.map((o) => { const f = trades.find((t) => t.portfolio === g.id && t.session === o.session && t.ticker === (o.ticker || '').toUpperCase() && t.side === o.side);
+      const res = f ? (f.status === 'filled' ? `khớp ${f.qty?.toLocaleString('vi-VN')} cp @ ${f.price?.toFixed(2)}${f.pnl != null ? ` · ${f.pnl >= 0 ? '+' : ''}${vnd(f.pnl)}` : ''}` : stLabel[f.status] || f.status) : (dates.includes(o.session) ? 'bị từ chối (giới hạn/ngành)' : 'chờ phiên');
+      return `<tr><td>${fmtDate(o.session)}</td><td>${o.side === 'BUY' ? 'Mua' : 'Bán'} ${esc(o.type || '')}${o.limit ? ` ${o.limit}` : ''}</td><td><b>${esc(o.ticker)}</b></td><td class="num">${o.value_vnd ? vnd(o.value_vnd) : esc(o.qty || '')}</td><td>${esc(res)}</td><td style="white-space:normal">${esc(o.reason || '')}</td></tr>`; }).join('');
+    return `<details><summary><b style="color:${g.color}">●</b> ${g.id} · ${esc(g.name)} — ${os.length} lệnh</summary>${rows ? `<div class="wrap"><table class="tbl"><tr><th>Phiên</th><th>Lệnh</th><th>Mã</th><th class="num">Giá trị / SL</th><th>Kết quả</th><th>Lý do</th></tr>${rows}</table></div>` : '<p class="mut">Chưa có lệnh.</p>'}</details>`; }).join('');
   const posT = (k) => { const ps = pos.filter((p) => p.portfolio === k); return ps.length ? `<table class="tbl"><tr><th>Mã</th><th class="num">SL</th><th class="num">Giá vốn</th><th class="num">Giá</th><th class="num">Lời/lỗ</th></tr>${ps.map((p) => `<tr><td><b>${esc(p.ticker)}</b></td><td class="num">${Math.round(p.qty).toLocaleString('vi-VN')}</td><td class="num">${p.avg_cost?.toFixed(2)}</td><td class="num">${p.last_price?.toFixed(2)}</td><td class="num">${p.pnl >= 0 ? '+' : ''}${vnd(p.pnl)}</td></tr>`).join('')}</table>` : '<p class="mut">100% tiền mặt.</p>'; };
-  const closed = trades.filter((t) => t.side === 'SELL' && t.status === 'filled' && t.portfolio !== 'C');
-  el.innerHTML = `<h3 style="font-size:15px;margin:0 0 6px">Bảng xếp hạng ${dates.length ? `— sau ${dates.length} phiên (đến ${fmtDate(dates.at(-1))})` : ''}</h3>${score}
-    ${dates.length < 60 ? `<p class="warn" style="margin:8px 0;padding:6px 8px;font-size:12px">Mới ${dates.length} phiên. Chênh lệch giữa các danh mục lúc này chủ yếu là may rủi; cần ≥ 60 phiên (≈ 3 tháng) và ≥ 100 lệnh mới đánh giá được.</p>` : ''}
-    <div id="arenaChart"></div>${daily}
-    <h3 style="font-size:15px;margin:14px 0 6px">Nhật ký Agent (danh mục A)</h3>${journal || '<p class="mut">Chưa có sổ lệnh.</p>'}
-    <h3 style="font-size:15px;margin:14px 0 6px">Đang giữ</h3><div class="plangrid">${['A', 'B', 'D'].map((k) => `<div class="planbox"><h3>${k} · ${PF[k][0]}</h3>${posT(k)}</div>`).join('')}</div>
-    <details><summary class="mut">Lệnh đã đóng (${closed.length})</summary><div class="wrap"><table class="tbl"><tr><th>Phiên bán</th><th>DM</th><th>Mã</th><th class="num">SL</th><th class="num">Giá bán</th><th class="num">Lời/lỗ</th><th>Ghi chú</th></tr>
-      ${closed.map((t) => `<tr><td>${fmtDate(t.session)}</td><td>${t.portfolio}</td><td><b>${esc(t.ticker)}</b></td><td class="num">${t.qty?.toLocaleString('vi-VN')}</td><td class="num">${t.price?.toFixed(2)}</td><td class="num">${t.pnl >= 0 ? '+' : ''}${vnd(t.pnl)}</td><td class="mut">${esc(t.note || '')}</td></tr>`).join('')}</table></div></details>`;
-  // biểu đồ: dùng lại renderArena vào vùng tạm rồi lấy SVG
-  const tmp = document.createElement('div'); tmp.id = 'arena-tmp';
-  if (nav.length) { const keep = $('arena').innerHTML; renderArena(nav, [], [], []); const svg = $('arena').querySelector('svg'); $('arenaChart').append(svg.cloneNode(true)); $('arena').innerHTML = keep; }
+  el.innerHTML = personas + `<h3 style="font-size:15px;margin:12px 0 6px">Bảng xếp hạng — sau ${dates.length} phiên (đến ${fmtDate(dates.at(-1))})</h3>${score}
+    ${dates.length < 60 ? `<p class="warn" style="margin:8px 0;padding:6px 8px;font-size:12px">Mới ${dates.length} phiên. Chênh lệch lúc này chủ yếu là may rủi; cần ≥ 60 phiên (≈ 3 tháng) và ≥ 100 lệnh mới đánh giá được. Cột "vs bốc thăm" đo kỹ năng chọn mã của từng agent.</p>` : ''}
+    ${arenaChart(nav)}${daily}
+    <h3 style="font-size:15px;margin:14px 0 6px">Đang giữ</h3><div class="plangrid">${[...AGENTS.map((g) => g.id), 'B'].map((k) => `<div class="planbox"><h3>${k} · ${esc(PF[k][0])}</h3>${posT(k)}</div>`).join('')}</div>
+    <h3 style="font-size:15px;margin:14px 0 6px">Nhật ký lệnh theo agent</h3>${journal}`;
 }
 function showTab(tab) {
   const t = tab === 'thi-dau';
@@ -660,8 +667,8 @@ async function main() {
     $('dateSel').onchange = (e) => loadDate(e.target.value);
     const [rec, daily, live, ptr, pnav] = await Promise.all([db.track(), db.trackDaily(), db.liveEval(), db.paperTrades(), db.paperNav(), loadDate($('dateSel').value)]);
     renderTrack(rec, daily); renderLive(live);
-    Promise.all([db.tNav(), db.tPos(), db.tTrades(), db.tOrders()]).then(([n, p, t, o]) => {
-      renderArena(n, p, t.slice(0, 60), o); renderTraderPage(n, p, t, o);
+    Promise.all([db.tAgents(), db.tNav(), db.tPos(), db.tTrades(), db.tOrders()]).then(([ag, n, p, t, o]) => {
+      setAgents(ag); renderArena(n); renderTraderPage(n, p, t, o);
       renderProposal($('proposal'), o, n, p); renderProposal($('proposalT'), o, n, p);
       $('arena').insertAdjacentHTML('beforeend', '<p style="margin:8px 0 0"><a href="#thi-dau">Xem báo cáo thi đấu đầy đủ →</a></p>');
     });

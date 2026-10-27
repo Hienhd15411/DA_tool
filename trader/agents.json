@@ -1,0 +1,43 @@
+{
+  "_note": "Cấu hình 4 agent trader (docs/09_TRADER_EXPERIMENT.md). Đăng ký trước 27/10/2026. Bộ mô phỏng tự chặn lệnh vi phạm giới hạn và ngành.",
+  "agents": [
+    {
+      "id": "A1", "name": "Phòng thủ", "color": "#2a78d6",
+      "style": "Cổ phiếu cơ bản tốt, cổ tức đều, định giá hợp lý; mua khi điều chỉnh về hỗ trợ, giữ dài; ít giao dịch.",
+      "risk": "thấp", "risk_per_trade": 0.01, "max_weight": 0.15, "min_cash": 0.30, "max_per_industry": 3,
+      "horizon": "20–60 phiên (1–3 tháng+)",
+      "goal_short": "Không tháng nào lỗ quá 3%",
+      "goal_long": "Thắng VNINDEX sau 12 tháng với sụt giảm lớn nhất < 8%",
+      "industries": ["Tổ chức tín dụng", "Tiện ích", "Thực phẩm, đồ uống và thuốc lá", "Bảo hiểm",
+                     "Dược phẩm, công nghệ sinh học và khoa học sự sống"]
+    },
+    {
+      "id": "A2", "name": "Tăng trưởng", "color": "#0ca30c",
+      "style": "Doanh nghiệp tăng trưởng lợi nhuận (KQKD quý, câu chuyện ngành), vào khi xu hướng tăng xác nhận, gồng lãi theo xu hướng.",
+      "risk": "vừa", "risk_per_trade": 0.02, "max_weight": 0.20, "min_cash": 0.10, "max_per_industry": 3,
+      "horizon": "10–60 phiên (2 tuần – 3 tháng)",
+      "goal_short": "+3%/tháng",
+      "goal_long": "+25%/năm, thắng VNINDEX",
+      "industries": ["Phần mềm và dịch vụ", "Thương mại hàng không thiết yếu", "Dịch vụ viễn thông", "Dịch vụ tiêu dùng",
+                     "Thời trang và hàng lâu bền", "Truyền thông và giải trí", "Hàng hóa công nghiệp"]
+    },
+    {
+      "id": "A3", "name": "Lướt sóng", "color": "#e34948",
+      "style": "Đánh theo đà tăng và dòng tiền ngắn hạn (breakout, khối lượng đột biến), cắt lỗ nhanh, chốt lời nhanh.",
+      "risk": "cao", "risk_per_trade": 0.03, "max_weight": 0.25, "min_cash": 0.05, "max_per_industry": 4,
+      "horizon": "3–10 phiên",
+      "goal_short": "+5%/tháng",
+      "goal_long": "Tối đa hóa lợi nhuận, chấp nhận sụt giảm tới 20%",
+      "industries": ["Dịch vụ tài chính", "Bất động sản"]
+    },
+    {
+      "id": "A4", "name": "Bắt đáy chu kỳ", "color": "#fab219",
+      "style": "Ngược dòng: mua cổ phiếu chu kỳ bị bán tháo quá mức (tín hiệu TN06-R, RSI thấp, tin xấu đã phản ánh), bán khi hồi về trung bình.",
+      "risk": "vừa-cao", "risk_per_trade": 0.02, "max_weight": 0.20, "min_cash": 0.20, "max_per_industry": 3,
+      "horizon": "5–20 phiên",
+      "goal_short": "Không lỗ 2 tháng liên tiếp",
+      "goal_long": "Thắng danh mục bốc thăm và VNINDEX sau 6 tháng",
+      "industries": ["Năng lượng", "Vận tải", "Nguyên vật liệu"]
+    }
+  ]
+}

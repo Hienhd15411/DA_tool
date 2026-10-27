@@ -52,18 +52,19 @@ VNQ <dd/mm> — <🟢 Ổn | 🟡 Có sự cố đã xử lý | 🔴 Cần bạn
 ```
 Luôn ghi rõ lệnh là **mô phỏng, chưa đạt kiểm định**; không dùng chữ "nên mua/nên bán".
 
-## 5. Nhiệm vụ trader — danh mục A (docs/09_TRADER_EXPERIMENT.md)
+## 5. Nhiệm vụ trader — 4 agent A1–A4 (docs/09_TRADER_EXPERIMENT.md, trader/agents.json)
 Sau phần vận hành, mỗi tối ngày giao dịch:
-1. Kích hoạt `vnq-trader` (ghi ngày giờ vào `.github/vnq-trader`, push) → đọc log 3 bước: **Tin tức**, **Mô phỏng 4 danh mục** (NAV, lệnh khớp/không khớp, vị thế), **Bản tin thị trường**.
-2. Ra quyết định như một trader có kỷ luật cho **phiên giao dịch kế tiếp**:
-   - Nguồn: bản tin thị trường, danh mục mô phỏng TN06-R, điểm TN07/watchlist (dashboard/Supabase qua log), tin tức trong log. Không dùng thông tin nào sau thời điểm quyết định.
-   - Tự đặt và ghi rõ: nhận định thị trường (`market_view`), kế hoạch rủi ro (`risk_plan`: mức cắt lỗ/chốt lời, tỷ trọng tiền mặt).
-   - Thực hiện cắt lỗ/chốt lời đã cam kết của các vị thế đang giữ bằng lệnh bán (nhớ T+2: mua phiên T, ATC/LO bán từ T+2, ATO từ T+3).
-   - Ràng buộc: ≤ 20% NAV/mã, ≤ 3 mã/ngành, ≥ 10% tiền mặt, chỉ mã trong universe. Không có lý do rõ → không giao dịch (`"orders": []`).
-   - **Kế hoạch đầy đủ** (docs/09, mục "Kế hoạch giao dịch của A"): mỗi BUY có vùng giá vào, stop_loss, take_profit, horizon_sessions,
-     confidence; cỡ lệnh theo rủi ro 2% NAV; mỗi mã đang giữ có HOLD/SELL; 3–5 dòng WATCH với điều kiện vào lệnh cụ thể.
-   - Kỷ luật: vị thế có giá đóng cửa ≤ stop_loss hoặc ≥ take_profit đã cam kết → đặt SELL; không dời cắt lỗ xa hơn.
-3. Ghi `trader/orders/<YYYY-MM-DD phiên kế tiếp>.json` đúng định dạng, **commit + push trước 09:00 phiên đó** (tối nay là tốt nhất). Không sửa file đã commit.
-4. Báo cáo tối mở đầu bằng **ĐỀ XUẤT PHIÊN TỚI (agent, mô phỏng)**: từng lệnh MUA/BÁN (mã, giá vào, số tiền ≈ số cp, cắt lỗ, chốt lời,
-   giữ bao lâu, lý do 1 dòng), kế hoạch các mã đang giữ, danh sách theo dõi. Sau đó mục **④ Thi đấu**: NAV và lời/lỗ hôm nay + lũy kế của A/B/C/D, lệnh A đã khớp hôm nay, sổ lệnh A phiên tới (mã, giá trị, lý do 1 dòng).
-Không được: dùng ngôn ngữ khuyến nghị cho người đọc; sửa lịch sử lệnh; tự đổi luật mô phỏng/ràng buộc để có lợi cho A.
+1. Kích hoạt `vnq-trader` (ghi ngày giờ vào `.github/vnq-trader`, push) → đọc log: **Tin tức**, **Mô phỏng** (NAV, lệnh khớp/không khớp,
+   bị từ chối, vị thế của từng agent), **Bản tin thị trường**.
+2. Lần lượt **đóng vai từng agent** theo đúng `trader/agents.json` (phong cách, khẩu vị rủi ro, giới hạn, thời gian giữ, mục tiêu,
+   **chỉ mã trong phạm vi ngành của agent đó**). Quyết định của mỗi agent độc lập, không phối hợp giữa các agent.
+   - Nguồn: bản tin thị trường, tín hiệu TN06-R / TN07 / watchlist, tin tức trong log. Không dùng thông tin sau thời điểm quyết định.
+   - Kế hoạch đầy đủ (docs/09 "Kế hoạch giao dịch"): mỗi BUY có vùng giá vào, stop_loss, take_profit, horizon_sessions, confidence;
+     **cỡ lệnh = risk_per_trade của agent × NAV ÷ % khoảng cách cắt lỗ**, không vượt max_weight; mỗi mã đang giữ có HOLD/SELL;
+     3–5 WATCH kèm điều kiện vào lệnh; market_view + risk_plan riêng theo chân dung.
+   - Kỷ luật: vị thế đóng cửa ≤ stop_loss hoặc ≥ take_profit đã cam kết → SELL; không dời cắt lỗ xa hơn. Không có lý do rõ → không mở lệnh mới.
+3. Ghi `trader/orders/<A1|A2|A3|A4>/<YYYY-MM-DD phiên kế tiếp>.json` (4 file), **commit + push trước 09:00 phiên đó** (tối nay là tốt nhất).
+   Không sửa file đã commit.
+4. Báo cáo tối mở đầu bằng **ĐỀ XUẤT PHIÊN TỚI** theo từng agent (mã, giá vào, số tiền ≈ số cp, cắt lỗ, chốt lời, giữ bao lâu, lý do 1 dòng;
+   mã đang giữ; theo dõi), rồi **④ Thi đấu**: NAV + lời/lỗ hôm nay và lũy kế của A1–A4, B, C, và mỗi agent vs bốc thăm đối ứng (R1–R4).
+Không được: dùng ngôn ngữ khuyến nghị cho người đọc; sửa lịch sử lệnh; tự đổi luật mô phỏng, giới hạn hay phạm vi ngành để có lợi cho agent.

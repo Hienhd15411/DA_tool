@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'engine'))
 START, CAPITAL = pd.Timestamp(os.environ.get('TRADER_START', '2026-10-28')), 100_000_000
 FEE, TAX, LOT, NEAR = 0.0015, 0.001, 100, 0.005
-MAX_W, MAX_IND, MIN_CASH = 0.20, 3, 0.10
+MAX_IND = 3   # B (TN06-R)
+AGENTS = json.loads((ROOT / 'trader' / 'agents.json').read_text(encoding='utf-8'))['agents']
 ICT = dt.timezone(dt.timedelta(hours=7))
 OUT = ROOT / 'tools' / 'out' / 'trader'
 
@@ -68,8 +69,12 @@ def run(panel, vni, signals, orders_dir, industry, now):
     panel['liq20'] = panel.sort_values('date').groupby('ticker').val.transform(lambda s: s.rolling(20, min_periods=15).mean())
     dates = sorted(d for d in panel.date.unique() if d >= START)
     bars = {d: g.set_index('ticker') for d, g in panel[panel.date.isin(dates)].groupby('date')}
-    A, B, C, D = Book('A'), Book('B'), Book('C'), Book('D')
-    dmap, a_orders, rejected, d_retry = {}, [], [], {}   # d_retry[mã D] = số lượng còn phải bán
+    AG = AGENTS
+    AB = {g['id']: Book(g['id']) for g in AG}                       # agent
+    RB = {g['id']: Book('R' + g['id'][1:]) for g in AG}             # bốc thăm đối ứng của từng agent
+    B, C = Book('B'), Book('C')
+    dmap = {g['id']: {} for g in AG}; retry = {g['id']: {} for g in AG}
+    a_orders, rejected = [], []
     vni = vni.set_index('date')
     c_units = None
     sig = signals[signals.tn06r_signal.astype(bool)].copy() if len(signals) else signals
@@ -81,7 +86,8 @@ def run(panel, vni, signals, orders_dir, industry, now):
         ok_px = lambda t: t in bar.index and np.isfinite(bar.at[t, 'open'])
         ceil = lambda t: bar.at[t, 'prev'] * (1 + lim.get(t, 0.07) - NEAR)
         floor = lambda t: bar.at[t, 'prev'] * (1 - lim.get(t, 0.07) + NEAR)
-        nav_open = {b.name: b.value(bar.open.to_dict()) for b in (A, B, D)}
+        live = [B, *AB.values(), *RB.values()]
+        nav_open = {bk.name: bk.value(bar.open.to_dict()) for bk in live}
 
         def buy(book, t, value, o, extra=''):
             if not ok_px(t): book.log(session=d, ticker=t, side='BUY', status='no_price', note=extra); return 0
@@ -118,61 +124,62 @@ def run(panel, vni, signals, orders_dir, industry, now):
                      pnl=amt - fee - tax - cost * (1 + FEE), note=extra)
             return q, total
 
-        # D: bán lại phần đối ứng chưa khớp ở phiên trước (ATO)
-        for t, q in list(d_retry.items()):
-            got, _ = sell(D, t, q, {'type': 'ATO'}, 'bán lại đối ứng chưa khớp')
-            left = (D.qty(t) if q == 'all' else q - got)
-            if got and (q == 'all' or left <= 0): d_retry.pop(t)
-            elif got: d_retry[t] = left
-        # ---------- A: sổ lệnh ----------
-        f = orders_dir / f'{d:%Y-%m-%d}.json'
-        plan = []
-        if f.exists():
-            ct = commit_time(f)
-            deadline = dt.datetime.combine(d.date(), dt.time(9, 0), ICT)
-            js = json.loads(f.read_text(encoding='utf-8'))
-            if ct is not None and ct > deadline:
-                rejected.append(dict(session=d, ticker='*', reason=f'sổ lệnh commit {ct.isoformat()} sau 09:00 phiên → bỏ cả file'))
-            else:
-                plan = [o for o in js.get('orders', []) if o.get('side') in ('BUY', 'SELL')]
-            for o in js.get('orders', []):
-                a_orders.append(dict(session=d.strftime('%Y-%m-%d'), decided_at=js.get('decided_at'), committed_at=ct.isoformat() if ct else None,
-                                     side=o.get('side'), ticker=o.get('ticker'), type=o.get('type'), limit=o.get('limit'),
-                                     value_vnd=o.get('value_vnd'), qty=str(o.get('qty', '')), reason=o.get('reason'),
-                                     sources=json.dumps(o.get('sources', []), ensure_ascii=False), market_view=js.get('market_view'),
-                                     risk_plan=js.get('risk_plan'), stop_loss=o.get('stop_loss'), take_profit=o.get('take_profit'),
-                                     horizon_sessions=o.get('horizon_sessions'), confidence=o.get('confidence'), condition=o.get('condition')))
-        order_rank = {'SELL': {'ATO': 0, 'LO': 2, 'ATC': 3}, 'BUY': {'ATO': 1, 'LO': 2, 'ATC': 4}}
-        plan = sorted(plan, key=lambda o: order_rank[o['side']].get(o.get('type', 'ATO'), 2))
         elig = set(bar.index[(bar.liq20 >= 5e9) & (bar.nb >= 200)])
-        for o in plan:
-            t = o['ticker'].upper()
-            if o['side'] == 'SELL':
-                q, total = sell(A, t, o.get('qty', 'all'), o, 'A')
-                if q and t in dmap:   # D bán mã đối ứng cùng tỷ lệ
-                    dt_ = dmap[t]; frac = q / total
-                    dq = D.qty(dt_)
-                    want = 'all' if frac >= 0.999 else int(dq * frac // LOT * LOT)
-                    got, _ = sell(D, dt_, want, o, f'đối ứng A:{t}')
-                    if not got and D.qty(dt_): d_retry[dt_] = want
-                continue
-            if t not in elig:
-                rejected.append(dict(session=d, ticker=t, reason='ngoài universe đủ điều kiện')); continue
-            nav = nav_open['A']
-            room = MAX_W * nav - A.qty(t) * bar.at[t, 'open'] * 1000
-            inds = {industry.get(x) for x in A.pos} if industry else set()
-            if industry and industry.get(t) and sum(industry.get(x) == industry.get(t) for x in A.pos if x != t) >= MAX_IND:
-                rejected.append(dict(session=d, ticker=t, reason='quá 3 mã cùng ngành')); continue
-            v = min(float(o.get('value_vnd', 0)), room, max(0.0, A.cash - MIN_CASH * nav))
-            if v <= 0:
-                rejected.append(dict(session=d, ticker=t, reason='vượt 20% NAV hoặc chạm sàn 10% tiền mặt')); continue
-            amt = buy(A, t, v, o, 'A')
-            if amt:   # D: bốc thăm 1 mã đủ điều kiện, cùng số tiền, cùng loại lệnh ATO/ATC (LO → ATO)
-                if t not in dmap:
-                    pool = sorted(elig - set(D.pos))
-                    seed = int(hashlib.sha256(f'{d:%Y%m%d}{t}'.encode()).hexdigest(), 16) % (2 ** 32)
-                    dmap[t] = pool[np.random.default_rng(seed).integers(len(pool))]
-                buy(D, dmap[t], amt, {'type': 'ATC' if o.get('type') == 'ATC' else 'ATO'}, f'đối ứng A:{t}')
+        order_rank = {'SELL': {'ATO': 0, 'LO': 2, 'ATC': 3}, 'BUY': {'ATO': 1, 'LO': 2, 'ATC': 4}}
+        for g in AG:
+            aid, A, R = g['id'], AB[g['id']], RB[g['id']]
+            inds_ok = set(g['industries'])
+            # R: bán lại phần đối ứng chưa khớp ở phiên trước (ATO)
+            for t, q in list(retry[aid].items()):
+                got, _ = sell(R, t, q, {'type': 'ATO'}, 'bán lại đối ứng chưa khớp')
+                left = (R.qty(t) if q == 'all' else q - got)
+                if got and (q == 'all' or left <= 0): retry[aid].pop(t)
+                elif got: retry[aid][t] = left
+            f = orders_dir / aid / f'{d:%Y-%m-%d}.json'
+            plan = []
+            if f.exists():
+                ct = commit_time(f)
+                deadline = dt.datetime.combine(d.date(), dt.time(9, 0), ICT)
+                js = json.loads(f.read_text(encoding='utf-8'))
+                if ct is not None and ct > deadline:
+                    rejected.append(dict(agent=aid, session=d, ticker='*', reason=f'sổ lệnh commit {ct.isoformat()} sau 09:00 phiên → bỏ cả file'))
+                else:
+                    plan = [o for o in js.get('orders', []) if o.get('side') in ('BUY', 'SELL')]
+                for o in js.get('orders', []):
+                    a_orders.append(dict(agent=aid, session=d.strftime('%Y-%m-%d'), decided_at=js.get('decided_at'), committed_at=ct.isoformat() if ct else None,
+                                         side=o.get('side'), ticker=o.get('ticker'), type=o.get('type'), limit=o.get('limit'),
+                                         value_vnd=o.get('value_vnd'), qty=str(o.get('qty', '')), reason=o.get('reason'),
+                                         sources=json.dumps(o.get('sources', []), ensure_ascii=False), market_view=js.get('market_view'),
+                                         risk_plan=js.get('risk_plan'), stop_loss=o.get('stop_loss'), take_profit=o.get('take_profit'),
+                                         horizon_sessions=o.get('horizon_sessions'), confidence=o.get('confidence'), condition=o.get('condition')))
+            plan = sorted(plan, key=lambda o: order_rank[o['side']].get(o.get('type', 'ATO'), 2))
+            pool_all = sorted(t for t in elig if industry.get(t) in inds_ok)
+            for o in plan:
+                t = o['ticker'].upper()
+                if o['side'] == 'SELL':
+                    q, total = sell(A, t, o.get('qty', 'all'), o, aid)
+                    if q and t in dmap[aid]:   # R bán mã đối ứng cùng tỷ lệ
+                        rt = dmap[aid][t]; frac = q / total
+                        want = 'all' if frac >= 0.999 else int(R.qty(rt) * frac // LOT * LOT)
+                        got, _ = sell(R, rt, want, o, f'đối ứng {aid}:{t}')
+                        if not got and R.qty(rt): retry[aid][rt] = want
+                    continue
+                rej = lambda why: rejected.append(dict(agent=aid, session=d, ticker=t, reason=why))
+                if t not in elig: rej('ngoài universe đủ điều kiện'); continue
+                if industry.get(t) not in inds_ok: rej(f'ngành "{industry.get(t)}" ngoài phạm vi của {aid}'); continue
+                nav = nav_open[aid]
+                room = g['max_weight'] * nav - A.qty(t) * bar.at[t, 'open'] * 1000
+                if sum(industry.get(x) == industry.get(t) for x in A.pos if x != t) >= g['max_per_industry']:
+                    rej(f'quá {g["max_per_industry"]} mã cùng ngành'); continue
+                v = min(float(o.get('value_vnd', 0)), room, max(0.0, A.cash - g['min_cash'] * nav))
+                if v <= 0: rej(f'vượt {g["max_weight"]:.0%} NAV/mã hoặc chạm sàn {g["min_cash"]:.0%} tiền mặt'); continue
+                amt = buy(A, t, v, o, aid)
+                if amt:   # R: bốc thăm 1 mã cùng phạm vi ngành, cùng số tiền, cùng loại lệnh (LO → ATO)
+                    if t not in dmap[aid]:
+                        pool = [x for x in pool_all if x not in R.pos] or pool_all
+                        seed = int(hashlib.sha256(f'{aid}{d:%Y%m%d}{t}'.encode()).hexdigest(), 16) % (2 ** 32)
+                        dmap[aid][t] = pool[np.random.default_rng(seed).integers(len(pool))]
+                    buy(R, dmap[aid][t], amt, {'type': 'ATC' if o.get('type') == 'ATC' else 'ATO'}, f'đối ứng {aid}:{t}')
 
         # ---------- B: TN06-R ----------
         for t, ei in list(b_exit.items()):
@@ -196,23 +203,24 @@ def run(panel, vni, signals, orders_dir, industry, now):
             C.log(session=d, ticker='VNINDEX', side='BUY', status='filled', type='ATO', qty=round(c_units, 4), price=vni.at[d, 'open'], value=CAPITAL, fee=CAPITAL * FEE / (1 + FEE), tax=0.0)
         c_nav = c_units * vni.close.asof(d) * (1 - FEE - TAX) if c_units else C.cash
 
-        for b in (A, B, D):
-            b.nav.append(dict(date=d, portfolio=b.name, nav=b.value(px), cash=b.cash, n_pos=len(b.pos)))
+        for bk in live:
+            bk.nav.append(dict(date=d, portfolio=bk.name, nav=bk.value(px), cash=bk.cash, n_pos=len(bk.pos)))
         C.nav.append(dict(date=d, portfolio='C', nav=c_nav, cash=0.0, n_pos=1))
 
-    nav = pd.DataFrame([x for b in (A, B, C, D) for x in b.nav])
+    books = [*AB.values(), *RB.values(), B, C]
+    nav = pd.DataFrame([x for bk in books for x in bk.nav])
     if len(nav):
         nav = nav.sort_values(['portfolio', 'date'])
         nav['pnl_day'] = nav.groupby('portfolio').nav.diff().fillna(nav.nav - CAPITAL)
         nav['ret_cum'] = nav.nav / CAPITAL - 1
-    trades = pd.DataFrame([x for b in (A, B, C, D) for x in b.trades])
+    trades = pd.DataFrame([x for bk in books for x in bk.trades])
     last = dates[-1] if dates else None
     pos = []
-    for b in (A, B, D):
-        for t, lots in b.pos.items():
+    for bk in books[:-1]:
+        for t, lots in bk.pos.items():
             q = sum(l[0] for l in lots); cost = sum(l[0] * l[2] for l in lots) / q
             p = bars[last].close.get(t, np.nan) if last is not None else np.nan
-            pos.append(dict(portfolio=b.name, ticker=t, qty=q, avg_cost=cost, last_price=p, as_of=last,
+            pos.append(dict(portfolio=bk.name, ticker=t, qty=q, avg_cost=cost, last_price=p, as_of=last,
                             mkt_value=q * p * 1000, pnl=(p * (1 - FEE - TAX) - cost * (1 + FEE)) * q * 1000,
                             first_buy=dates[min(l[1] for l in lots)]))
     if c_units: pos.append(dict(portfolio='C', ticker='VNINDEX', qty=c_units, avg_cost=CAPITAL / c_units, last_price=vni.close.asof(last),
@@ -222,24 +230,25 @@ def run(panel, vni, signals, orders_dir, industry, now):
 
 def report(nav, trades, pos, orders, rej, dmap, next_orders):
     print('== TRADER ==')
+    names = {g['id']: g['name'] for g in AGENTS} | {'R' + g['id'][1:]: f'Bốc thăm đối ứng {g["id"]}' for g in AGENTS} | {'B': 'Luật TN06-R', 'C': 'VNINDEX'}
+    order = [g['id'] for g in AGENTS] + ['B', 'C'] + ['R' + g['id'][1:] for g in AGENTS]
     if nav.empty:
         print(f'Chưa có phiên nào từ {START:%d/%m/%Y}. Vốn mỗi danh mục {CAPITAL:,.0f} đ.')
     else:
         d = nav.date.max(); t = nav[nav.date == d].set_index('portfolio')
-        name = {'A': 'Agent', 'B': 'TN06-R', 'C': 'VNINDEX', 'D': 'Ngẫu nhiên'}
-        for k in 'ABCD':
+        for k in order:
             if k in t.index:
                 r = t.loc[k]
-                print(f'{k} {name[k]:10s} NAV {r.nav:,.0f} đ · hôm nay {r.pnl_day:+,.0f} đ · lũy kế {r.ret_cum * 100:+.2f}% · {int(r.n_pos)} mã · tiền mặt {r.cash:,.0f}')
+                print(f'{k:3s} {names[k]:24s} NAV {r.nav:,.0f} đ · hôm nay {r.pnl_day:+,.0f} đ · lũy kế {r.ret_cum * 100:+.2f}% · {int(r.n_pos)} mã · tiền mặt {r.cash:,.0f}')
         td = trades[trades.session == d] if len(trades) else trades
         for r in td.itertuples():
             print(f'  {r.portfolio} {r.side} {r.ticker} {r.status} ' + (f'{int(r.qty)} cp @ {r.price:.2f}' if r.status == 'filled' and r.portfolio != 'C' else '') + (f' ({r.note})' if isinstance(r.note, str) and r.note else ''))
     for r in (rej.itertuples() if len(rej) else []):
-        print(f'  A TỪ CHỐI {r.session:%d/%m} {r.ticker}: {r.reason}')
+        print(f'  {r.agent} TỪ CHỐI {r.session:%d/%m} {r.ticker}: {r.reason}')
     for r in (pos.itertuples() if len(pos) else []):
         print(f'  GIỮ {r.portfolio} {r.ticker} {r.qty:,.0f} · vốn {r.avg_cost:.2f} · giá {r.last_price:.2f} · lời/lỗ {r.pnl:+,.0f} đ')
-    if dmap: print('  D đối ứng:', dmap)
-    print('Sổ lệnh A phiên tới:', next_orders or 'chưa có')
+    if any(dmap.values()): print('  Bốc thăm đối ứng:', dmap)
+    print('Sổ lệnh phiên tới:', next_orders or 'chưa có')
 
 
 def main():
@@ -261,8 +270,8 @@ def main():
     ind = pd.read_csv(a.industry).set_index('ticker').industry.to_dict() if Path(a.industry).exists() else {}
     odir = Path(os.environ.get('TRADER_ORDERS', ROOT / 'trader' / 'orders'))
     nav, trades, pos, orders, rej, dmap = run(panel, vni, signals, odir, ind, now)
-    nxt = sorted(odir.glob('*.json'))
-    nxt = [p.name for p in nxt if p.stem > (nav.date.max().strftime('%Y-%m-%d') if len(nav) else '0')]
+    last_s = nav.date.max().strftime('%Y-%m-%d') if len(nav) else '0'
+    nxt = [f'{p.parent.name}/{p.name}' for p in sorted(odir.glob('*/*.json')) if p.stem > last_s]
     report(nav, trades, pos, orders, rej, dmap, nxt)
     OUT.mkdir(parents=True, exist_ok=True)
     for nm, df in dict(nav=nav, trades=trades, positions=pos, orders=orders, rejected=rej).items(): df.to_csv(OUT / f'{nm}.csv', index=False)
@@ -286,7 +295,11 @@ def publish(nav, trades, pos, orders, rej):
             n['trader_trades'] = sb.upsert('trader_trades', records(tr), 'seq')
         sb.delete_where('trader_positions', 'portfolio', 'neq.__none__')
         if len(pos): n['trader_positions'] = sb.upsert('trader_positions', records(ds(pos, ['as_of', 'first_buy'])), 'portfolio,ticker')
-        if len(orders): n['trader_orders'] = sb.upsert('trader_orders', records(orders.reset_index().rename(columns={'index': 'idx'})), 'session,idx')
+        if len(orders):
+            o = orders.copy(); o['idx'] = o.groupby(['agent', 'session']).cumcount()
+            n['trader_orders'] = sb.upsert('trader_orders', records(o), 'agent,session,idx')
+        n['trader_agents'] = sb.upsert('trader_agents', records(pd.DataFrame([{k: (json.dumps(v, ensure_ascii=False) if isinstance(v, list) else v)
+                                                                               for k, v in g.items()} for g in AGENTS])), 'id')
         print('publish', n)
     except RuntimeError as e:
         print('BỎ QUA publish (bảng trader_* chưa có?):', str(e)[:200])

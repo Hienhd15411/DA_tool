@@ -4,12 +4,16 @@
 tức) có hơn luật máy móc, thị trường và bốc thăm hay không. Kết luận chỉ sau ≥ 3 tháng / ≥ 100 lệnh.
 
 ## Danh mục
+**Cập nhật 27/10/2026: 4 agent A1–A4** (cấu hình trong `trader/agents.json`: khẩu vị rủi ro, giới hạn, mục tiêu ngắn/dài hạn,
+**phạm vi ngành riêng — mua ngoài phạm vi bị chặn**). Mỗi agent có danh mục bốc thăm đối ứng riêng **R1–R4**
+(bốc mã ngẫu nhiên trong cùng phạm vi ngành, cùng số tiền, cùng thời điểm). Sổ lệnh: `trader/orders/<A1..A4>/<phiên>.json`.
+
 | | Tên | Quyết định |
 |---|---|---|
-| A | Agent trader | Agent Claude mỗi tối đọc dữ liệu hệ thống (bản tin thị trường, TN07, TN06-R, danh mục) + tin CafeF/VnExpress → ghi sổ lệnh cho phiên sau |
+| A1–A4 | Agent trader | Mỗi tối đọc dữ liệu hệ thống + tin CafeF/VnExpress, quyết định theo đúng chân dung của mình → sổ lệnh phiên sau |
 | B | Luật TN06-R | Tín hiệu TN06-R từ ngày dữ liệu 27/10: mua ATO phiên sau 10% NAV, bán ATC sau 5 phiên tính từ tín hiệu, ≤10 mã, ≤3/ngành |
 | C | VNINDEX | Mua & giữ chỉ số (như ETF không phí quản lý) từ giá mở cửa 28/10 |
-| D | Ngẫu nhiên | Mỗi lệnh mua của A → mua 1 mã **ngẫu nhiên** trong universe cùng số tiền, cùng phiên; A bán mã đó → D bán mã tương ứng cùng phiên, cùng tỷ lệ |
+| R1–R4 | Ngẫu nhiên | Mỗi lệnh mua của Ai → Ri mua 1 mã **ngẫu nhiên cùng phạm vi ngành** cùng số tiền, cùng phiên; Ai bán → Ri bán mã tương ứng cùng tỷ lệ |
 
 ## Luật khớp lệnh (giống nhau cho mọi danh mục)
 - Giá theo nến ngày (VCI, đã chốt; không dùng nến chưa đóng). Đơn vị giá nghìn đồng; lô 100 cổ phiếu.
@@ -20,9 +24,10 @@ tức) có hơn luật máy móc, thị trường và bốc thăm hay không. K�
 - Không margin, không bán khống. Thứ tự trong phiên: bán ATO → mua ATO → LO → bán ATC → mua ATC.
 - NAV = tiền mặt + giá trị thanh lý (đóng cửa × số lượng × (1 − phí − thuế)). Lời/lỗ báo theo NAV.
 
-## Ràng buộc riêng cho A (bộ mô phỏng tự chặn, lệnh vi phạm bị từ chối và ghi log)
-- Chỉ mã trong universe đủ điều kiện (thanh khoản TB20 ≥ 5 tỷ, ≥ 200 phiên).
-- Một mã ≤ 20% NAV sau khi mua; ≤ 3 mã cùng ngành; luôn giữ ≥ 10% NAV tiền mặt (lệnh mua bị cắt bớt cho vừa).
+## Ràng buộc cho mỗi agent (bộ mô phỏng tự chặn, lệnh vi phạm bị từ chối và ghi log)
+- Chỉ mã trong universe đủ điều kiện (thanh khoản TB20 ≥ 5 tỷ, ≥ 200 phiên) **và thuộc phạm vi ngành của agent**.
+- Giới hạn riêng theo `trader/agents.json`: tỷ trọng tối đa/mã (`max_weight`), tiền mặt tối thiểu (`min_cash`), số mã/ngành,
+  rủi ro mỗi lệnh (`risk_per_trade`, dùng để tính cỡ lệnh từ khoảng cách cắt lỗ). Lệnh mua bị cắt bớt cho vừa giới hạn.
 - **Sổ lệnh phải được commit vào `trader/orders/<phiên>.json` trước 09:00 của phiên đó** (giờ commit là bằng chứng không biết trước giá).
   File commit sau 09:00 phiên đó → bị bỏ qua cả file.
 - Mỗi lệnh có `reason` (lý do) và `sources` (dữ liệu/tin dùng). Không sửa lệnh đã commit.
