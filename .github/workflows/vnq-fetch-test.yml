@@ -29,6 +29,9 @@ jobs:
       - name: Probe VCI (endpoint vnstock)
         if: always()
         run: python tools/vci_probe.py
+      - name: Kéo VCI cập nhật đến hôm nay (không upload)
+        if: always()
+        run: python tools/vci_update.py
       - name: Verify VNDirect vs panel/Yahoo
         if: always()
         run: python tools/verify_vnd.py
@@ -41,5 +44,6 @@ jobs:
             tools/out/crosscheck/
             tools/out/verify_vnd/
             tools/out/vci/
+            tools/out/vci_update/
             tools/out/raw/
           retention-days: 14
