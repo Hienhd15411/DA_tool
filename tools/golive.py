@@ -84,7 +84,12 @@ def main():
 
     buf = io.BytesIO(); panel.to_parquet(buf, index=False); storage_put('data/panel.parquet', buf.getvalue())
     buf = io.BytesIO(); idx.to_parquet(buf, index=False); storage_put('data/vnindex.parquet', buf.getvalue())
-    back = pd.read_parquet(io.BytesIO(storage_get('data/panel.parquet')), columns=['date'])
+    back = None
+    for _ in range(12):
+        back = pd.read_parquet(io.BytesIO(storage_get('data/panel.parquet')), columns=['date'])
+        if back.date.max() == panel.date.max():
+            break
+        time.sleep(10)
     if back.date.max() != panel.date.max():
         sys.exit(f'Xác minh thất bại: Storage trả về panel đến {back.date.max():%Y-%m-%d}, cần {panel.date.max():%Y-%m-%d}')
     print(f'Xác minh OK: Storage panel đến {back.date.max():%Y-%m-%d}, {len(back):,} dòng.')
