@@ -185,7 +185,7 @@ function liveChart(rows) {
   const W = 560, H = 190, P = { l: 52, r: 12, t: 10, b: 24 };
   let a = 0, b = 0;
   const pts = [{ a: 0, b: 0 }].concat(rows.map((r) => {
-    if (r.tn07_net != null) a += r.tn07_net - r.market_net;
+    if (r.tn07_net != null) a += (r.tn07_net - r.market_net) / 5;   // mỗi ngày 1 rổ giữ 5 phiên → 1/5 vốn/rổ
     if (r.tn06r_n > 0) b += r.tn06r_n * (r.tn06r_net - r.market_net) / 10;   // 10 slot: mỗi lệnh 10% vốn
     return { a, b, r };
   }));
@@ -203,8 +203,66 @@ function liveChart(rows) {
     ${mark}<path d="${line('a')}" fill="none" stroke="var(--accent)" stroke-width="2"/>
     <path d="${line('b')}" fill="none" stroke="var(--good)" stroke-width="2"/>${hits}
     ${rows.length ? `<text x="${P.l}" y="${H - 6}">${fmtDate(rows[0].data_date)}</text><text x="${W - P.r}" y="${H - 6}" text-anchor="end">${fmtDate(rows.at(-1).data_date)}</text>` : ''}</svg>
-    <p class="mut" style="font-size:12px;margin:4px 0 0"><span style="color:var(--accent)">━</span> TN07 top 10 trừ thị trường (lũy kế) &nbsp;
+    <p class="mut" style="font-size:12px;margin:4px 0 0"><span style="color:var(--accent)">━</span> TN07 top 10 trừ thị trường, 1/5 vốn mỗi ngày (lũy kế) &nbsp;
     <span style="color:var(--good)">━</span> TN06-R trừ thị trường, theo tỷ trọng 10%/lệnh (lũy kế) &nbsp;· trên 0 = thắng thị trường</p>`;
+}
+
+// ---------- sức khỏe model: cửa sổ trượt 20 ngày đã quyết toán, luật trạng thái đặt trước (docs/07) ----------
+const WIN = 20;
+const sd = (a) => { const m = mean(a); return a.length > 1 ? Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)) : null; };
+function windowStats(rs) {
+  const ic = rs.map((r) => r.ic).filter((v) => v != null);
+  const t7 = rs.filter((r) => r.tn07_net != null);
+  const ex = t7.map((r) => r.tn07_net - r.market_net);
+  const icSd = sd(ic), exSd = sd(ex);
+  return { n: rs.length, ic: mean(ic), icCi: icSd != null ? 2 * icSd / Math.sqrt(ic.length) : null,
+    ex: mean(ex), exCi: exSd != null ? 2 * exSd / Math.sqrt(ex.length) : null,
+    lift: mean(t7.map((r) => r.tn07_hit - r.pool_hit)), calib: mean(t7.map((r) => r.pred_mean - r.tn07_hit)) };
+}
+function healthState(w) {
+  if (w.n < WIN) return ['⚪', 'Chưa đủ dữ liệu', `cần ${WIN} ngày đã quyết toán, mới có ${w.n}`];
+  const icNeg = w.ic <= 0, exNeg = w.ex <= 0;
+  if (icNeg && exNeg) return ['🔴', 'Suy giảm', 'IC ≤ 0 và top 10 thua thị trường trong 20 ngày gần nhất'];
+  if (icNeg || exNeg || Math.abs(w.calib) > 0.15) return ['🟡', 'Theo dõi', [icNeg ? 'IC ≤ 0' : '', exNeg ? 'top 10 thua thị trường' : '', Math.abs(w.calib) > 0.15 ? `dự báo lệch thực tế ${(w.calib * 100).toFixed(0)} điểm %` : ''].filter(Boolean).join(', ')];
+  return ['🟢', 'Ổn', 'IC > 0 và top 10 thắng thị trường trong 20 ngày gần nhất'];
+}
+const ACTION = { '🟢': 'Không làm gì. Giữ model.', '🟡': 'Theo dõi tiếp, KHÔNG đổi model (20 ngày dễ nhiễu).',
+  '🔴': 'Nếu 🔴 kéo dài ≥ 20 ngày LIVE: viết spec model mới → train version mới → chạy song song ≥ 60 ngày → chỉ đổi khi thắng rõ.', '⚪': 'Chờ thêm dữ liệu.' };
+
+function healthChart(rows) {
+  const pts = rows.map((r, i) => { const w = windowStats(rows.slice(Math.max(0, i - WIN + 1), i + 1)); return i >= WIN - 1 ? { d: r.data_date, ...w, src: r.source } : null; }).filter(Boolean);
+  if (pts.length < 2) return '';
+  const W = 560, H = 160, P = { l: 52, r: 12, t: 10, b: 22 };
+  const vals = pts.flatMap((p) => [p.ic + (p.icCi || 0), p.ic - (p.icCi || 0)]);
+  const mx = Math.max(0.05, ...vals.map(Math.abs));
+  const x = (i) => P.l + (W - P.l - P.r) * i / (pts.length - 1), y = (v) => P.t + (H - P.t - P.b) * (1 - (v + mx) / (2 * mx));
+  const band = `M${pts.map((p, i) => `${x(i)},${y(p.ic + p.icCi)}`).join('L')}L${pts.map((p, i) => `${x(i)},${y(p.ic - p.icCi)}`).reverse().join('L')}Z`;
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.ic).toFixed(1)}`).join('');
+  const hits = pts.map((p, i) => `<rect x="${x(i) - 4}" y="${P.t}" width="8" height="${H - P.t - P.b}" fill="transparent" data-tip="20 ngày đến ${fmtDate(p.d)}: IC ${f3(p.ic)} ± ${f3(p.icCi)} · top10 vs thị trường ${sgn(p.ex)}/lệnh · ${healthState(p).slice(0, 2).join(' ')}"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="IC trượt 20 ngày và dải nhiễu">
+    <g class="axis">${[-mx, 0, mx].map((t) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" ${t === 0 ? '' : 'stroke-dasharray="2 3"'}/><text x="${P.l - 6}" y="${y(t) + 4}" text-anchor="end">${t.toFixed(2)}</text>`).join('')}</g>
+    <path d="${band}" fill="var(--accent)" opacity="0.12"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>${hits}
+    <text x="${P.l}" y="${H - 5}">${fmtDate(pts[0].d)}</text><text x="${W - P.r}" y="${H - 5}" text-anchor="end">${fmtDate(pts.at(-1).d)}</text></svg>
+    <p class="mut" style="font-size:12px;margin:2px 0 0">IC trung bình 20 ngày gần nhất (đường) và dải nhiễu ±2 sai số chuẩn (vùng mờ). Vùng mờ nằm hẳn trên 0 = model xếp hạng đúng thật; cắt qua 0 = chưa phân biệt được với may rủi.</p>`;
+}
+
+function renderHealth(rows) {
+  const cur = windowStats(rows.slice(-WIN)), prev = windowStats(rows.slice(-2 * WIN, -WIN));
+  const [icon, label, why] = healthState(cur);
+  // abs0: càng gần 0 càng tốt (sai lệch dự báo); còn lại: càng cao càng tốt
+  const dir = (a, b, ci, abs0) => { if (a == null || b == null) return '—'; const [u, v] = abs0 ? [-Math.abs(a), -Math.abs(b)] : [a, b];
+    return Math.abs(u - v) < (ci || 0) ? '→ đi ngang (trong nhiễu)' : u > v ? '↑ tốt lên' : '↓ tệ đi'; };
+  const row = (k, a, b, f, ci, note, abs0) => `<tr><td>${k}</td><td class="num">${f(a)}</td><td class="num">${f(b)}</td><td>${dir(a, b, ci, abs0)}</td><td class="mut">${note}</td></tr>`;
+  const nLive = rows.filter((r) => r.source === 'live').length;
+  return `<div class="planbox" style="margin-bottom:12px">
+    <h3>${icon} Sức khỏe TN07: ${label} <span class="mut" style="font-weight:400;font-size:12px">— ${esc(why)}</span></h3>
+    <p class="mut" style="margin:2px 0 8px">Việc cần làm: <b>${ACTION[icon]}</b>${nLive < WIN ? ` · Đang tính trên ${rows.length - nLive} ngày dựng lại; chỉ ${nLive} ngày live.` : ''}</p>
+    <div class="wrap"><table class="tbl"><tr><th>Chỉ số</th><th class="num">20 ngày gần nhất</th><th class="num">20 ngày trước đó</th><th>Xu hướng</th><th>Ý nghĩa</th></tr>
+      ${row('IC (xếp hạng đúng)', cur.ic, prev.ic, f3, cur.icCi, '> 0: mã điểm cao tăng nhiều hơn mã điểm thấp')}
+      ${row('Top 10 − thị trường', cur.ex, prev.ex, (v) => sgn(v), cur.exCi, '> 0: rổ top 10 thắng mua đều cả thị trường (mỗi lệnh 5 phiên)')}
+      ${row('Hit top 10 − pool', cur.lift, prev.lift, (v) => (v == null ? '—' : `${(v * 100).toFixed(1)} đđ`), 0.05, '> 0: chọn mã tốt hơn bốc ngẫu nhiên trong pool')}
+      ${row('Dự báo − thực tế', cur.calib, prev.calib, (v) => (v == null ? '—' : `${(v * 100).toFixed(1)} đđ`), 0.05, 'gần 0 là tốt; > 0: model tự tin quá mức', true)}
+    </table></div>${healthChart(rows)}</div>`;
 }
 
 function renderLive(rows) {
@@ -221,7 +279,7 @@ function renderLive(rows) {
     ${tile('TN07 top 10 vs thị trường', sgn(mean(t7.map((r) => r.tn07_net - r.market_net))), `vs random ${sgn(mean(t7.map((r) => r.tn07_net - r.pool_net)))} / lệnh 5 phiên`)}
     ${tile('TN07 dự báo vs thực tế', `${pct(mean(t7.map((r) => r.pred_mean)), 0)} → ${pct(mean(t7.map((r) => r.tn07_hit)), 0)}`, 'p_up_5 TB top 10 → tỷ lệ đạt nhãn')}
     ${tile('TN06-R', n6 ? sgn(w6((r) => r.tn06r_net - r.market_net)) : '—', n6 ? `${n6} lệnh · lãi TB ${sgn(w6((r) => r.tn06r_net))} · vs thị trường` : 'chưa có lệnh nào được quyết toán')}
-  </div>${liveChart(rows)}
+  </div>${renderHealth(rows)}${liveChart(rows)}
   ${nLive < 20 ? `<p class="warn" style="margin:6px 0 0;padding:6px 8px;font-size:12px">Mới có ${nLive} ngày dự báo live đã quyết toán. Các ngày "dựng lại" dùng model/luật đã đóng băng chấm lại quá khứ — chỉ số live mới là bằng chứng sạch.</p>` : ''}
   <details><summary class="mut">Xem dạng bảng</summary><div class="wrap"><table class="tbl"><tr><th>Ngày dự báo</th><th>Nguồn</th><th class="num">IC</th><th class="num">TN07 top 10</th><th class="num">Random</th><th class="num">Thị trường</th><th class="num">Dự báo → hit</th><th class="num">TN06-R</th></tr>
     ${[...rows].reverse().map((r) => `<tr><td>${fmtDate(r.data_date)}</td><td>${r.source === 'live' ? 'live' : '<span class="mut">dựng lại</span>'}</td><td class="num">${f3(r.ic)}</td>

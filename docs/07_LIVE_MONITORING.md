@@ -13,6 +13,19 @@ Mỗi lần `cloud-run` (engine/vnq/snapshot.py):
 `source = backfill`: ngày từ `test_start` đến trước lần chạy đầu, dựng lại bằng model/luật đã đóng băng.
 `source = live`: ghi đúng ngày. **Chỉ số live là bằng chứng sạch**; backfill của TN06-R nằm trong đoạn đã xem khi chọn tầng 1.
 
+## Sức khỏe model (dashboard, mục "Dự báo vs thực tế")
+Tính trên **20 ngày dự báo đã quyết toán gần nhất**, so với 20 ngày trước đó:
+- IC (xếp hạng đúng), Top 10 − thị trường (mỗi lệnh 5 phiên), Hit top 10 − pool, Dự báo − thực tế (calibration)
+- "Xu hướng" chỉ ghi ↑/↓ khi chênh lệch lớn hơn dải nhiễu (±2 sai số chuẩn của 20 ngày); nhỏ hơn → "đi ngang (trong nhiễu)"
+
+Đèn trạng thái (luật cố định, không chỉnh theo kết quả):
+| Đèn | Điều kiện (20 ngày) | Việc cần làm |
+|---|---|---|
+| ⚪ | < 20 ngày đã quyết toán | chờ |
+| 🟢 Ổn | IC > 0 và top 10 thắng thị trường | không làm gì |
+| 🟡 Theo dõi | một trong hai ≤ 0, hoặc dự báo lệch thực tế > 15 điểm % | theo dõi, chưa đổi model |
+| 🔴 Suy giảm | IC ≤ 0 và top 10 thua thị trường | nếu kéo dài ≥ 20 ngày **live** → quy trình version mới bên dưới |
+
 ## Điều chỉnh model — luật
 Snapshot dùng để **phát hiện** model hỏng và **đánh giá** model mới, không dùng để vặn tham số model đang chạy.
 
