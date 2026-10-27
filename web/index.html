@@ -10,7 +10,8 @@
 </head>
 <body>
   <header class="top">
-    <div class="brand"><span class="logo">VNQ</span><span class="sub">Tín hiệu trend 5 phiên</span></div>
+    <div class="brand"><span class="logo">VNQ</span><span class="sub">Tín hiệu trend 5 phiên</span>
+      <nav class="tabs"><a href="#" class="on">Tổng quan</a><a href="#thi-dau">Thi đấu 4 danh mục</a></nav></div>
     <div class="controls">
       <label class="sel">Ngày dữ liệu <select id="dateSel" aria-label="Chọn ngày dữ liệu"></select></label>
       <span id="user" class="mut"></span>
@@ -45,6 +46,12 @@
     <div id="content" hidden>
       <section id="status" class="band"></section>
       <section id="warnings" class="card warn"></section>
+
+      <section class="card tab-trader" hidden>
+        <h2>Báo cáo thi đấu 4 danh mục <span class="mut">paper trading 100 triệu mỗi danh mục từ 28/10/2026</span></h2>
+        <p class="warn" style="margin:0 0 10px;padding:8px 10px;font-size:13px">Tiền giả định, <b>không phải khuyến nghị đầu tư</b>. A = agent tự quyết định (dữ liệu hệ thống + tin CafeF/VnExpress) · B = luật TN06-R · C = mua & giữ VNINDEX · D = bốc thăm ngẫu nhiên đối ứng từng lệnh của A. Khớp lệnh mô phỏng theo giá thật: trần/sàn, T+2, lô 100, phí 0,15%/chiều + thuế bán 0,1%. Luật: docs/09_TRADER_EXPERIMENT.md.</p>
+        <div id="traderPage"></div>
+      </section>
 
       <section class="card">
         <h2>Thi đấu 4 danh mục <span class="mut">100 triệu giả định mỗi danh mục từ 28/10/2026 · khớp lệnh mô phỏng theo giá thật, T+2, phí + thuế</span></h2>

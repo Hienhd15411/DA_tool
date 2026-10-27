@@ -93,3 +93,8 @@ svg text { fill: var(--muted); font-size: 11px; }
 .ovw .kv dd { text-align: right; }
 .ovw-bar { position: relative; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--neg), var(--mid), var(--pos)); margin: 6px 0 2px; }
 .ovw-bar span { position: absolute; top: -3px; width: 4px; height: 12px; margin-left: -2px; background: var(--text); border-radius: 2px; }
+.tabs { display: inline-flex; gap: 4px; margin-left: 14px; }
+.tabs a { padding: 4px 10px; border-radius: 999px; color: var(--text-2); text-decoration: none; font-size: 13px; border: 1px solid transparent; }
+.tabs a.on { border-color: var(--line); background: var(--bg); color: var(--text); font-weight: 600; }
+@media (max-width: 600px) { .tabs { margin-left: 0; } .brand { flex-wrap: wrap; } }
+[hidden] { display: none !important; }
