@@ -7,7 +7,6 @@ on:
       - 'web/**'
       - 'scripts/**'
       - 'supabase/migrations/**'
-      - 'engine/vnq/**'
       - 'tools/qc_prod.py'
       - '.github/workflows/vnq-qc.yml'
       - '.github/vnq-qc'
@@ -26,16 +25,23 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       PROD_URL: https://hienhd.netlify.app
-      # sau job dữ liệu: web không đổi → không cần chờ deploy
-      QC_SKIP_DEPLOY_WAIT: ${{ github.event_name == 'workflow_run' && '1' || '0' }}
+      # chỉ QC phần vừa deploy: push → theo file đổi; job dữ liệu → dữ liệu; chạy tay → tất cả
+      QC_EVENT: ${{ github.event_name == 'workflow_run' && 'data' || github.event_name == 'push' && 'push' || 'all' }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: vnq-deploy
+          fetch-depth: 0
+      - name: File đổi trong lần push
+        if: github.event_name == 'push'
+        run: echo "QC_CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} 2>/dev/null | tr '\n' ' ')" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install requests playwright && python -m playwright install --with-deps chromium
+      - run: pip install requests playwright
+      - name: Cài trình duyệt (chỉ khi cần QC giao diện)
+        if: github.event_name != 'workflow_run'
+        run: python -m playwright install --with-deps chromium
       - run: python tools/qc_prod.py
       - uses: actions/upload-artifact@v4
         if: always()

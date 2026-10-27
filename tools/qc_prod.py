@@ -159,10 +159,31 @@ def browser_smoke():
         print(f'  (xóa user QC: HTTP {d.status_code})')
 
 
+def scope():
+    """Chỉ QC phần vừa deploy. QC_EVENT: push | data | all; QC_CHANGED: danh sách file đổi (push)."""
+    ev = os.environ.get('QC_EVENT', 'all')
+    if ev == 'data': return {'schema', 'data'}, 'job dữ liệu vừa chạy'
+    if ev != 'push': return {'deploy', 'config', 'schema', 'rls', 'data', 'browser'}, 'chạy tay / toàn bộ'
+    files = [f for f in os.environ.get('QC_CHANGED', '').split() if f]
+    if not files or any(f.startswith(('tools/qc_prod.py', '.github/workflows/vnq-qc.yml')) for f in files):
+        return {'deploy', 'config', 'schema', 'rls', 'data', 'browser'}, 'QC thay đổi hoặc không xác định được file đổi'
+    st = set()
+    if any(f.startswith(('web/', 'scripts/')) for f in files): st |= {'deploy', 'config', 'browser'}
+    if 'web/app.js' in files: st.add('schema')
+    if any(f.startswith('supabase/migrations/') for f in files): st |= {'schema', 'rls'}
+    return st, 'file đổi: ' + ', '.join(files[:12]) + (' …' if len(files) > 12 else '')
+
+
 if __name__ == '__main__':
     print(f'QC production {PROD} · {dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} UTC')
-    if os.environ.get('QC_SKIP_DEPLOY_WAIT') != '1': check_deploy()
-    anon = check_config(); check_schema(); check_rls(anon); check_data(); browser_smoke()
+    st, why = scope()
+    print(f'Phạm vi: {sorted(st) or "không có gì cần QC"} ({why})')
+    if 'deploy' in st: check_deploy()
+    anon = check_config() if st & {'config', 'rls'} else None
+    if 'schema' in st: check_schema()
+    if 'rls' in st: check_rls(anon)
+    if 'data' in st: check_data()
+    if 'browser' in st: browser_smoke()
     print(f'\nKẾT QUẢ: {"FAIL" if fails else "PASS"} · {len(fails)} lỗi · {len(warns)} cảnh báo')
     for f in fails: print('  ❌', f)
     sys.exit(1 if fails else 0)
