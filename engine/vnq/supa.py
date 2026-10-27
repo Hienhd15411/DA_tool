@@ -62,6 +62,11 @@ class Supa:
         r.raise_for_status()
 
     # ---------- PostgREST ----------
+    def delete_where(self, table, col, cond):
+        r = requests.delete(f'{self.url}/rest/v1/{table}', params={col: cond}, headers=self.h, timeout=60)
+        if r.status_code >= 300:
+            raise RuntimeError(f'delete {table} lỗi {r.status_code}: {r.text[:300]}')
+
     def delete_stale(self, table, data_date):
         r = requests.delete(f'{self.url}/rest/v1/{table}', params={'data_date': f'neq.{data_date}'}, headers=self.h, timeout=60)
         if r.status_code >= 300:

@@ -47,6 +47,10 @@ const db = {
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 60)),
   tickerSignals: (tk) => db.q('signals', (t) => t.select('data_date,rank_sel,action,status,net,excess').eq('ticker', tk).order('data_date', { ascending: false }),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date))),
+  tNav: () => db.opt('trader_nav', (t) => t.select('*').order('date'), (r) => r),
+  tPos: () => db.opt('trader_positions', (t) => t.select('*'), (r) => r),
+  tTrades: () => db.opt('trader_trades', (t) => t.select('*').order('seq', { ascending: false }).limit(60), (r) => r),
+  tOrders: () => db.opt('trader_orders', (t) => t.select('*').order('session', { ascending: false }).limit(40), (r) => r),
   paperTrades: () => db.opt('paper_trades', (t) => t.select('*').order('signal_date', { ascending: false }), (r) => [...r].sort((a, b) => b.signal_date.localeCompare(a.signal_date))),
   // ứng viên gần đạt điều kiện TN06-R: RSI14 < 30 ở 3 ngày dữ liệu gần nhất
   watch: (dates) => db.opt('predictions_daily', (t) => t.select('data_date,ticker,industry,close,rsi14,vol_ratio20,tn06r_regime_on').in('data_date', dates).lt('rsi14', 30),
@@ -288,6 +292,43 @@ function renderLive(rows) {
   $('live').querySelectorAll('[data-tip]').forEach((el) => { el.addEventListener('mousemove', (e) => showTip(e, esc(el.dataset.tip))); el.addEventListener('mouseleave', hideTip); });
 }
 
+// ---------- thi đấu 4 danh mục (paper trading 100 tr mỗi danh mục từ 28/10/2026) ----------
+const PF = { A: ['Agent trader', 'var(--accent)'], B: ['Luật TN06-R', 'var(--good)'], C: ['VNINDEX', 'var(--muted)'], D: ['Ngẫu nhiên', 'var(--warnline)'] };
+const vnd = (x) => (x == null ? '—' : `${Math.round(x).toLocaleString('vi-VN')} đ`);
+function renderArena(nav, pos, trades, orders) {
+  const el = $('arena');
+  if (!nav.length) {
+    el.innerHTML = `<p class="mut">${db.missing.has('trader_nav') ? 'Bảng thí nghiệm chưa được tạo trên Supabase (cần apply migration 20261027030000_vnq_trader.sql).' : 'Bắt đầu từ phiên 28/10/2026 — kết quả xuất hiện sau phiên đầu tiên.'}</p>`
+      + (orders.length ? `<h3 style="font-size:14px">Sổ lệnh Agent cho phiên ${fmtDate(orders[0].session)}</h3>${ordersTable(orders.filter((o) => o.session === orders[0].session))}` : '');
+    return;
+  }
+  const last = nav.at(-1).date, today = Object.fromEntries(nav.filter((r) => r.date === last).map((r) => [r.portfolio, r]));
+  const tiles = [...'ABCD'].map((k) => { const r = today[k]; return r ? `<div class="tile"><div class="k"><span style="color:${PF[k][1]}">●</span> ${k} · ${PF[k][0]}</div>
+    <div class="v">${sgn(r.ret_cum)}</div><div class="s">${vnd(r.nav)} · hôm nay ${r.pnl_day >= 0 ? '+' : ''}${vnd(r.pnl_day)}</div></div>` : ''; }).join('');
+  // biểu đồ NAV
+  const dates = [...new Set(nav.map((r) => r.date))].sort(), W = 560, H = 170, P = { l: 52, r: 12, t: 10, b: 22 };
+  const vals = nav.map((r) => r.ret_cum), mx = Math.max(0.01, ...vals.map(Math.abs));
+  const x = (i) => P.l + (dates.length < 2 ? 0 : (W - P.l - P.r) * i / (dates.length - 1)), y = (v) => P.t + (H - P.t - P.b) * (1 - (v + mx) / (2 * mx));
+  const lines = [...'ABCD'].map((k) => { const pts = dates.map((d, i) => { const r = nav.find((n) => n.date === d && n.portfolio === k); return r ? `${x(i).toFixed(1)},${y(r.ret_cum).toFixed(1)}` : null; }).filter(Boolean);
+    return pts.length ? `<polyline points="${pts.join(' ')}" fill="none" stroke="${PF[k][1]}" stroke-width="${k === 'A' ? 2.5 : 1.6}"/>` : ''; }).join('');
+  const chart = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Lời lỗ lũy kế 4 danh mục"><g class="axis">${[-mx, 0, mx].map((t) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" ${t === 0 ? '' : 'stroke-dasharray="2 3"'}/><text x="${P.l - 6}" y="${y(t) + 4}" text-anchor="end">${sgn(t, 1)}</text>`).join('')}</g>${lines}
+    <text x="${P.l}" y="${H - 5}">${fmtDate(dates[0])}</text><text x="${W - P.r}" y="${H - 5}" text-anchor="end">${fmtDate(last)}</text></svg>`;
+  const posA = pos.filter((p) => p.portfolio === 'A');
+  const tr = trades.filter((t) => t.portfolio !== 'C').slice(0, 25);
+  el.innerHTML = `<div class="band" style="margin-bottom:8px">${tiles}</div>${chart}
+    <h3 style="font-size:14px;margin:12px 0 4px">A · Agent đang giữ</h3>${posA.length ? `<div class="wrap"><table class="tbl"><tr><th>Mã</th><th class="num">Số lượng</th><th class="num">Giá vốn</th><th class="num">Giá hiện tại</th><th class="num">Giá trị</th><th class="num">Lời/lỗ</th><th>Mua từ</th></tr>
+      ${posA.map((p) => `<tr><td><b>${esc(p.ticker)}</b></td><td class="num">${p.qty.toLocaleString('vi-VN')}</td><td class="num">${p.avg_cost?.toFixed(2)}</td><td class="num">${p.last_price?.toFixed(2)}</td><td class="num">${vnd(p.mkt_value)}</td><td class="num">${p.pnl >= 0 ? '+' : ''}${vnd(p.pnl)}</td><td>${fmtDate(p.first_buy)}</td></tr>`).join('')}</table></div>` : '<p class="mut">Đang giữ 100% tiền mặt.</p>'}
+    ${orders.length ? `<h3 style="font-size:14px;margin:12px 0 4px">Sổ lệnh Agent phiên ${fmtDate(orders[0].session)}</h3>${ordersTable(orders.filter((o) => o.session === orders[0].session))}` : ''}
+    <details><summary class="mut">Lệnh gần đây (A, B, D)</summary><div class="wrap"><table class="tbl"><tr><th>Phiên</th><th>DM</th><th>Lệnh</th><th>Mã</th><th>Kết quả</th><th class="num">SL</th><th class="num">Giá</th><th class="num">Lời/lỗ</th><th>Ghi chú</th></tr>
+      ${tr.map((t) => `<tr><td>${fmtDate(t.session)}</td><td>${t.portfolio}</td><td>${t.side === 'BUY' ? 'Mua' : 'Bán'} ${esc(t.type || '')}</td><td><b>${esc(t.ticker)}</b></td><td>${t.status === 'filled' ? 'khớp' : esc(t.status)}</td><td class="num">${t.qty ? t.qty.toLocaleString('vi-VN') : ''}</td><td class="num">${t.price?.toFixed(2) ?? ''}</td><td class="num">${t.pnl != null ? vnd(t.pnl) : ''}</td><td class="mut">${esc(t.note || '')}</td></tr>`).join('')}</table></div></details>`;
+}
+function ordersTable(os) {
+  const head = os[0] ? `<p class="mut" style="font-size:13px;margin:0 0 6px"><b>Nhận định:</b> ${esc(os[0].market_view || '—')}${os[0].risk_plan ? ` · <b>Quản trị rủi ro:</b> ${esc(os[0].risk_plan)}` : ''}<br>Quyết định ${esc(os[0].decided_at || '')} · commit ${esc(os[0].committed_at || '')}</p>` : '';
+  const rows = os.filter((o) => o.side);
+  return head + (rows.length ? `<div class="wrap"><table class="tbl"><tr><th>Lệnh</th><th>Mã</th><th class="num">Giá trị / SL</th><th>Lý do</th></tr>
+    ${rows.map((o) => `<tr><td>${o.side === 'BUY' ? 'Mua' : 'Bán'} ${esc(o.type || '')}${o.limit ? ` ${o.limit}` : ''}</td><td><b>${esc(o.ticker)}</b></td><td class="num">${o.value_vnd ? vnd(o.value_vnd) : esc(o.qty || '')}</td><td style="white-space:normal">${esc(o.reason || '')}</td></tr>`).join('')}</table></div>` : '<p class="mut">Không đặt lệnh — đứng ngoài.</p>');
+}
+
 // ---------- kế hoạch phiên tới: danh mục mô phỏng theo luật TN06-R ----------
 const SKIP = { skipped_full: 'đủ 10 lệnh', skipped_industry: 'ngành đã có 3 mã', skipped_holding: 'đang giữ mã này', skipped_ceiling: 'mở cửa sát trần', skipped_no_price: 'không có giá' };
 let capital = 100;
@@ -525,6 +566,7 @@ async function main() {
     $('dateSel').onchange = (e) => loadDate(e.target.value);
     const [rec, daily, live, ptr, pnav] = await Promise.all([db.track(), db.trackDaily(), db.liveEval(), db.paperTrades(), db.paperNav(), loadDate($('dateSel').value)]);
     renderTrack(rec, daily); renderLive(live);
+    Promise.all([db.tNav(), db.tPos(), db.tTrades(), db.tOrders()]).then(([n, p, t, o]) => renderArena(n, p, t, o));
     const wdates = runs.slice(0, 3).map((r) => r.data_date);   // daily_runs có thể thiếu ngày → lấy từ snapshot
     const asof = ptr[0]?.data_date || pnav.at(-1)?.date;
     const navDates = pnav.map((r) => r.date).filter((d) => d <= (asof || '9999')).slice(-3).reverse();

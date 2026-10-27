@@ -51,3 +51,15 @@ VNQ <dd/mm> — <🟢 Ổn | 🟡 Có sự cố đã xử lý | 🔴 Cần bạn
 • Sự cố & xử lý: <không | …> · Cần bạn: <không | việc cụ thể + link>
 ```
 Luôn ghi rõ lệnh là **mô phỏng, chưa đạt kiểm định**; không dùng chữ "nên mua/nên bán".
+
+## 5. Nhiệm vụ trader — danh mục A (docs/09_TRADER_EXPERIMENT.md)
+Sau phần vận hành, mỗi tối ngày giao dịch:
+1. Kích hoạt `vnq-trader` (ghi ngày giờ vào `.github/vnq-trader`, push) → đọc log 3 bước: **Tin tức**, **Mô phỏng 4 danh mục** (NAV, lệnh khớp/không khớp, vị thế), **Bản tin thị trường**.
+2. Ra quyết định như một trader có kỷ luật cho **phiên giao dịch kế tiếp**:
+   - Nguồn: bản tin thị trường, danh mục mô phỏng TN06-R, điểm TN07/watchlist (dashboard/Supabase qua log), tin tức trong log. Không dùng thông tin nào sau thời điểm quyết định.
+   - Tự đặt và ghi rõ: nhận định thị trường (`market_view`), kế hoạch rủi ro (`risk_plan`: mức cắt lỗ/chốt lời, tỷ trọng tiền mặt).
+   - Thực hiện cắt lỗ/chốt lời đã cam kết của các vị thế đang giữ bằng lệnh bán (nhớ T+2: mua phiên T, ATC/LO bán từ T+2, ATO từ T+3).
+   - Ràng buộc: ≤ 20% NAV/mã, ≤ 3 mã/ngành, ≥ 10% tiền mặt, chỉ mã trong universe. Không có lý do rõ → không giao dịch (`"orders": []`).
+3. Ghi `trader/orders/<YYYY-MM-DD phiên kế tiếp>.json` đúng định dạng, **commit + push trước 09:00 phiên đó** (tối nay là tốt nhất). Không sửa file đã commit.
+4. Thêm vào báo cáo tối mục **④ Thi đấu**: NAV và lời/lỗ hôm nay + lũy kế của A/B/C/D, lệnh A đã khớp hôm nay, sổ lệnh A phiên tới (mã, giá trị, lý do 1 dòng).
+Không được: dùng ngôn ngữ khuyến nghị cho người đọc; sửa lịch sử lệnh; tự đổi luật mô phỏng/ràng buộc để có lợi cho A.

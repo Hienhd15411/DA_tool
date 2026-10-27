@@ -1,0 +1,31 @@
+name: vnq-trader
+# Thí nghiệm 4 danh mục: tin tức + mô phỏng khớp lệnh + publish. Chạy sau job daily và khi agent đẩy sổ lệnh / trigger.
+on:
+  push:
+    branches: [vnq-deploy]
+    paths: ['.github/vnq-trader', 'trader/orders/**', 'tools/trader_sim.py']
+  workflow_run:
+    workflows: [vnq-daily]
+    types: [completed]
+  workflow_dispatch:
+concurrency: { group: vnq-trader, cancel-in-progress: false }
+jobs:
+  trader:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TZ: Asia/Ho_Chi_Minh
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: vnq-deploy, fetch-depth: 0 }   # cần lịch sử git để kiểm giờ commit sổ lệnh
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - run: pip install -r engine/requirements.txt
+      - run: cd engine && python -m vnq storage pull
+      - name: Tin tức
+        run: python tools/trader_news.py || true
+      - name: Mô phỏng 4 danh mục
+        run: python tools/trader_sim.py --panel engine/data/panel.parquet --vnindex engine/data/vnindex.parquet --industry engine/data/industry.csv --publish
+      - name: Bản tin thị trường
+        run: python tools/agent_brief.py || true
