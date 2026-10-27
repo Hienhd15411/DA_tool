@@ -46,6 +46,18 @@
       <section id="status" class="band"></section>
       <section id="warnings" class="card warn"></section>
 
+      <section class="card">
+        <h2>Kế hoạch phiên tới <span class="mut" id="planSub"></span></h2>
+        <p class="warn" style="margin:0 0 10px;padding:8px 10px;font-size:13px">
+          <b>Danh mục mô phỏng (paper trading)</b> chạy tự động theo luật TN06-R:
+          <b>khi nào vào</b> = VNINDEX dưới EMA50 và mã bị bán tháo (RSI14 &lt; 30 ≥ 3 phiên, khối lượng ≥ 1,5× TB20);
+          <b>bao nhiêu</b> = 10% NAV/mã, tối đa 10 mã, ≤ 3 mã/ngành;
+          <b>bán gì, bao nhiêu</b> = bán 100% mỗi lệnh sau đúng 5 phiên, không cắt lỗ/chốt lời giữa chừng.
+          Hệ này <b>chưa đạt</b> tiêu chí kiểm định (OOS 07–10/2026: NO-GO) — đây là sổ lệnh mô phỏng để theo dõi, không phải khuyến nghị mua bán.
+        </p>
+        <div id="plan"></div>
+      </section>
+
       <div class="grid2">
         <section class="card"><h2>Gate mục 6 <span class="mut" id="gateSub"></span></h2><div id="gate"></div></section>
         <section class="card"><h2>Theo dõi thực tế <span class="mut">paper trading, sau phí</span></h2><div id="track"></div></section>

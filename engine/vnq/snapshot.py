@@ -11,8 +11,9 @@ from pathlib import Path
 from .backtest import net, realized
 
 H = 5
-PRED_COLS = ['data_date', 'ticker', 'source', 'model_version', 'close', 'p_up_5', 'p_lr', 'rank_all', 'value_top30',
-             'tn07_pick', 'rsi14', 'vol_ratio20', 'tn06r_regime_on', 'tn06r_signal']
+PRED_COLS = ['data_date', 'ticker', 'source', 'model_version', 'industry', 'close', 'p_up_5', 'p_lr', 'rank_all', 'value_top30',
+             'value_score', 'regime', 'trend_score', 'tn07_pick', 'rsi14', 'vol_ratio20', 'tn06r_regime_on', 'tn06r_signal']
+DESC_COLS = ['industry', 'value_score', 'regime', 'trend_score']   # mô tả trạng thái tại t (không phải dự báo) → được điền bổ sung
 ACT_COLS = ['status', 'real', 'net', 'y_bin', 'settled_on']
 
 
@@ -74,6 +75,27 @@ def record(cfg, sc, picks_by_date, source, quarantine=()):
     log = pd.concat([log, new], ignore_index=True) if len(log) else new
     log.to_parquet(_path(cfg), index=False)
     return log, len(want)
+
+
+def fill_descriptive(cfg, sc):
+    """Điền cột mô tả (ngành/regime/trend/value tại t) cho dòng snapshot cũ còn thiếu. Không đụng cột dự báo."""
+    log = load(cfg)
+    if log.empty: return 0
+    for c in DESC_COLS:
+        if c not in log: log[c] = np.nan
+    miss = log.regime.isna()
+    if not miss.any(): return 0
+    src = sc[['ticker', 'date'] + DESC_COLS].rename(columns={'date': 'data_date'})
+    key = pd.MultiIndex.from_arrays([log.ticker, pd.to_datetime(log.data_date)])
+    src = src.set_index(['ticker', 'data_date'])
+    ok = miss.values & key.isin(src.index)
+    for c in DESC_COLS:
+        log[c] = log[c].astype(object) if c in ('industry', 'regime') else log[c]
+        log.loc[ok, c] = src.loc[key[ok], c].values
+    log = log.reindex(columns=PRED_COLS + ACT_COLS)
+    log.to_parquet(_path(cfg), index=False)
+    (Path(cfg['paths']['state']) / 'predictions_full_push').touch()
+    return int(ok.sum())
 
 
 def settle(cfg, e):

@@ -10,7 +10,7 @@
 import argparse, logging, json, sys, datetime as dt
 import pandas as pd
 from pathlib import Path
-from . import config, data, features, model, backtest, tracker, report, snapshot
+from . import config, data, features, model, backtest, tracker, report, snapshot, paper
 
 log = logging.getLogger('vnq')
 
@@ -71,8 +71,12 @@ def cmd_daily(cfg, skip_update=False, asof=None, today=None):
                  for d in back}
         snapshot.record(cfg, full, picks, 'backfill')
     snapshot.record(cfg, sc, {d0: set(sel.ticker) if len(sel) else set()}, 'live', quarantine)
-    live = snapshot.evaluate(cfg, snapshot.settle(cfg, full))
+    nfill = snapshot.fill_descriptive(cfg, full)
+    if nfill: log.info('Snapshot: điền regime/trend/ngành cho %d dòng cũ', nfill)
+    snap = snapshot.settle(cfg, full)
+    live = snapshot.evaluate(cfg, snap)
     log.info('Live eval: %s', snapshot.summary(live))
+    log.info('Danh mục mô phỏng TN06-R: %s', paper.run(cfg, snap, panel, full, L['test_start']))
     out = Path(cfg['paths']['reports']); stem = f'signals_{d0:%Y-%m-%d}'
     (out / f'{stem}.md').write_text(md, encoding='utf-8')
     (out / f'{stem}.html').write_text(report.to_html(md, f'Tín hiệu {d0:%d/%m/%Y}'), encoding='utf-8')

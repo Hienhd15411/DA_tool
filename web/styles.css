@@ -77,3 +77,9 @@ svg text { fill: var(--muted); font-size: 11px; }
 .authform .btn.ghost { font-weight: 400; font-size: 14px; }
 .card.narrow h1 { margin: 0 0 6px; font-size: 22px; }
 .card svg { display: block; max-width: 620px; }
+.plangrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+@media (max-width: 860px) { .plangrid { grid-template-columns: 1fr; } }
+.planbox { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.planbox h3 { margin: 0; font-size: 14px; }
+.planbox > p.mut { margin: 2px 0 6px; font-size: 12px; }
+.planbox .tbl td { padding: 5px 4px; }

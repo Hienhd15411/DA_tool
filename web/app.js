@@ -36,12 +36,14 @@ const db = {
     (r) => r.filter((x) => x.data_date === d && x.regime === 'Uptrend').sort((a, b) => b.trend_score - a.trend_score).slice(0, 10)),
   track: () => db.q('v_track_record', (t) => t.select('*'), (r) => r),
   trackDaily: () => db.q('v_track_daily', (t) => t.select('*').order('data_date'), (r) => r),
-  tickerPreds: (tk) => db.q('predictions_daily', (t) => t.select('data_date,close,p_up_5,rank_all,value_top30,tn07_pick,tn06r_signal,status,net').eq('ticker', tk).order('data_date', { ascending: false }).limit(120),
+  tickerPreds: (tk) => db.q('predictions_daily', (t) => t.select('data_date,close,p_up_5,rank_all,value_top30,regime,trend_score,tn07_pick,tn06r_signal,status,net').eq('ticker', tk).order('data_date', { ascending: false }).limit(120),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 120)),
   tickerScores: (tk) => db.q('scores_daily', (t) => t.select('data_date,p_up_5,rank_all,value_score,value_top30,regime,trend_score,close').eq('ticker', tk).order('data_date', { ascending: false }).limit(60),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 60)),
   tickerSignals: (tk) => db.q('signals', (t) => t.select('data_date,rank_sel,action,status,net,excess').eq('ticker', tk).order('data_date', { ascending: false }),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date))),
+  paperTrades: () => db.q('paper_trades', (t) => t.select('*').order('signal_date', { ascending: false }), (r) => [...r].sort((a, b) => b.signal_date.localeCompare(a.signal_date))),
+  paperNav: () => db.q('paper_nav', (t) => t.select('*').order('date'), (r) => [...r].sort((a, b) => a.date.localeCompare(b.date))),
   liveEval: () => db.q('live_eval_daily', (t) => t.select('*').order('data_date'), (r) => [...r].sort((a, b) => a.data_date.localeCompare(b.data_date))),
   tn06r: (d) => db.q('predictions_daily', (t) => t.select('ticker,close,rsi14,vol_ratio20,status,net').eq('data_date', d).eq('tn06r_signal', true).order('rsi14'),
     (r) => r.filter((x) => x.data_date === d && x.tn06r_signal).sort((a, b) => a.rsi14 - b.rsi14)),
@@ -220,6 +222,64 @@ function renderLive(rows) {
   $('live').querySelectorAll('[data-tip]').forEach((el) => { el.addEventListener('mousemove', (e) => showTip(e, esc(el.dataset.tip))); el.addEventListener('mouseleave', hideTip); });
 }
 
+// ---------- kế hoạch phiên tới: danh mục mô phỏng theo luật TN06-R ----------
+const SKIP = { skipped_full: 'đủ 10 lệnh', skipped_industry: 'ngành đã có 3 mã', skipped_holding: 'đang giữ mã này', skipped_ceiling: 'mở cửa sát trần', skipped_no_price: 'không có giá' };
+let capital = 100;
+try { capital = Number(localStorage.getItem('vnq_capital')) || 100; } catch (e) { /* storage bị chặn */ }
+function navChart(nav) {
+  if (nav.length < 2) return '';
+  const W = 560, H = 170, P = { l: 46, r: 12, t: 10, b: 22 };
+  const vals = nav.flatMap((r) => [r.nav, r.vnindex_rel]).filter((v) => v != null);
+  const lo = Math.min(...vals), hi = Math.max(...vals), span = Math.max(0.02, hi - lo);
+  const x = (i) => P.l + (W - P.l - P.r) * i / (nav.length - 1), y = (v) => P.t + (H - P.t - P.b) * (1 - (v - lo) / span);
+  const line = (k) => nav.map((r, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(r[k]).toFixed(1)}`).join('');
+  const hits = nav.map((r, i) => `<rect x="${x(i) - 3}" y="${P.t}" width="6" height="${H - P.t - P.b}" fill="transparent" data-tip="${fmtDate(r.date)}: danh mục ${sgn(r.nav - 1)} · VNINDEX ${sgn(r.vnindex_rel - 1)} · ${r.n_open} lệnh mở · tiền mặt ${pct(r.cash_pct, 0)}"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Giá trị danh mục mô phỏng so với VNINDEX">
+    <g class="axis">${[lo, 1, hi].map((t) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" ${t === 1 ? '' : 'stroke-dasharray="2 3"'}/><text x="${P.l - 6}" y="${y(t) + 4}" text-anchor="end">${sgn(t - 1, 0)}</text>`).join('')}</g>
+    <path d="${line('vnindex_rel')}" fill="none" stroke="var(--muted)" stroke-dasharray="4 3" stroke-width="1.5"/>
+    <path d="${line('nav')}" fill="none" stroke="var(--accent)" stroke-width="2"/>${hits}
+    <text x="${P.l}" y="${H - 5}">${fmtDate(nav[0].date)}</text><text x="${W - P.r}" y="${H - 5}" text-anchor="end">${fmtDate(nav.at(-1).date)}</text></svg>
+    <p class="mut" style="font-size:12px;margin:2px 0 0"><span style="color:var(--accent)">━</span> danh mục mô phỏng (sau phí) &nbsp; ┅ VNINDEX</p>`;
+}
+
+function renderPlan(trades, nav) {
+  if (!trades.length && !nav.length) { $('plan').innerHTML = '<p class="mut">Chưa có dữ liệu danh mục mô phỏng.</p>'; return; }
+  const asof = trades[0]?.data_date || nav.at(-1)?.date;
+  const last = nav.at(-1) || { nav: 1, cash_pct: 1, n_open: 0, vnindex_rel: 1 };
+  const buy = trades.filter((t) => t.status === 'planned');
+  const skipNow = trades.filter((t) => t.signal_date === asof && t.status.startsWith('skipped'));
+  const open = trades.filter((t) => t.status === 'open');
+  const sell = open.filter((t) => t.sessions_left <= 1), hold = open.filter((t) => t.sessions_left > 1);
+  const closed = trades.filter((t) => t.status === 'closed');
+  const money = (w) => `${(capital * w).toFixed(1)} tr`;
+  const lot = (w, price) => (price ? `≈ ${Math.max(0, Math.floor(capital * 1e6 * w / (price * 1000) / 100) * 100).toLocaleString('vi-VN')} cp` : '');
+  const box = (title, sub, inner) => `<div class="planbox"><h3>${title}</h3><p class="mut">${sub}</p>${inner}</div>`;
+  const list = (rows, cols) => (rows.length ? `<table class="tbl">${rows.map(cols).join('')}</table>` : '<p class="mut">Không có.</p>');
+  const wins = closed.filter((t) => t.pnl > 0).length;
+  $('planSub').textContent = `tính đến dữ liệu ${fmtDate(asof)} · lệnh cho phiên giao dịch kế tiếp`;
+  $('plan').innerHTML = `
+    <div class="band" style="margin-bottom:10px">
+      <div class="tile"><div class="k">Danh mục mô phỏng</div><div class="v">${sgn(last.nav - 1)}</div><div class="s">VNINDEX ${sgn(last.vnindex_rel - 1)} cùng kỳ từ ${fmtDate(nav[0]?.date || asof)}</div></div>
+      <div class="tile"><div class="k">Đang giữ</div><div class="v">${open.length}/10 lệnh</div><div class="s">tiền mặt ${pct(last.cash_pct, 0)}</div></div>
+      <div class="tile"><div class="k">Lệnh đã đóng</div><div class="v">${closed.length}</div><div class="s">${closed.length ? `thắng ${pct(wins / closed.length, 0)} · TB ${sgn(mean(closed.map((t) => t.pnl)))}/lệnh` : '—'}</div></div>
+      <div class="tile"><div class="k">Vốn để quy đổi</div><div class="v"><input id="capIn" type="number" min="1" step="10" value="${capital}" style="width:90px"> tr</div><div class="s">chỉ để tính số tiền / số cổ phiếu</div></div>
+    </div>
+    <div class="plangrid">
+      ${box('① Vào lệnh phiên tới', 'Giá mở cửa · mỗi mã 10% NAV · bỏ nếu mở cửa sát trần',
+        list(buy, (t) => `<tr><td><b>${esc(t.ticker)}</b><br><span class="mut">${esc(t.industry || '')}</span></td><td class="num">${money(0.1 * last.nav)}<br><span class="mut">${lot(0.1 * last.nav, t.signal_close)}</span></td><td class="num">RSI ${t.rsi14?.toFixed(0)}<br><span class="mut">tham chiếu ${t.signal_close?.toFixed(2) ?? '—'}</span></td></tr>`)
+        + (skipNow.length ? `<p class="mut" style="font-size:12px">Tín hiệu bị bỏ: ${skipNow.map((t) => `${esc(t.ticker)} (${SKIP[t.status] || t.status})`).join(', ')}</p>` : ''))}
+      ${box('② Thoát lệnh phiên tới', 'Bán 100% lệnh đó ở giá đóng cửa (ATC) · kẹt sàn thì bán phiên sau',
+        list(sell, (t) => `<tr><td><b>${esc(t.ticker)}</b><br><span class="mut">vào ${fmtDate(t.entry_date)}</span></td><td class="num">bán 100%<br><span class="mut">giá vào ${t.entry_price?.toFixed(2)}</span></td><td class="num">${sgn(t.pnl)}<br><span class="mut">tạm tính</span></td></tr>`))}
+      ${box('③ Đang giữ', 'Chưa đủ 5 phiên · không làm gì',
+        list(hold, (t) => `<tr><td><b>${esc(t.ticker)}</b><br><span class="mut">vào ${fmtDate(t.entry_date)}</span></td><td class="num">còn ${t.sessions_left} phiên<br><span class="mut">đã giữ ${t.held_sessions}</span></td><td class="num">${sgn(t.pnl)}<br><span class="mut">tạm tính</span></td></tr>`))}
+    </div>
+    ${navChart(nav)}
+    <details><summary class="mut">Lịch sử lệnh đã đóng (${closed.length})</summary><div class="wrap"><table class="tbl"><tr><th>Tín hiệu</th><th>Mã</th><th>Vào</th><th class="num">Giá vào</th><th>Ra</th><th class="num">Giá ra</th><th class="num">Lãi/lỗ sau phí</th><th>Nguồn</th></tr>
+      ${closed.map((t) => `<tr><td>${fmtDate(t.signal_date)}</td><td><b>${esc(t.ticker)}</b></td><td>${fmtDate(t.entry_date)}</td><td class="num">${t.entry_price?.toFixed(2)}</td><td>${fmtDate(t.exit_date)}</td><td class="num">${t.exit_price?.toFixed(2)}</td><td class="num">${sgn(t.pnl)}</td><td>${t.source === 'live' ? 'live' : '<span class="mut">dựng lại</span>'}</td></tr>`).join('')}</table></div></details>`;
+  $('plan').querySelectorAll('[data-tip]').forEach((el) => { el.addEventListener('mousemove', (e) => showTip(e, esc(el.dataset.tip))); el.addEventListener('mouseleave', hideTip); });
+  $('capIn').addEventListener('change', (e) => { capital = Math.max(1, Number(e.target.value) || 100); try { localStorage.setItem('vnq_capital', capital); } catch (er) { /* bỏ qua */ } renderPlan(trades, nav); });
+}
+
 function renderTn06r(rows, reg) {
   const on = reg[0]?.tn06r_regime_on;
   const state = on == null ? '' : on ? 'Tầng 1 BẬT: VNINDEX dưới EMA50 (thị trường đang điều chỉnh).' : 'Tầng 1 TẮT: VNINDEX trên EMA50 → hệ không mở vị thế mới.';
@@ -250,7 +310,7 @@ async function lookup(tk) {
   // lịch sử điểm: snapshot dự báo hằng ngày (đủ mọi phiên); regime/trend/value chỉ có ở các ngày job đã publish scores_daily
   const [pr, sc, sg] = await Promise.all([db.tickerPreds(tk), db.tickerScores(tk), db.tickerSignals(tk)]);
   const extra = Object.fromEntries(sc.map((r) => [r.data_date, r]));
-  const rows = pr.length ? pr.map((r) => ({ ...extra[r.data_date], ...r })) : sc;
+  const rows = pr.length ? pr.map((r) => ({ ...extra[r.data_date], ...Object.fromEntries(Object.entries(r).filter(([, v]) => v != null)) })) : sc;
   if (!rows.length) { $('lookup').innerHTML = `<p class="mut">${esc(tk)} không có trong universe đủ điều kiện ở các ngày đã chạy.</p>`; return; }
   const settled = rows.filter((r) => r.status === 'settled');
   const res = (r) => (r.status === 'settled' ? sgn(r.net) : r.status === 'unfilled_ceiling' ? 'trần' : r.status === 'open' ? '<span class="mut">chờ</span>' : '—');
@@ -321,8 +381,8 @@ async function main() {
     $('dateSel').innerHTML = runs.map((r) => `<option value="${r.data_date}">${fmtDate(r.data_date)}</option>`).join('');
     $('dateSel').value = runs.some((r) => r.data_date === want) ? want : runs[0].data_date;
     $('dateSel').onchange = (e) => loadDate(e.target.value);
-    const [rec, daily, live] = await Promise.all([db.track(), db.trackDaily(), db.liveEval(), loadDate($('dateSel').value)]);
-    renderTrack(rec, daily); renderLive(live);
+    const [rec, daily, live, ptr, pnav] = await Promise.all([db.track(), db.trackDaily(), db.liveEval(), db.paperTrades(), db.paperNav(), loadDate($('dateSel').value)]);
+    renderTrack(rec, daily); renderLive(live); renderPlan(ptr, pnav);
     $('lookupForm').addEventListener('submit', (e) => { e.preventDefault(); lookup($('tickerIn').value); });
   } catch (e) {
     $('err').hidden = false; $('err').textContent = `Lỗi tải dữ liệu: ${e.message}`; console.error(e);

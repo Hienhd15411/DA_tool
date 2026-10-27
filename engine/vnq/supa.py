@@ -60,6 +60,11 @@ class Supa:
         r.raise_for_status()
 
     # ---------- PostgREST ----------
+    def delete_all(self, table):
+        r = requests.delete(f'{self.url}/rest/v1/{table}', params={'signal_date': 'gte.1900-01-01'}, headers=self.h, timeout=60)
+        if r.status_code >= 300:
+            raise RuntimeError(f'delete {table} lỗi {r.status_code}: {r.text[:300]}')
+
     def upsert(self, table, rows, on_conflict):
         if not rows: return 0
         for i in range(0, len(rows), 500):
@@ -184,13 +189,26 @@ def publish(cfg, sb):
             pr = pd.read_parquet(pp)
             pr['data_date'] = pd.to_datetime(pr.data_date)
             recent = sorted(pr.data_date.unique())[-15:]
-            first = not sb_has_rows(sb, 'predictions_daily')
+            marker = st / 'predictions_full_push'
+            first = marker.exists() or not sb_has_rows(sb, 'predictions_daily')
             pr = pr if first else pr[pr.data_date.isin(recent)]
             pr['data_date'] = pr.data_date.dt.strftime('%Y-%m-%d')
             n['predictions_daily'] = sb.upsert('predictions_daily', records(pr), 'data_date,ticker')
+            marker.unlink(missing_ok=True)
         le = st / 'live_eval.csv'
         if le.exists():
             n['live_eval_daily'] = sb.upsert('live_eval_daily', records(pd.read_csv(le)), 'data_date')
+        if (st / 'paper_trades.csv').exists():
+            tr = pd.read_csv(st / 'paper_trades.csv')
+            for c in ('signal_date', 'entry_date', 'exit_date'):
+                if c in tr: tr[c] = pd.to_datetime(tr[c]).dt.strftime('%Y-%m-%d')
+            tr['data_date'] = d0
+            cols = ['signal_date', 'ticker', 'industry', 'rsi14', 'source', 'status', 'weight', 'amount', 'entry_date', 'entry_price',
+                    'exit_date', 'exit_price', 'mark_price', 'signal_close', 'pnl', 'held_sessions', 'sessions_left', 'data_date']
+            sb.delete_all('paper_trades')   # bảng nhỏ, tính lại toàn bộ mỗi ngày từ snapshot
+            n['paper_trades'] = sb.upsert('paper_trades', records(tr.reindex(columns=cols)), 'signal_date,ticker')
+            nv = pd.read_csv(st / 'paper_nav.csv'); nv['date'] = pd.to_datetime(nv.date).dt.strftime('%Y-%m-%d')
+            n['paper_nav'] = sb.upsert('paper_nav', records(nv), 'date')
     except RuntimeError as ex:   # bảng chưa được tạo (migration 20261027000000 chưa apply) → không làm hỏng lần chạy
         log.warning('Bỏ qua publish snapshot dự báo: %s', str(ex)[:200])
     log.info('publish %s: %s', d0, n)
