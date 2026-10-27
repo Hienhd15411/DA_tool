@@ -207,6 +207,19 @@ def run(panel, vni, signals, orders_dir, industry, now):
             bk.nav.append(dict(date=d, portfolio=bk.name, nav=bk.value(px), cash=bk.cash, n_pos=len(bk.pos)))
         C.nav.append(dict(date=d, portfolio='C', nav=c_nav, cash=0.0, n_pos=1))
 
+    # sổ lệnh cho các phiên chưa diễn ra (đề xuất phiên tới) — ghi lại để hiển thị
+    last_done = dates[-1] if dates else START - pd.Timedelta(days=1)
+    for g in AG:
+        for f in sorted((orders_dir / g['id']).glob('*.json')):
+            if pd.Timestamp(f.stem) <= last_done: continue
+            js = json.loads(f.read_text(encoding='utf-8')); ct = commit_time(f)
+            for o in js.get('orders', []):
+                a_orders.append(dict(agent=g['id'], session=f.stem, decided_at=js.get('decided_at'), committed_at=ct.isoformat() if ct else None,
+                                     side=o.get('side'), ticker=o.get('ticker'), type=o.get('type'), limit=o.get('limit'),
+                                     value_vnd=o.get('value_vnd'), qty=str(o.get('qty', '')), reason=o.get('reason'),
+                                     sources=json.dumps(o.get('sources', []), ensure_ascii=False), market_view=js.get('market_view'),
+                                     risk_plan=js.get('risk_plan'), stop_loss=o.get('stop_loss'), take_profit=o.get('take_profit'),
+                                     horizon_sessions=o.get('horizon_sessions'), confidence=o.get('confidence'), condition=o.get('condition')))
     books = [*AB.values(), *RB.values(), B, C]
     nav = pd.DataFrame([x for bk in books for x in bk.nav])
     if len(nav):
