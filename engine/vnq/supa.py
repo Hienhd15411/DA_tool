@@ -193,7 +193,9 @@ def publish(cfg, sb):
             recent = sorted(pr.data_date.unique())[-15:]
             marker = st / 'predictions_full_push'
             first = marker.exists() or not sb_has_rows(sb, 'predictions_daily')
-            pr = pr if first else pr[pr.data_date.isin(recent)]
+            # 15 ngày gần nhất + mọi dòng vừa quyết toán trong lần chạy này (vd. quyết toán lại sau rollback)
+            just_settled = pr.settled_on.astype(str).eq(str(d0))
+            pr = pr if first else pr[pr.data_date.isin(recent) | just_settled]
             pr['data_date'] = pr.data_date.dt.strftime('%Y-%m-%d')
             n['predictions_daily'] = sb.upsert('predictions_daily', records(pr), 'data_date,ticker')
             marker.unlink(missing_ok=True)
