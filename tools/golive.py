@@ -11,7 +11,9 @@ URL = os.environ['SUPABASE_URL'].rstrip('/')
 KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 H = {'Authorization': f'Bearer {KEY}', 'apikey': KEY}
 PANEL_OLD = ROOT / 'engine' / 'data' / 'seed' / 'panel.parquet'
-TICKERS = sorted(pd.read_parquet(PANEL_OLD, columns=['ticker', 'date']).query("date == '2026-07-10'").ticker.unique().tolist())
+_old = pd.read_parquet(PANEL_OLD, columns=['ticker', 'date'])
+TICKERS = sorted(_old[_old.date == pd.Timestamp('2026-07-10')].ticker.unique().tolist())
+assert len(TICKERS) > 300, f'danh sách mã bất thường: {len(TICKERS)}'
 START, END = dt.date(2022, 1, 1), dt.date.today()
 VH = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36',
       'Content-Type': 'application/json', 'Origin': 'https://trading.vietcap.com.vn',
