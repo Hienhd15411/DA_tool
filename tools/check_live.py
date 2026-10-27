@@ -40,7 +40,10 @@ def win(rs):
 print('HEALTH last20', ev[-20][ 'data_date'], '→', ev[-1]['data_date'], win(ev[-20:]))
 print('HEALTH prev20', ev[-40]['data_date'], '→', ev[-21]['data_date'], win(ev[-40:-20]))
 print('HEALTH first20', win(ev[:20]))
-p27, cr = get('predictions_daily', select='data_date', data_date='eq.2026-10-27', limit=1); print('predictions 27/10 rows', cr)
-s20, _ = get('predictions_daily', select='ticker,status,net', data_date='eq.2026-10-20', ticker='eq.SBT'); print('SBT 20/10', s20)
-s19, _ = get('predictions_daily', select='ticker,status,net', data_date='eq.2026-10-19', ticker='eq.SBT'); print('SBT 19/10', s19)
-sb_open, cr = get('predictions_daily', select='data_date', status='eq.open', data_date='lt.2026-10-20', limit=1); print('open rows before 20/10 (phải = 0)', cr)
+import datetime as _dt
+lr, _ = get('daily_runs', select='data_date', order='data_date.desc', limit=1); dlast = lr[0]['data_date'] if lr else None
+lp, _ = get('predictions_daily', select='data_date', order='data_date.desc', limit=1); plast = lp[0]['data_date'] if lp else None
+_, cnt = get('predictions_daily', select='data_date', data_date=f'eq.{plast}', limit=1)
+print(f'LATEST daily_runs={dlast} predictions={plast} rows={cnt}')
+cut = (_dt.date.fromisoformat(dlast) - _dt.timedelta(days=11)).isoformat() if dlast else '1900-01-01'
+_, cr = get('predictions_daily', select='data_date', status='eq.open', data_date=f'lt.{cut}', limit=1); print(f'open rows before {cut} (phải = 0)', cr)
