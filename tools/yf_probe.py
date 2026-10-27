@@ -27,8 +27,9 @@ def fetch_yahoo(sym: str, start: str, end: str) -> pd.DataFrame | None:
         return None
     h = h.reset_index()
     h['date'] = pd.to_datetime(h['Date']).dt.tz_localize(None).dt.normalize()
+    h['events'] = (h.get('Dividends', 0).fillna(0) != 0) | (h.get('Stock Splits', 0).fillna(0) != 0)
     return h.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})[
-        ['date', 'open', 'high', 'low', 'close', 'volume']]
+        ['date', 'open', 'high', 'low', 'close', 'volume', 'events']]
 
 
 def to_candidate(ticker: str, h: pd.DataFrame) -> pd.DataFrame:
@@ -38,7 +39,7 @@ def to_candidate(ticker: str, h: pd.DataFrame) -> pd.DataFrame:
         out[c] = out[c] / 1000.0
     out['ticker'] = ticker
     out['gt_khop'] = out['close'] * out['volume'] * 1000  # xấp xỉ như engine/vnq/data.py
-    return out[['ticker', 'date', 'open', 'high', 'low', 'close', 'volume', 'gt_khop']]
+    return out[['ticker', 'date', 'open', 'high', 'low', 'close', 'volume', 'gt_khop', 'events']]
 
 
 def main() -> None:
@@ -50,7 +51,7 @@ def main() -> None:
 
     today = dt.date.today()
     end = (today + dt.timedelta(days=1)).isoformat()
-    frames, diffs, report = [], [], {'ok': [], 'no_data': [], 'error': []}
+    frames, diffs, report, ev_info = [], [], {'ok': [], 'no_data': [], 'error': []}, {}
     for i, t in enumerate(tickers, 1):
         try:
             h = fetch_yahoo(f'{t}.VN', OVERLAP_START, end)
@@ -63,13 +64,16 @@ def main() -> None:
             time.sleep(SLEEP)
             continue
         cand = to_candidate(t, h)
-        frames.append(cand)
+        frames.append(cand.drop(columns=['events']))
         report['ok'].append(t)
         # đối chiếu chồng lấn
         pv = ov[ov.ticker == t][['date', 'close']].merge(cand[['date', 'close']], on='date', suffixes=('_p', '_y'))
         if len(pv):
             d = (pv.close_y / pv.close_p - 1).abs()
             diffs.append(pd.DataFrame({'ticker': t, 'date': pv.date, 'diff': d.values}))
+        ev_after = int(cand.loc[cand.date > pd.Timestamp(OVERLAP_END), 'events'].sum())
+        ev_overlap = int(cand.loc[cand.date <= pd.Timestamp(OVERLAP_END), 'events'].sum())
+        ev_info[t] = (ev_after, ev_overlap)
         if i % 25 == 0:
             print(f'  {i}/{len(tickers)} ok={len(report["ok"])} no_data={len(report["no_data"])} err={len(report["error"])}')
         time.sleep(SLEEP)
@@ -85,7 +89,12 @@ def main() -> None:
     if diffs:
         dd = pd.concat(diffs)
         per = dd.groupby('ticker')['diff'].agg(['mean', 'max', 'count'])
+        over = per[per['max'] > ADJUST_TOL].index
+        with_after = [t for t in over if ev_info.get(t, (0, 0))[0] > 0]
         summary.update({
+            'tickers_over_tol_with_event_after_10_07': len(with_after),
+            'tickers_over_tol_without_event_after_10_07': len(over) - len(with_after),
+            'tickers_with_event_after_10_07_total': sum(1 for v in ev_info.values() if v[0] > 0),
             'overlap_rows': int(len(dd)),
             'overlap_mean_abs_diff_pct': round(float(dd['diff'].mean()) * 100, 4),
             'overlap_max_abs_diff_pct': round(float(dd['diff'].max()) * 100, 4),
