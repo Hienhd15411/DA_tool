@@ -41,9 +41,9 @@ const db = {
     (r) => r.filter((x) => x.data_date === d && x.regime === 'Uptrend').sort((a, b) => b.trend_score - a.trend_score).slice(0, 10)),
   track: () => db.q('v_track_record', (t) => t.select('*'), (r) => r),
   trackDaily: () => db.q('v_track_daily', (t) => t.select('*').order('data_date'), (r) => r),
-  tickerPreds: (tk) => db.opt('predictions_daily', (t) => t.select('data_date,close,p_up_5,rank_all,value_top30,regime,trend_score,tn07_pick,tn06r_signal,status,net').eq('ticker', tk).order('data_date', { ascending: false }).limit(120),
+  tickerPreds: (tk) => db.opt('predictions_daily', (t) => t.select('data_date,industry,close,p_up_5,rank_all,value_top30,value_score,regime,trend_score,rsi14,vol_ratio20,tn07_pick,tn06r_signal,tn06r_regime_on,status,net').eq('ticker', tk).order('data_date', { ascending: false }).limit(120),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 120)),
-  tickerScores: (tk) => db.q('scores_daily', (t) => t.select('data_date,p_up_5,rank_all,value_score,value_top30,regime,trend_score,close').eq('ticker', tk).order('data_date', { ascending: false }).limit(60),
+  tickerScores: (tk) => db.q('scores_daily', (t) => t.select('data_date,p_up_5,rank_all,value_score,value_top30,regime,trend_score,close,industry,atr14_pct,liq20,exch').eq('ticker', tk).order('data_date', { ascending: false }).limit(60),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 60)),
   tickerSignals: (tk) => db.q('signals', (t) => t.select('data_date,rank_sel,action,status,net,excess').eq('ticker', tk).order('data_date', { ascending: false }),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date))),
@@ -403,6 +403,49 @@ function sparkline(rows) {
     <text x="${P.l}" y="${H - 4}">${fmtDate(pts[0].data_date)}</text><text x="${W - P.r}" y="${H - 4}" text-anchor="end">${fmtDate(pts.at(-1).data_date)}</text></svg>`;
 }
 
+// ---------- overview 1 mã (chỉ dữ liệu đang có; không có dữ liệu cơ bản) ----------
+function overview(tk, rows, sc) {
+  const r0 = rows[0], last = sc[0] || {};
+  const px = (k) => rows[k]?.close;
+  const chg = (k) => (rows.length > k && px(k) ? r0.close / px(k) - 1 : null);
+  const closes = rows.map((r) => r.close).filter((v) => v != null);
+  const lo = Math.min(...closes), hi = Math.max(...closes), pos = hi > lo ? (r0.close - lo) / (hi - lo) : null;
+  let streak = 0; for (const r of rows) { if (r.rsi14 != null && r.rsi14 < 30) streak += 1; else break; }
+  const settled = rows.filter((r) => r.status === 'settled');
+  const rsiTag = r0.rsi14 == null ? '' : r0.rsi14 < 30 ? ' · quá bán' : r0.rsi14 > 70 ? ' · quá mua' : '';
+  const reg = { Uptrend: 'xu hướng tăng', Downtrend: 'xu hướng giảm', Sideways: 'đi ngang' }[r0.regime] || '—';
+  const tn6 = r0.rsi14 == null ? '—' : [streak >= 3 ? '✓ RSI<30 đủ 3 phiên' : `RSI<30: ${streak}/3 phiên`, (r0.vol_ratio20 ?? 0) >= 1.5 ? '✓ khối lượng ≥ 1,5×' : `khối lượng ${r0.vol_ratio20?.toFixed(2)}× (cần ≥ 1,5×)`,
+    r0.tn06r_regime_on ? '✓ thị trường điều chỉnh' : 'thị trường chưa điều chỉnh (VNINDEX ≥ EMA50)'].join(' · ');
+  const kv = (k, v, sub = '') => `<dt>${k}</dt><dd>${v}${sub ? ` <span class="mut">${sub}</span>` : ''}</dd>`;
+  return `<aside class="ovw"><h3>${esc(tk)} <span class="mut">${esc(r0.industry || last.industry || '')}${last.exch ? ` · ${esc(last.exch)}` : ''}</span></h3>
+    <div class="ovw-price"><b>${r0.close?.toFixed(2) ?? '—'}</b> <span class="mut">nghìn đ · đóng cửa ${fmtDate(r0.data_date)}</span></div>
+    <dl class="kv">
+      ${kv('1 phiên', sgn(chg(1)))}${kv('5 phiên', sgn(chg(5)))}${kv('20 phiên', sgn(chg(20)))}${kv(`từ ${fmtDate(rows.at(-1).data_date)}`, sgn(chg(rows.length - 1)))}
+      ${kv('Vùng giá', `${lo.toFixed(2)} – ${hi.toFixed(2)}`, pos == null ? '' : `đang ở ${(pos * 100).toFixed(0)}% biên độ`)}
+    </dl>
+    ${pos == null ? '' : `<div class="ovw-bar" role="img" aria-label="Vị trí giá trong vùng thấp nhất–cao nhất"><span style="left:${(pos * 100).toFixed(1)}%"></span></div>`}
+    <h4>Kỹ thuật</h4><dl class="kv">
+      ${kv('Xu hướng', `${esc(r0.regime || '—')}`, `${reg} · trend ${r0.trend_score?.toFixed(2) ?? '—'}`)}
+      ${kv('RSI14', r0.rsi14?.toFixed(1) ?? '—', rsiTag)}
+      ${kv('Khối lượng', `${r0.vol_ratio20?.toFixed(2) ?? '—'}× TB20`)}
+      ${kv('Biến động ngày (ATR)', pct(last.atr14_pct), last.data_date ? `ngày ${fmtDate(last.data_date)}` : '')}
+      ${kv('Thanh khoản TB20', last.liq20 ? `${(last.liq20 / 1e9).toFixed(1)} tỷ đ` : '—')}
+    </dl>
+    <h4>Model</h4><dl class="kv">
+      ${kv('TN07 p_up_5', f3(r0.p_up_5), `hạng ${r0.rank_all ?? '—'} trong universe`)}
+      ${kv('Value (kỹ thuật)', r0.value_score?.toFixed(2) ?? '—', r0.value_top30 ? 'trong top 30%' : 'ngoài top 30%')}
+      ${kv('Vào top 10', `${rows.filter((r) => r.tn07_pick).length} / ${rows.length} phiên`)}
+      ${kv('TN06-R', tn6)}
+    </dl>
+    <h4>Dự báo vs thực tế (mã này)</h4><dl class="kv">
+      ${kv('Đã chấm', `${settled.length} phiên`, `${rows.length - settled.length} đang chờ đủ 5 phiên`)}
+      ${kv('Thực tế 5 phiên TB', sgn(mean(settled.map((r) => r.net))), 'sau phí, nếu mua mọi phiên')}
+      ${kv('Tỷ lệ phiên có lãi', settled.length ? pct(settled.filter((r) => r.net > 0).length / settled.length, 0) : '—')}
+    </dl>
+    <p class="mut" style="font-size:12px;margin:8px 0 0">Chưa có dữ liệu cơ bản (P/E, P/B, lợi nhuận, BCTC) — điểm value hiện là chỉ số kỹ thuật (technical_proxy). Giá đã điều chỉnh quyền.</p>
+  </aside>`;
+}
+
 async function lookup(tk) {
   tk = tk.trim().toUpperCase(); if (!/^[A-Z0-9]{3}$/.test(tk)) return;
   // lịch sử điểm: snapshot dự báo hằng ngày (đủ mọi phiên); regime/trend/value chỉ có ở các ngày job đã publish scores_daily
@@ -412,12 +455,13 @@ async function lookup(tk) {
   if (!rows.length) { $('lookup').innerHTML = `<p class="mut">${esc(tk)} không có trong universe đủ điều kiện ở các ngày đã chạy.</p>`; return; }
   const settled = rows.filter((r) => r.status === 'settled');
   const res = (r) => (r.status === 'settled' ? sgn(r.net) : r.status === 'unfilled_ceiling' ? 'trần' : r.status === 'open' ? '<span class="mut">chờ</span>' : '—');
-  $('lookup').innerHTML = `<p><strong>${esc(tk)}</strong> — ${rows.length} phiên trong universe, ${sg.length} lần vào top 10${settled.length ? ` · thực tế 5 phiên TB sau phí: ${sgn(mean(settled.map((r) => r.net)))}` : ''}.</p>${sparkline(rows)}
+  const main = `<p><strong>${esc(tk)}</strong> — ${rows.length} phiên trong universe, ${sg.length} lần vào top 10${settled.length ? ` · thực tế 5 phiên TB sau phí: ${sgn(mean(settled.map((r) => r.net)))}` : ''}.</p>${sparkline(rows)}
     <div class="wrap"><table class="tbl"><tr><th>Ngày</th><th class="num">Giá</th><th class="num">p_up_5</th><th class="num">Hạng</th><th>Pool</th><th>Top 10</th><th>TN06-R</th><th class="num">Thực tế 5p</th><th>Regime</th><th class="num">trend</th></tr>
     ${rows.slice(0, 30).map((r) => `<tr><td>${fmtDate(r.data_date)}</td><td class="num">${r.close?.toFixed(2) ?? '—'}</td><td class="num">${f3(r.p_up_5)}</td><td class="num">${r.rank_all ?? '—'}</td>
       <td>${r.value_top30 ? '✓' : ''}</td><td>${r.tn07_pick ? '✓' : ''}</td><td>${r.tn06r_signal ? '✓' : ''}</td><td class="num">${res(r)}</td>
       <td>${esc(r.regime ?? '—')}</td><td class="num">${r.trend_score?.toFixed(2) ?? '—'}</td></tr>`).join('')}</table></div>
     ${rows.length > 30 ? `<p class="mut" style="font-size:12px">Bảng hiện 30 phiên gần nhất; biểu đồ hiện ${rows.length} phiên.</p>` : ''}`;
+  $('lookup').innerHTML = `<div class="lookgrid"><div class="lookmain">${main}</div>${overview(tk, rows, sc)}</div>`;
   $('lookup').querySelectorAll('[data-tip]').forEach((el) => { el.addEventListener('mousemove', (e) => showTip(e, esc(el.dataset.tip))); el.addEventListener('mouseleave', hideTip); });
 }
 
