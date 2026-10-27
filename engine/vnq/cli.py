@@ -10,7 +10,7 @@
 import argparse, logging, json, sys, datetime as dt
 import pandas as pd
 from pathlib import Path
-from . import config, data, features, model, backtest, tracker, report
+from . import config, data, features, model, backtest, tracker, report, snapshot
 
 log = logging.getLogger('vnq')
 
@@ -62,6 +62,17 @@ def cmd_daily(cfg, skip_update=False, asof=None, today=None):
     md, tab = report.build(cfg, today_df, prev, sel, g, q, tracker.summary(trk), config.pending_confirmations(cfg),
                            quarantine, d0, run_ts)
     tracker.append(cfg, tab, d0, g['strategy_pass'])
+    # ---- snapshot dự báo toàn universe (giữ nguyên dự báo đã ghi) → quyết toán → chấm live ----
+    snap = snapshot.load(cfg)
+    have = set(pd.to_datetime(snap.data_date)) if len(snap) else set()
+    back = [d for d in sorted(full.date.unique()) if d >= pd.Timestamp(L['test_start']) and d < d0 and d not in have]
+    if back:
+        picks = {d: set(backtest.pick(full[full.date == d], 'p_up_5', L['topk'], L['max_per_industry']).get('ticker', []))
+                 for d in back}
+        snapshot.record(cfg, full, picks, 'backfill')
+    snapshot.record(cfg, sc, {d0: set(sel.ticker) if len(sel) else set()}, 'live', quarantine)
+    live = snapshot.evaluate(cfg, snapshot.settle(cfg, full))
+    log.info('Live eval: %s', snapshot.summary(live))
     out = Path(cfg['paths']['reports']); stem = f'signals_{d0:%Y-%m-%d}'
     (out / f'{stem}.md').write_text(md, encoding='utf-8')
     (out / f'{stem}.html').write_text(report.to_html(md, f'Tín hiệu {d0:%d/%m/%Y}'), encoding='utf-8')

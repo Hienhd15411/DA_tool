@@ -40,6 +40,10 @@ const db = {
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 60)),
   tickerSignals: (tk) => db.q('signals', (t) => t.select('data_date,rank_sel,action,status,net,excess').eq('ticker', tk).order('data_date', { ascending: false }),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date))),
+  liveEval: () => db.q('live_eval_daily', (t) => t.select('*').order('data_date'), (r) => [...r].sort((a, b) => a.data_date.localeCompare(b.data_date))),
+  tn06r: (d) => db.q('predictions_daily', (t) => t.select('ticker,close,rsi14,vol_ratio20,status,net').eq('data_date', d).eq('tn06r_signal', true).order('rsi14'),
+    (r) => r.filter((x) => x.data_date === d && x.tn06r_signal).sort((a, b) => a.rsi14 - b.rsi14)),
+  tn06rRegime: (d) => db.q('predictions_daily', (t) => t.select('tn06r_regime_on').eq('data_date', d).limit(1), (r) => r.filter((x) => x.data_date === d).slice(0, 1)),
   async login(email, password) { return sb.auth.signInWithPassword({ email, password }); },
   async forgot(email) { return sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); },
   async setPassword(password) { return sb.auth.updateUser({ password }); },
@@ -163,6 +167,68 @@ function renderTrack(rec, daily) {
   $('track').querySelectorAll('[data-tip]').forEach((el) => { el.addEventListener('mousemove', (e) => showTip(e, esc(el.dataset.tip))); el.addEventListener('mouseleave', hideTip); });
 }
 
+// ---------- dự báo vs thực tế (snapshot hằng ngày, quyết toán sau 5 phiên) ----------
+const mean = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : null);
+function liveChart(rows) {
+  const W = 560, H = 190, P = { l: 52, r: 12, t: 10, b: 24 };
+  let a = 0, b = 0;
+  const pts = [{ a: 0, b: 0 }].concat(rows.map((r) => {
+    if (r.tn07_net != null) a += r.tn07_net - r.market_net;
+    if (r.tn06r_n > 0) b += r.tn06r_n * (r.tn06r_net - r.market_net) / 10;   // 10 slot: mỗi lệnh 10% vốn
+    return { a, b, r };
+  }));
+  const mx = Math.max(0.01, ...pts.flatMap((p) => [Math.abs(p.a), Math.abs(p.b)]));
+  const x = (i) => P.l + (pts.length === 1 ? 0 : i * (W - P.l - P.r) / (pts.length - 1));
+  const y = (v) => P.t + (H - P.t - P.b) * (1 - (v + mx) / (2 * mx));
+  const line = (k) => pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join('');
+  const liveIdx = rows.findIndex((r) => r.source === 'live');
+  const mark = liveIdx >= 0 ? `<line x1="${x(liveIdx + 1)}" x2="${x(liveIdx + 1)}" y1="${P.t}" y2="${H - P.b}" stroke="var(--warnline)" stroke-dasharray="3 3"/>
+    <text x="${x(liveIdx + 1) + 4}" y="${P.t + 10}">bắt đầu live</text>` : '';
+  const hits = pts.slice(1).map((p, i) => `<rect x="${x(i + 1) - 4}" y="${P.t}" width="8" height="${H - P.t - P.b}" fill="transparent"
+    data-tip="${fmtDate(p.r.data_date)} (${p.r.source}): TN07 top10 ${sgn(p.r.tn07_net)} · thị trường ${sgn(p.r.market_net)} · random ${sgn(p.r.pool_net)} · IC ${f3(p.r.ic)}${p.r.tn06r_n ? ` · TN06-R ${p.r.tn06r_n} lệnh ${sgn(p.r.tn06r_net)}` : ''}"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Lũy kế chênh lệch so với thị trường của TN07 và TN06-R theo ngày dự báo">
+    <g class="axis">${[-mx, 0, mx].map((t) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" ${t === 0 ? '' : 'stroke-dasharray="2 3"'}/><text x="${P.l - 6}" y="${y(t) + 4}" text-anchor="end">${sgn(t, 1)}</text>`).join('')}</g>
+    ${mark}<path d="${line('a')}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <path d="${line('b')}" fill="none" stroke="var(--good)" stroke-width="2"/>${hits}
+    ${rows.length ? `<text x="${P.l}" y="${H - 6}">${fmtDate(rows[0].data_date)}</text><text x="${W - P.r}" y="${H - 6}" text-anchor="end">${fmtDate(rows.at(-1).data_date)}</text>` : ''}</svg>
+    <p class="mut" style="font-size:12px;margin:4px 0 0"><span style="color:var(--accent)">━</span> TN07 top 10 trừ thị trường (lũy kế) &nbsp;
+    <span style="color:var(--good)">━</span> TN06-R trừ thị trường, theo tỷ trọng 10%/lệnh (lũy kế) &nbsp;· trên 0 = thắng thị trường</p>`;
+}
+
+function renderLive(rows) {
+  if (!rows.length) { $('live').innerHTML = '<p class="mut">Chưa có ngày dự báo nào đủ 5 phiên để so với thực tế.</p>'; return; }
+  const t7 = rows.filter((r) => r.tn07_net != null), t6 = rows.filter((r) => r.tn06r_n > 0);
+  const n6 = t6.reduce((s, r) => s + r.tn06r_n, 0);
+  const w6 = (f) => (n6 ? t6.reduce((s, r) => s + r.tn06r_n * f(r), 0) / n6 : null);
+  const ics = rows.map((r) => r.ic).filter((v) => v != null);
+  const nLive = rows.filter((r) => r.source === 'live').length;
+  const tile = (k, v, s) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  $('live').innerHTML = `<div class="band" style="margin-bottom:8px">
+    ${tile('Ngày đã chấm', rows.length, `${nLive} live · ${rows.length - nLive} dựng lại`)}
+    ${tile('IC TB (TN07)', f3(mean(ics)), `${pct(mean(ics.map((v) => (v > 0 ? 1 : 0))), 0)} số ngày IC > 0`)}
+    ${tile('TN07 top 10 vs thị trường', sgn(mean(t7.map((r) => r.tn07_net - r.market_net))), `vs random ${sgn(mean(t7.map((r) => r.tn07_net - r.pool_net)))} / lệnh 5 phiên`)}
+    ${tile('TN07 dự báo vs thực tế', `${pct(mean(t7.map((r) => r.pred_mean)), 0)} → ${pct(mean(t7.map((r) => r.tn07_hit)), 0)}`, 'p_up_5 TB top 10 → tỷ lệ đạt nhãn')}
+    ${tile('TN06-R', n6 ? sgn(w6((r) => r.tn06r_net - r.market_net)) : '—', n6 ? `${n6} lệnh · lãi TB ${sgn(w6((r) => r.tn06r_net))} · vs thị trường` : 'chưa có lệnh nào được quyết toán')}
+  </div>${liveChart(rows)}
+  ${nLive < 20 ? `<p class="warn" style="margin:6px 0 0;padding:6px 8px;font-size:12px">Mới có ${nLive} ngày dự báo live đã quyết toán. Các ngày "dựng lại" dùng model/luật đã đóng băng chấm lại quá khứ — chỉ số live mới là bằng chứng sạch.</p>` : ''}
+  <details><summary class="mut">Xem dạng bảng</summary><div class="wrap"><table class="tbl"><tr><th>Ngày dự báo</th><th>Nguồn</th><th class="num">IC</th><th class="num">TN07 top 10</th><th class="num">Random</th><th class="num">Thị trường</th><th class="num">Dự báo → hit</th><th class="num">TN06-R</th></tr>
+    ${[...rows].reverse().map((r) => `<tr><td>${fmtDate(r.data_date)}</td><td>${r.source === 'live' ? 'live' : '<span class="mut">dựng lại</span>'}</td><td class="num">${f3(r.ic)}</td>
+      <td class="num">${sgn(r.tn07_net)}</td><td class="num">${sgn(r.pool_net)}</td><td class="num">${sgn(r.market_net)}</td>
+      <td class="num">${pct(r.pred_mean, 0)} → ${pct(r.tn07_hit, 0)}</td><td class="num">${r.tn06r_n ? `${r.tn06r_n} · ${sgn(r.tn06r_net)}` : '—'}</td></tr>`).join('')}</table></div></details>`;
+  $('live').querySelectorAll('[data-tip]').forEach((el) => { el.addEventListener('mousemove', (e) => showTip(e, esc(el.dataset.tip))); el.addEventListener('mouseleave', hideTip); });
+}
+
+function renderTn06r(rows, reg) {
+  const on = reg[0]?.tn06r_regime_on;
+  const state = on == null ? '' : on ? 'Tầng 1 BẬT: VNINDEX dưới EMA50 (thị trường đang điều chỉnh).' : 'Tầng 1 TẮT: VNINDEX trên EMA50 → hệ không mở vị thế mới.';
+  const head = '<tr><th>Mã</th><th class="num">Đóng cửa</th><th class="num">RSI14</th><th class="num">Vol / TB20</th><th>Vào (dự kiến)</th><th>Ra (dự kiến)</th><th class="num">Tỷ trọng</th><th>Kết quả 5p</th></tr>';
+  const body = rows.map((r) => `<tr><td><b>${esc(r.ticker)}</b></td><td class="num">${r.close ?? '—'}</td><td class="num">${r.rsi14?.toFixed(1) ?? '—'}</td>
+    <td class="num">${r.vol_ratio20?.toFixed(2) ?? '—'}×</td><td>giá mở cửa phiên sau</td><td>đóng cửa sau 5 phiên</td><td class="num">10%</td>
+    <td>${r.status === 'settled' ? sgn(r.net) : r.status === 'unfilled_ceiling' ? 'không khớp (trần)' : '<span class="mut">đang mở</span>'}</td></tr>`).join('');
+  $('tn06rState').textContent = state;
+  $('tn06rTable').innerHTML = `<thead>${head}</thead><tbody>${body || `<tr><td colspan="8" class="mut">Không có tín hiệu TN06-R trong ngày này.</td></tr>`}</tbody>`;
+}
+
 function sparkline(rows) {
   const pts = [...rows].reverse(); if (pts.length < 2) return '';
   const W = 520, H = 90, P = { l: 36, r: 8, t: 8, b: 18 };
@@ -189,8 +255,8 @@ async function lookup(tk) {
 }
 
 async function loadDate(d) {
-  const [run, gate, sig, up] = await Promise.all([db.run(d), db.gate(d), db.signals(d), db.uptrend(d)]);
-  renderStatus(run, gate); renderGate(gate); renderSignals(sig); renderUptrend(up);
+  const [run, gate, sig, up, t6, reg] = await Promise.all([db.run(d), db.gate(d), db.signals(d), db.uptrend(d), db.tn06r(d), db.tn06rRegime(d)]);
+  renderStatus(run, gate); renderGate(gate); renderSignals(sig); renderUptrend(up); renderTn06r(t6, reg);
   history.replaceState(null, '', `?${DEMO && new URLSearchParams(location.search).has('demo') ? 'demo&' : ''}d=${d}`);
 }
 
@@ -246,8 +312,8 @@ async function main() {
     $('dateSel').innerHTML = runs.map((r) => `<option value="${r.data_date}">${fmtDate(r.data_date)}</option>`).join('');
     $('dateSel').value = runs.some((r) => r.data_date === want) ? want : runs[0].data_date;
     $('dateSel').onchange = (e) => loadDate(e.target.value);
-    const [rec, daily] = await Promise.all([db.track(), db.trackDaily(), loadDate($('dateSel').value)]);
-    renderTrack(rec, daily);
+    const [rec, daily, live] = await Promise.all([db.track(), db.trackDaily(), db.liveEval(), loadDate($('dateSel').value)]);
+    renderTrack(rec, daily); renderLive(live);
     $('lookupForm').addEventListener('submit', (e) => { e.preventDefault(); lookup($('tickerIn').value); });
   } catch (e) {
     $('err').hidden = false; $('err').textContent = `Lỗi tải dữ liệu: ${e.message}`; console.error(e);

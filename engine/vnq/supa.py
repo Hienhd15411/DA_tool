@@ -21,6 +21,7 @@ SYNC_FILES = {
     'state/quarantine.json': 'state/quarantine.json',
     'state/gate.json': 'state/gate.json',
     'state/experiments.csv': 'state/experiments.csv',
+    'state/predictions_log.parquet': 'state/predictions_log.parquet',
 }
 
 
@@ -90,6 +91,11 @@ def clean(v):
 
 def records(df):
     return [{k: clean(v) for k, v in r.items()} for r in df.to_dict('records')]
+
+
+def sb_has_rows(sb, table):
+    r = requests.get(f'{sb.url}/rest/v1/{table}', params={'select': 'data_date', 'limit': 1}, headers=sb.h, timeout=60)
+    return r.status_code < 300 and len(r.json()) > 0
 
 
 # ---------- đồng bộ dữ liệu ----------
@@ -171,5 +177,21 @@ def publish(cfg, sb):
     lg['data_date'] = pd.to_datetime(lg.data_date).dt.strftime('%Y-%m-%d')
     out = lg[['data_date', 'ticker', 'status', 'gross', 'net', 'y_bin', 'univ_mean', 'excess']]
     n['signals(outcomes)'] = sb.upsert('signals', records(out), 'data_date,ticker')
+    # snapshot dự báo vs thực tế: chỉ đẩy 15 ngày dự báo gần nhất (phần có thể vừa được quyết toán) + toàn bộ chấm điểm
+    try:
+        pp = st / 'predictions_log.parquet'
+        if pp.exists():
+            pr = pd.read_parquet(pp)
+            pr['data_date'] = pd.to_datetime(pr.data_date)
+            recent = sorted(pr.data_date.unique())[-15:]
+            first = not sb_has_rows(sb, 'predictions_daily')
+            pr = pr if first else pr[pr.data_date.isin(recent)]
+            pr['data_date'] = pr.data_date.dt.strftime('%Y-%m-%d')
+            n['predictions_daily'] = sb.upsert('predictions_daily', records(pr), 'data_date,ticker')
+        le = st / 'live_eval.csv'
+        if le.exists():
+            n['live_eval_daily'] = sb.upsert('live_eval_daily', records(pd.read_csv(le)), 'data_date')
+    except RuntimeError as ex:   # bảng chưa được tạo (migration 20261027000000 chưa apply) → không làm hỏng lần chạy
+        log.warning('Bỏ qua publish snapshot dự báo: %s', str(ex)[:200])
     log.info('publish %s: %s', d0, n)
     return n
