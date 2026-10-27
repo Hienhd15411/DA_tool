@@ -1,0 +1,65 @@
+{
+ "for_session": "2026-10-28",
+ "decided_at": "2026-10-27T19:50+07:00",
+ "market_view": "Thị trường chung chưa thuận lợi cho tăng trưởng (VNINDEX ngay EMA50, độ rộng 41%), nhưng một số mã công nghiệp/bán lẻ vẫn giữ xu hướng tăng riêng.",
+ "risk_plan": "Rủi ro 2% NAV/lệnh nhưng chỉ giải ngân ≤ 30% NAV cho tới khi VNINDEX đóng cửa lại trên EMA50 hai phiên; cắt lỗ 2,5×ATR; cắt khi đóng cửa dưới EMA50 của mã.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "CTD",
+   "type": "LO",
+   "limit": 67.0,
+   "value_vnd": 15000000,
+   "stop_loss": 62.6,
+   "take_profit": 80.4,
+   "horizon_sessions": 40,
+   "confidence": "vừa",
+   "reason": "Xây dựng — Uptrend, ret20 +13%, giá ở 92% biên độ 60 phiên, khối lượng 1,44× TB20 (dòng tiền vào), RSI 69. Cắt lỗ 2,5×ATR (−6,5%), mục tiêu +20%.",
+   "sources": [
+    "bảng ứng viên vnq-trader 27/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "BUY",
+   "ticker": "MWG",
+   "type": "LO",
+   "limit": 75.5,
+   "value_vnd": 15000000,
+   "stop_loss": 71.9,
+   "take_profit": 86.8,
+   "horizon_sessions": 40,
+   "confidence": "vừa",
+   "reason": "Bán lẻ đầu ngành, ret20 +6,7%, khối lượng 1,45× TB20, ATR thấp 1,9%, thanh khoản 217 tỷ — mùa mua sắm cuối năm. Mục tiêu +15%.",
+   "sources": [
+    "bảng ứng viên vnq-trader 27/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "FPT",
+   "condition": "Đóng cửa > 58 (lấy lại vùng gãy) với khối lượng ≥ 1,5× TB20",
+   "reason": "FPT Telecom lãi trước thuế Q3 +13% nhưng cổ phiếu Downtrend, RSI 25 — chưa có tín hiệu tăng trưởng giá.",
+   "sources": [
+    "https://cafef.vn/cap-nhat-bctc-quy-3-2026-sang-ngay-27-10-fpt-telecom-lai-gan-1300-ty-dong-nha-tu-liem-bao-lo-80-ty-188261026235754884.chn"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DGW",
+   "condition": "Vượt 47 với khối lượng ≥ 1,5× TB20",
+   "reason": "Uptrend dài hạn (ret60 +27%), đang điều chỉnh về EMA50."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VPL",
+   "condition": "Điều chỉnh về 84–85 rồi bật lên",
+   "reason": "Vừa lên đỉnh 20 phiên (pos20 = 1), không mua đuổi."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "PET",
+   "condition": "Về vùng 50 (gần EMA20) với khối lượng giảm",
+   "reason": "Xu hướng mạnh nhất nhóm nhưng đã cách EMA200 45% — rủi ro cao nếu mua đuổi."
+  }
+ ]
+}

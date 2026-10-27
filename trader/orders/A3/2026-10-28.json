@@ -1,0 +1,63 @@
+{
+ "for_session": "2026-10-28",
+ "decided_at": "2026-10-27T19:50+07:00",
+ "market_view": "Dòng tiền ngắn hạn quay lại nhóm chứng khoán/bất động sản vừa (BSI, TCH, ORS khối lượng 1,3–2,1× TB20) dù chỉ số chung lình xình.",
+ "risk_plan": "Rủi ro 3% NAV/lệnh, ≤25%/mã; cắt lỗ 1,5×ATR, chốt lời +8% hoặc sau 7 phiên; tổng giải ngân ≤ 50% NAV khi VNINDEX dưới EMA50.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "TCH",
+   "type": "LO",
+   "limit": 12.15,
+   "value_vnd": 25000000,
+   "stop_loss": 11.5,
+   "take_profit": 13.1,
+   "horizon_sessions": 7,
+   "confidence": "vừa",
+   "reason": "Sát đỉnh 20 phiên (pos20 0,97), tăng 1,7% phiên 27/10 với khối lượng 1,31× TB20, ret5 +7%, RSI 65 — thế breakout. Cắt lỗ 1,5×ATR (−5,1%).",
+   "sources": [
+    "bảng ứng viên vnq-trader 27/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "BUY",
+   "ticker": "BSI",
+   "type": "LO",
+   "limit": 28.0,
+   "value_vnd": 25000000,
+   "stop_loss": 26.6,
+   "take_profit": 30.2,
+   "horizon_sessions": 7,
+   "confidence": "vừa",
+   "reason": "Chứng khoán — tăng 2,4% với khối lượng 2,11× TB20, giá ở 88% biên độ 20 phiên, RSI 64,8. Nhóm môi giới hưởng lợi khi dư nợ margin tăng.",
+   "sources": [
+    "bảng ứng viên vnq-trader 27/10 (tools/agent_candidates.py)",
+    "https://cafef.vn/vpbanks-vao-top-2-cho-vay-margin-sau-hon-4-nam-gia-nhap-he-sinh-thai-vpbank-18826102711380788.chn"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "ORS",
+   "condition": "Giữ trên 14,8 và vượt 15,6 với khối lượng ≥ 1,5× TB20",
+   "reason": "ret5 +10,6%, khối lượng 2,1× nhưng giảm 2,3% phiên 27/10 — chờ xác nhận lại."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VIC",
+   "condition": "Vượt 245 với khối lượng ≥ TB20",
+   "reason": "ret5 +14,9%, sát đỉnh 20 phiên."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "SZC",
+   "condition": "Vượt 20,2",
+   "reason": "Uptrend, RSI 70 — chờ phá đỉnh."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "SSI",
+   "condition": "Vượt 20,5 với khối lượng ≥ 1,5× TB20",
+   "reason": "Thanh khoản lớn nhất nhóm nhưng đang Downtrend."
+  }
+ ]
+}

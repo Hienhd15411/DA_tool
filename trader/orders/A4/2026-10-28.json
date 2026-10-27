@@ -1,0 +1,48 @@
+{
+ "for_session": "2026-10-28",
+ "decided_at": "2026-10-27T19:50+07:00",
+ "market_view": "VNINDEX vừa xuống dưới EMA50 (tầng 1 TN06-R BẬT) nhưng chưa có mã nào bán tháo đủ điều kiện TN06-R; nhóm chu kỳ phân hóa — thép tăng mạnh, hóa chất/cảng biển điều chỉnh.",
+ "risk_plan": "Rủi ro 2% NAV/lệnh nhưng chỉ vào lệnh nhỏ khi chưa có tín hiệu bán tháo rõ; giữ ≥ 80% tiền mặt chờ RSI < 30 + khối lượng đột biến. Thoát khi hồi về EMA20 hoặc sau 15 phiên.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "DGC",
+   "type": "LO",
+   "limit": 32.9,
+   "value_vnd": 15000000,
+   "stop_loss": 31.2,
+   "take_profit": 36.8,
+   "horizon_sessions": 15,
+   "confidence": "thấp",
+   "reason": "Hóa chất đầu ngành giảm sâu (−25% dưới EMA200, ret20 −9,6%, RSI 42) và vừa bật +2,5%; giá hóa chất tăng giúp doanh nghiệp cùng ngành (CSV) lãi Q3 +60% — kỳ vọng hồi về trung bình. Lệnh nhỏ vì chưa đạt chuẩn bán tháo.",
+   "sources": [
+    "bảng ứng viên vnq-trader 27/10 (tools/agent_candidates.py)",
+    "https://cafef.vn/huong-loi-tu-gia-hoa-chat-tang-manh-csv-bao-lai-rong-tang-hon-60-trong-quy-iii-188261027074249859.chn"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "SCS",
+   "condition": "RSI14 < 30 hai phiên + khối lượng ≥ 1,2× TB20",
+   "reason": "Cảng hàng không, RSI 36,8, Downtrend — gần vùng bán tháo."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "TRC",
+   "condition": "RSI14 < 30 + khối lượng ≥ 1,2× TB20",
+   "reason": "Cao su, −8,6% trong 5 phiên, RSI 38,5."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BMP",
+   "condition": "RSI14 < 30 hoặc về 132",
+   "reason": "Nhựa đầu ngành, RSI 37, biến động thấp."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MZG",
+   "condition": "RSI14 < 30 + khối lượng đột biến",
+   "reason": "RSI 34, Downtrend."
+  }
+ ]
+}

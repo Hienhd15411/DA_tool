@@ -1,0 +1,62 @@
+{
+ "for_session": "2026-10-28",
+ "decided_at": "2026-10-27T19:50+07:00",
+ "market_view": "VNINDEX 1.761,9 nằm sát EMA50 (−0,03%), trên EMA200 (+0,3%); độ rộng yếu (41% mã trên EMA50), thanh khoản thấp 0,83× TB20. Xu hướng dài hạn chưa gãy nhưng ngắn hạn chưa xác nhận đáy.",
+ "risk_plan": "Phòng thủ: rủi ro 1% NAV/lệnh, ≤15%/mã, giữ ≥ 60% tiền mặt khi VNINDEX quanh EMA50. Chỉ mua cổ phiếu đầu ngành đang trong xu hướng tăng, vào bằng LO sát giá đóng cửa, không đuổi giá.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "TCB",
+   "type": "LO",
+   "limit": 33.4,
+   "value_vnd": 15000000,
+   "stop_loss": 32.1,
+   "take_profit": 36.7,
+   "horizon_sessions": 40,
+   "confidence": "vừa",
+   "reason": "Ngân hàng tư nhân đầu ngành, regime Uptrend, RSI 55,7 (chưa quá mua), trên EMA50 2,8%, biến động thấp (ATR 1,9%), thanh khoản 588 tỷ/phiên. Cắt lỗ = 2×ATR; cỡ lệnh bị chặn ở 15% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 27/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "BUY",
+   "ticker": "MSN",
+   "type": "LO",
+   "limit": 73.0,
+   "value_vnd": 15000000,
+   "stop_loss": 69.8,
+   "take_profit": 80.3,
+   "horizon_sessions": 40,
+   "confidence": "vừa",
+   "reason": "Tiêu dùng thiết yếu đầu ngành, Uptrend, RSI 57, giá trên cả EMA50/EMA200, ATR 2,2%, thanh khoản 404 tỷ. Đa dạng hóa ngoài ngân hàng.",
+   "sources": [
+    "bảng ứng viên vnq-trader 27/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VCB",
+   "condition": "Đóng cửa trên EMA50 (≈ 57,7) với khối lượng ≥ TB20",
+   "reason": "Chất lượng cao nhất ngành nhưng đang Downtrend, RSI 40 — chờ xác nhận đảo chiều."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GAS",
+   "condition": "Đóng cửa > 80,5 (lấy lại EMA50) và VNINDEX trên EMA50",
+   "reason": "Cổ tức tốt, ret60 +18% nhưng 20 phiên −7%."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MBB",
+   "condition": "Giữ trên 19,3 và RSI > 50",
+   "reason": "Định giá hợp lý, đang đi ngang quanh EMA50."
+  },
+  {
+   "side": "WATCH",
+   "ticker": "REE",
+   "condition": "Về vùng 44 với khối lượng thấp hoặc vượt 47",
+   "reason": "Tiện ích + bất động sản cho thuê, biến động thấp (ATR 1,6%)."
+  }
+ ]
+}
