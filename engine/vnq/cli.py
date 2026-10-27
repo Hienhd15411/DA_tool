@@ -70,7 +70,11 @@ def cmd_daily(cfg, skip_update=False, asof=None, today=None):
         picks = {d: set(backtest.pick(full[full.date == d], 'p_up_5', L['topk'], L['max_per_industry']).get('ticker', []))
                  for d in back}
         snapshot.record(cfg, full, picks, 'backfill')
-    snapshot.record(cfg, sc, {d0: set(sel.ticker) if len(sel) else set()}, 'live', quarantine)
+    now_ict = dt.datetime.now(dt.timezone(dt.timedelta(hours=7)))
+    if d0.date() == now_ict.date() and now_ict.time() < dt.time(15, 30):
+        log.warning('Phiên %s chưa đóng cửa (%s ICT) → không ghi snapshot live', d0.date(), now_ict.strftime('%H:%M'))
+    else:
+        snapshot.record(cfg, sc, {d0: set(sel.ticker) if len(sel) else set()}, 'live', quarantine)
     nfill = snapshot.fill_descriptive(cfg, full)
     if nfill: log.info('Snapshot: điền regime/trend/ngành cho %d dòng cũ', nfill)
     snap = snapshot.settle(cfg, full)

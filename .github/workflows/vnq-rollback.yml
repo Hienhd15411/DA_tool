@@ -1,0 +1,22 @@
+name: vnq-rollback-date
+# Rút dữ liệu một ngày (nến chưa chốt) rồi chạy lại daily với dữ liệu đã chốt. Ngày lấy từ dòng 1 của .github/vnq-rollback
+on:
+  push:
+    paths: ['.github/vnq-rollback']
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TZ: Asia/Ho_Chi_Minh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r engine/requirements.txt
+      - run: python tools/rollback_date.py "$(head -1 .github/vnq-rollback)"
+      - name: Chạy lại daily trên dữ liệu đã chốt
+        working-directory: engine
+        run: python -m vnq cloud-run --skip-update

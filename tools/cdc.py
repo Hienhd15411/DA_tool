@@ -14,7 +14,11 @@ KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 H = {'Authorization': f'Bearer {KEY}', 'apikey': KEY}
 TOL = 0.005
 START_FULL = dt.date(2022, 1, 1)
-TODAY = dt.date.today()
+ICT = dt.timezone(dt.timedelta(hours=7))
+NOW = dt.datetime.now(ICT)
+TODAY = NOW.date()
+SESSION_CLOSED = NOW.time() >= dt.time(15, 30)   # sau ATC 14:45 + độ trễ nguồn
+OVERWRITE = 5   # luôn ghi đè N phiên gần nhất bằng dữ liệu VCI (sửa nến dở / điều chỉnh cuối ngày)
 VH = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36',
       'Content-Type': 'application/json', 'Origin': 'https://trading.vietcap.com.vn',
       'Referer': 'https://trading.vietcap.com.vn/'}
@@ -60,12 +64,18 @@ def main():
             recent = vci(t, TODAY - dt.timedelta(days=30))
         except Exception as e:
             failed.append(f'{t}:{str(e)[:60]}'); time.sleep(0.3); continue
+        if not SESSION_CLOSED:   # phiên hôm nay chưa đóng → không lấy nến dở
+            recent = recent[recent.date.dt.date < TODAY]
         ref = idx if t == 'VNINDEX' else panel[panel.ticker == t]
         ref = ref[['date', 'close']]
-        m = recent[['date', 'close']].merge(ref, on='date', suffixes=('_v', '_p'))
+        # so khớp phần chồng lấn CŨ (trước OVERWRITE phiên gần nhất) để phát hiện điều chỉnh quyền
+        keep_from = sorted(recent.date.unique())[-OVERWRITE] if len(recent) >= OVERWRITE else recent.date.min()
+        m = recent[recent.date < keep_from][['date', 'close']].merge(ref, on='date', suffixes=('_v', '_p'))
         mismatch = len(m) > 0 and ((m.close_v / m.close_p - 1).abs() > TOL).any()
         if mismatch:
             full = vci(t, START_FULL)
+            if not SESSION_CLOSED:
+                full = full[full.date.dt.date < TODAY]
             if t == 'VNINDEX':
                 idx = full.assign(ticker='VNINDEX')[idx.columns]
             else:
@@ -73,12 +83,13 @@ def main():
                 panel = pd.concat([panel, full.assign(ticker=t, gt_khop=lambda x: x.close * x.volume * 1000)])
             replaced.append(t)
         else:
-            cut = last.get(t, pd.Timestamp('1900-01-01')) if t != 'VNINDEX' else idx.date.max()
-            add = recent[recent.date > cut]
+            # ghi đè OVERWRITE phiên gần nhất + thêm phiên mới (nến dở/khối lượng thiếu được thay bằng nến chốt)
+            add = recent[recent.date >= keep_from]
             if len(add):
                 if t == 'VNINDEX':
-                    idx = pd.concat([idx, add.assign(ticker='VNINDEX')[idx.columns]])
+                    idx = pd.concat([idx[~idx.date.isin(add.date)], add.assign(ticker='VNINDEX')[idx.columns]])
                 else:
+                    panel = panel[~((panel.ticker == t) & panel.date.isin(add.date))]
                     panel = pd.concat([panel, add.assign(ticker=t, gt_khop=lambda x: x.close * x.volume * 1000)])
                 appended.append(f'{t}+{len(add)}')
         time.sleep(0.3)
@@ -91,6 +102,7 @@ def main():
               'high_lt_low': int((panel.high < panel.low).sum())}
     if any(checks.values()):
         sys.exit(f'Dừng: kiểm tra không đạt {checks}')
+    print(f'Phiên hôm nay {"đã" if SESSION_CLOSED else "CHƯA"} đóng ({NOW:%H:%M} ICT)')
     print(f'Thay lịch sử: {replaced}')
     print(f'Thêm phiên mới: {len(appended)} mã')
     print(f'Panel: {len(panel):,} dòng, đến {panel.date.max():%Y-%m-%d}; VNINDEX đến {idx.date.max():%Y-%m-%d}')
