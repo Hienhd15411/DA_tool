@@ -120,6 +120,12 @@ def check_data():
     if vr:
         med = vr[len(vr) // 2]
         (fail if med < 0.5 else ok)(f'khối lượng trung vị ngày {d} = {med:.2f}× TB20 (< 0,5× → nghi nến chưa chốt)')
+    # dự báo quá 7 phiên mà vẫn 'chờ' = quyết toán bị kẹt (vd. publish thiếu dòng)
+    cutoff = d - dt.timedelta(days=11)
+    st = requests.get(f'{SB}/rest/v1/predictions_daily', headers={**SH, 'Prefer': 'count=exact'},
+                      params={'select': 'data_date', 'status': 'eq.open', 'data_date': f'lt.{cutoff}', 'limit': 1}, timeout=30)
+    n_stuck = int(st.headers.get('content-range', '*/0').split('/')[-1] or 0) if st.status_code < 300 else -1
+    (ok if n_stuck == 0 else fail)(f'dự báo trước {cutoff} còn "chờ": {n_stuck} dòng')
     g = requests.get(f'{SB}/rest/v1/gate_snapshots', headers=SH, params={'select': 'data_date', 'data_date': f'eq.{d}'}, timeout=30)
     (ok if g.status_code == 200 and g.json() else fail)(f'gate snapshot cho {d}')
 
