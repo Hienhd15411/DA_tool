@@ -28,14 +28,25 @@ tức) có hơn luật máy móc, thị trường và bốc thăm hay không. K�
 - Mỗi lệnh có `reason` (lý do) và `sources` (dữ liệu/tin dùng). Không sửa lệnh đã commit.
 - Agent tự đặt quy tắc cắt lỗ/chốt lời của mình nhưng phải ghi trong sổ lệnh và thực hiện bằng lệnh của phiên sau (không có lệnh dừng tự động).
 
+## Kế hoạch giao dịch của A (bắt buộc mỗi tối — đây là phần chính của báo cáo)
+- **Mỗi lệnh BUY** có: `limit` (vùng giá vào, LO) hoặc ATO kèm lý do; `stop_loss` (giá cắt lỗ); `take_profit` (giá chốt lời);
+  `horizon_sessions` (số phiên dự kiến giữ); `confidence` (`thấp`/`vừa`/`cao`); `reason`; `sources`.
+- **Cỡ lệnh theo rủi ro:** `value_vnd ≈ min(20% NAV, 2% NAV ÷ (giá vào − stop_loss)/giá vào)` — chạm cắt lỗ thì mất ≈ 2% NAV.
+- **Mỗi mã đang giữ** có một dòng `HOLD` (giữ, kèm `stop_loss`/`take_profit` hiện hành) hoặc `SELL` (bán, kèm lý do).
+  Giá đóng cửa ≤ `stop_loss` hoặc ≥ `take_profit` đã cam kết → tối đó phải đặt lệnh SELL (kỷ luật, không dời cắt lỗ xuống).
+- **Theo dõi:** dòng `WATCH` cho mã chưa vào, kèm `condition` (điều kiện cụ thể để vào lệnh).
+`HOLD`/`WATCH` không phải lệnh, bộ mô phỏng chỉ ghi lại để hiển thị và đối chiếu kỷ luật.
+
 ## Định dạng sổ lệnh A
 ```json
 {"for_session": "2026-10-28", "decided_at": "2026-10-27T19:40+07:00",
  "market_view": "…", "risk_plan": "…",
  "orders": [
-   {"side": "BUY", "ticker": "FPT", "type": "ATO", "value_vnd": 15000000, "reason": "…", "sources": ["…"]},
-   {"side": "BUY", "ticker": "HPG", "type": "LO", "limit": 26.5, "value_vnd": 10000000, "reason": "…", "sources": ["…"]},
-   {"side": "SELL", "ticker": "SBT", "type": "ATC", "qty": "all", "reason": "…", "sources": ["…"]}
+   {"side": "BUY", "ticker": "FPT", "type": "LO", "limit": 95.0, "value_vnd": 15000000, "stop_loss": 89.5, "take_profit": 105.0,
+    "horizon_sessions": 10, "confidence": "vừa", "reason": "…", "sources": ["…"]},
+   {"side": "SELL", "ticker": "SBT", "type": "ATC", "qty": "all", "reason": "chạm cắt lỗ 19.8", "sources": ["…"]},
+   {"side": "HOLD", "ticker": "HPG", "stop_loss": 25.0, "take_profit": 30.0, "reason": "…"},
+   {"side": "WATCH", "ticker": "MWG", "condition": "vượt 68 với khối lượng ≥ 1,5× TB20", "reason": "…"}
  ]}
 ```
 `qty` khi bán: `"all"` hoặc số cổ phiếu. Không có lệnh → `"orders": []` (vẫn commit để ghi nhận quyết định đứng ngoài).

@@ -60,6 +60,10 @@ Sau phần vận hành, mỗi tối ngày giao dịch:
    - Tự đặt và ghi rõ: nhận định thị trường (`market_view`), kế hoạch rủi ro (`risk_plan`: mức cắt lỗ/chốt lời, tỷ trọng tiền mặt).
    - Thực hiện cắt lỗ/chốt lời đã cam kết của các vị thế đang giữ bằng lệnh bán (nhớ T+2: mua phiên T, ATC/LO bán từ T+2, ATO từ T+3).
    - Ràng buộc: ≤ 20% NAV/mã, ≤ 3 mã/ngành, ≥ 10% tiền mặt, chỉ mã trong universe. Không có lý do rõ → không giao dịch (`"orders": []`).
+   - **Kế hoạch đầy đủ** (docs/09, mục "Kế hoạch giao dịch của A"): mỗi BUY có vùng giá vào, stop_loss, take_profit, horizon_sessions,
+     confidence; cỡ lệnh theo rủi ro 2% NAV; mỗi mã đang giữ có HOLD/SELL; 3–5 dòng WATCH với điều kiện vào lệnh cụ thể.
+   - Kỷ luật: vị thế có giá đóng cửa ≤ stop_loss hoặc ≥ take_profit đã cam kết → đặt SELL; không dời cắt lỗ xa hơn.
 3. Ghi `trader/orders/<YYYY-MM-DD phiên kế tiếp>.json` đúng định dạng, **commit + push trước 09:00 phiên đó** (tối nay là tốt nhất). Không sửa file đã commit.
-4. Thêm vào báo cáo tối mục **④ Thi đấu**: NAV và lời/lỗ hôm nay + lũy kế của A/B/C/D, lệnh A đã khớp hôm nay, sổ lệnh A phiên tới (mã, giá trị, lý do 1 dòng).
+4. Báo cáo tối mở đầu bằng **ĐỀ XUẤT PHIÊN TỚI (agent, mô phỏng)**: từng lệnh MUA/BÁN (mã, giá vào, số tiền ≈ số cp, cắt lỗ, chốt lời,
+   giữ bao lâu, lý do 1 dòng), kế hoạch các mã đang giữ, danh sách theo dõi. Sau đó mục **④ Thi đấu**: NAV và lời/lỗ hôm nay + lũy kế của A/B/C/D, lệnh A đã khớp hôm nay, sổ lệnh A phiên tới (mã, giá trị, lý do 1 dòng).
 Không được: dùng ngôn ngữ khuyến nghị cho người đọc; sửa lịch sử lệnh; tự đổi luật mô phỏng/ràng buộc để có lợi cho A.

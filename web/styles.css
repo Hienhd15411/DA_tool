@@ -98,3 +98,10 @@ svg text { fill: var(--muted); font-size: 11px; }
 .tabs a.on { border-color: var(--line); background: var(--bg); color: var(--text); font-weight: 600; }
 @media (max-width: 600px) { .tabs { margin-left: 0; } .brand { flex-wrap: wrap; } }
 [hidden] { display: none !important; }
+.props { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.prop { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface); }
+.prop.buy { border-left-color: var(--good); } .prop.sell { border-left-color: var(--bad); }
+.prop-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; font-size: 16px; }
+.prop .tag { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; color: #fff; background: var(--good); }
+.prop.sell .tag { background: var(--bad); }
+.prop .kv dd { text-align: right; } .prop-r { margin: 6px 0 0; font-size: 13px; color: var(--text-2); }

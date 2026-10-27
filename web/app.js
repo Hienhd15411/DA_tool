@@ -322,6 +322,38 @@ function renderArena(nav, pos, trades, orders) {
     <details><summary class="mut">Lệnh gần đây (A, B, D)</summary><div class="wrap"><table class="tbl"><tr><th>Phiên</th><th>DM</th><th>Lệnh</th><th>Mã</th><th>Kết quả</th><th class="num">SL</th><th class="num">Giá</th><th class="num">Lời/lỗ</th><th>Ghi chú</th></tr>
       ${tr.map((t) => `<tr><td>${fmtDate(t.session)}</td><td>${t.portfolio}</td><td>${t.side === 'BUY' ? 'Mua' : 'Bán'} ${esc(t.type || '')}</td><td><b>${esc(t.ticker)}</b></td><td>${t.status === 'filled' ? 'khớp' : esc(t.status)}</td><td class="num">${t.qty ? t.qty.toLocaleString('vi-VN') : ''}</td><td class="num">${t.price?.toFixed(2) ?? ''}</td><td class="num">${t.pnl != null ? vnd(t.pnl) : ''}</td><td class="mut">${esc(t.note || '')}</td></tr>`).join('')}</table></div></details>`;
 }
+// ---------- đề xuất phiên tới của agent (sổ lệnh danh mục A, mô phỏng) ----------
+function renderProposal(el, orders, nav, pos) {
+  if (!el) return;
+  const sessions = [...new Set(orders.map((o) => o.session))].sort();
+  const lastNav = nav.length ? nav.at(-1).date : '';
+  const next = sessions.filter((d) => d > lastNav).at(0) || sessions.at(-1);
+  if (!next) { el.innerHTML = '<p class="mut">Agent chưa ra đề xuất. Đề xuất đầu tiên có sau 19:30 tối nay, cho phiên 28/10/2026.</p>'; return; }
+  const os = orders.filter((o) => o.session === next), h = os[0];
+  const navA = nav.filter((r) => r.portfolio === 'A').at(-1)?.nav ?? 100e6;
+  const pctFrom = (a, b) => (a && b ? `${((b / a - 1) * 100).toFixed(1)}%` : '—');
+  const src = (o) => { let a = []; try { a = JSON.parse(o.sources || '[]'); } catch (e) { /* bỏ qua */ } return a.map((u) => /^https?:/.test(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">nguồn</a>` : `<span class="mut">${esc(u)}</span>`).join(' · '); };
+  const card = (o) => { const buy = o.side === 'BUY', entry = o.limit || null;
+    const risk = buy && entry && o.stop_loss && o.value_vnd ? o.value_vnd * (entry - o.stop_loss) / entry : null;
+    return `<div class="prop ${buy ? 'buy' : 'sell'}"><div class="prop-h"><span class="tag">${buy ? 'MUA' : 'BÁN'}</span><b>${esc(o.ticker)}</b>
+      <span class="mut">${esc(o.type || '')}${entry ? ` ≤ ${entry}` : ''}</span>${o.confidence ? `<span class="chip">tự tin: ${esc(o.confidence)}</span>` : ''}</div>
+      <dl class="kv">${buy ? `<dt>Số tiền</dt><dd>${vnd(o.value_vnd)}${entry ? ` ≈ ${Math.floor(o.value_vnd / (entry * 1000) / 100) * 100} cp` : ''} <span class="mut">(${pct(o.value_vnd / navA, 0)} NAV)</span></dd>
+        <dt>Cắt lỗ</dt><dd>${o.stop_loss ?? '—'} <span class="mut">${pctFrom(entry, o.stop_loss)}${risk ? ` · rủi ro ≈ ${vnd(risk)}` : ''}</span></dd>
+        <dt>Chốt lời</dt><dd>${o.take_profit ?? '—'} <span class="mut">${pctFrom(entry, o.take_profit)}</span></dd>
+        <dt>Giữ dự kiến</dt><dd>${o.horizon_sessions ? `${o.horizon_sessions} phiên` : '—'}</dd>` : `<dt>Số lượng</dt><dd>${esc(o.qty || 'all') === 'all' ? 'toàn bộ' : esc(o.qty)}</dd>`}</dl>
+      <p class="prop-r">${esc(o.reason || '')}${o.sources && o.sources !== '[]' ? `<br>${src(o)}` : ''}</p></div>`; };
+  const trades = os.filter((o) => o.side === 'BUY' || o.side === 'SELL');
+  const holds = os.filter((o) => o.side === 'HOLD'), watch = os.filter((o) => o.side === 'WATCH');
+  const px = Object.fromEntries(pos.filter((p) => p.portfolio === 'A').map((p) => [p.ticker, p]));
+  el.innerHTML = `<p class="mut" style="margin:0 0 8px;font-size:13px">Phiên <b>${fmtDate(next)}</b> · quyết định ${esc(h.decided_at || '')}${h.committed_at ? ` · khóa lúc ${esc(h.committed_at)}` : ''}</p>
+    <p style="margin:0 0 4px"><b>Nhận định:</b> ${esc(h.market_view || '—')}</p><p style="margin:0 0 10px"><b>Rủi ro:</b> ${esc(h.risk_plan || '—')}</p>
+    ${trades.length ? `<div class="props">${trades.map(card).join('')}</div>` : '<p><b>Không mở/đóng vị thế ở phiên này</b> — agent đứng ngoài.</p>'}
+    ${holds.length ? `<h3 style="font-size:14px;margin:12px 0 4px">Mã đang giữ — kế hoạch</h3><div class="wrap"><table class="tbl"><tr><th>Mã</th><th class="num">Giá vốn</th><th class="num">Giá hiện tại</th><th class="num">Cắt lỗ</th><th class="num">Chốt lời</th><th>Ghi chú</th></tr>
+      ${holds.map((o) => `<tr><td><b>${esc(o.ticker)}</b> <span class="mut">giữ</span></td><td class="num">${px[o.ticker]?.avg_cost?.toFixed(2) ?? '—'}</td><td class="num">${px[o.ticker]?.last_price?.toFixed(2) ?? '—'}</td><td class="num">${o.stop_loss ?? '—'}</td><td class="num">${o.take_profit ?? '—'}</td><td style="white-space:normal">${esc(o.reason || '')}</td></tr>`).join('')}</table></div>` : ''}
+    ${watch.length ? `<h3 style="font-size:14px;margin:12px 0 4px">Đang theo dõi — điều kiện vào lệnh</h3><div class="wrap"><table class="tbl"><tr><th>Mã</th><th>Vào lệnh khi</th><th>Lý do</th></tr>
+      ${watch.map((o) => `<tr><td><b>${esc(o.ticker)}</b></td><td style="white-space:normal">${esc(o.condition || '—')}</td><td style="white-space:normal">${esc(o.reason || '')}</td></tr>`).join('')}</table></div>` : ''}`;
+}
+
 // ---------- trang báo cáo riêng: Thi đấu 4 danh mục ----------
 function pfStats(nav, trades, k) {
   const n = nav.filter((r) => r.portfolio === k);
@@ -357,7 +389,7 @@ function renderTraderPage(nav, pos, trades, orders) {
   const fillOf = (o) => trades.find((t) => t.portfolio === 'A' && t.session === o.session && t.ticker === (o.ticker || '').toUpperCase() && t.side === o.side);
   const stLabel = { filled: 'khớp', unfilled_ceiling: 'không khớp (trần)', unfilled_floor: 'không khớp (sàn)', unfilled_limit: 'không khớp (giá LO)', 'not_sellable_T+2': 'chưa bán được (T+2)', no_cash: 'thiếu tiền', no_position: 'không có cổ phiếu', no_price: 'không có giá' };
   const journal = sessions.map((sd) => { const os = orders.filter((o) => o.session === sd), h = os[0];
-    const rows = os.filter((o) => o.side).map((o) => { const f = fillOf(o); let src = []; try { src = JSON.parse(o.sources || '[]'); } catch (e) { /* bỏ qua */ }
+    const rows = os.filter((o) => o.side === 'BUY' || o.side === 'SELL').map((o) => { const f = fillOf(o); let src = []; try { src = JSON.parse(o.sources || '[]'); } catch (e) { /* bỏ qua */ }
       const res = f ? (f.status === 'filled' ? `khớp ${f.qty?.toLocaleString('vi-VN')} cp @ ${f.price?.toFixed(2)}${f.pnl != null ? ` · ${f.pnl >= 0 ? '+' : ''}${vnd(f.pnl)}` : ''}` : stLabel[f.status] || f.status) : (dates.includes(sd) ? 'bị từ chối (xem ràng buộc)' : 'chờ phiên');
       return `<tr><td>${o.side === 'BUY' ? 'Mua' : 'Bán'} ${esc(o.type || '')}${o.limit ? ` ${o.limit}` : ''}</td><td><b>${esc(o.ticker)}</b></td><td class="num">${o.value_vnd ? vnd(o.value_vnd) : esc(o.qty || '')}</td>
         <td>${esc(res)}</td><td style="white-space:normal">${esc(o.reason || '')}${src.length ? `<br>${src.map((u) => /^https?:/.test(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">nguồn</a>` : `<span class="mut">${esc(u)}</span>`).join(' · ')}` : ''}</td></tr>`; }).join('');
@@ -386,7 +418,7 @@ function showTab(tab) {
 
 function ordersTable(os) {
   const head = os[0] ? `<p class="mut" style="font-size:13px;margin:0 0 6px"><b>Nhận định:</b> ${esc(os[0].market_view || '—')}${os[0].risk_plan ? ` · <b>Quản trị rủi ro:</b> ${esc(os[0].risk_plan)}` : ''}<br>Quyết định ${esc(os[0].decided_at || '')} · commit ${esc(os[0].committed_at || '')}</p>` : '';
-  const rows = os.filter((o) => o.side);
+  const rows = os.filter((o) => o.side === 'BUY' || o.side === 'SELL');
   return head + (rows.length ? `<div class="wrap"><table class="tbl"><tr><th>Lệnh</th><th>Mã</th><th class="num">Giá trị / SL</th><th>Lý do</th></tr>
     ${rows.map((o) => `<tr><td>${o.side === 'BUY' ? 'Mua' : 'Bán'} ${esc(o.type || '')}${o.limit ? ` ${o.limit}` : ''}</td><td><b>${esc(o.ticker)}</b></td><td class="num">${o.value_vnd ? vnd(o.value_vnd) : esc(o.qty || '')}</td><td style="white-space:normal">${esc(o.reason || '')}</td></tr>`).join('')}</table></div>` : '<p class="mut">Không đặt lệnh — đứng ngoài.</p>');
 }
@@ -630,6 +662,7 @@ async function main() {
     renderTrack(rec, daily); renderLive(live);
     Promise.all([db.tNav(), db.tPos(), db.tTrades(), db.tOrders()]).then(([n, p, t, o]) => {
       renderArena(n, p, t.slice(0, 60), o); renderTraderPage(n, p, t, o);
+      renderProposal($('proposal'), o, n, p); renderProposal($('proposalT'), o, n, p);
       $('arena').insertAdjacentHTML('beforeend', '<p style="margin:8px 0 0"><a href="#thi-dau">Xem báo cáo thi đấu đầy đủ →</a></p>');
     });
     showTab(location.hash.slice(1)); window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));

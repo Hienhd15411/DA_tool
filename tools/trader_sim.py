@@ -134,13 +134,14 @@ def run(panel, vni, signals, orders_dir, industry, now):
             if ct is not None and ct > deadline:
                 rejected.append(dict(session=d, ticker='*', reason=f'sổ lệnh commit {ct.isoformat()} sau 09:00 phiên → bỏ cả file'))
             else:
-                plan = js.get('orders', [])
+                plan = [o for o in js.get('orders', []) if o.get('side') in ('BUY', 'SELL')]
             for o in js.get('orders', []):
                 a_orders.append(dict(session=d.strftime('%Y-%m-%d'), decided_at=js.get('decided_at'), committed_at=ct.isoformat() if ct else None,
                                      side=o.get('side'), ticker=o.get('ticker'), type=o.get('type'), limit=o.get('limit'),
                                      value_vnd=o.get('value_vnd'), qty=str(o.get('qty', '')), reason=o.get('reason'),
                                      sources=json.dumps(o.get('sources', []), ensure_ascii=False), market_view=js.get('market_view'),
-                                     risk_plan=js.get('risk_plan')))
+                                     risk_plan=js.get('risk_plan'), stop_loss=o.get('stop_loss'), take_profit=o.get('take_profit'),
+                                     horizon_sessions=o.get('horizon_sessions'), confidence=o.get('confidence'), condition=o.get('condition')))
         order_rank = {'SELL': {'ATO': 0, 'LO': 2, 'ATC': 3}, 'BUY': {'ATO': 1, 'LO': 2, 'ATC': 4}}
         plan = sorted(plan, key=lambda o: order_rank[o['side']].get(o.get('type', 'ATO'), 2))
         elig = set(bar.index[(bar.liq20 >= 5e9) & (bar.nb >= 200)])

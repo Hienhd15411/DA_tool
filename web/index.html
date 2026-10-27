@@ -50,7 +50,14 @@
       <section class="card tab-trader" hidden>
         <h2>Báo cáo thi đấu 4 danh mục <span class="mut">paper trading 100 triệu mỗi danh mục từ 28/10/2026</span></h2>
         <p class="warn" style="margin:0 0 10px;padding:8px 10px;font-size:13px">Tiền giả định, <b>không phải khuyến nghị đầu tư</b>. A = agent tự quyết định (dữ liệu hệ thống + tin CafeF/VnExpress) · B = luật TN06-R · C = mua & giữ VNINDEX · D = bốc thăm ngẫu nhiên đối ứng từng lệnh của A. Khớp lệnh mô phỏng theo giá thật: trần/sàn, T+2, lô 100, phí 0,15%/chiều + thuế bán 0,1%. Luật: docs/09_TRADER_EXPERIMENT.md.</p>
+        <h3 style="font-size:15px;margin:0 0 6px">Đề xuất phiên tới của Agent</h3><div id="proposalT" style="margin-bottom:16px"></div>
         <div id="traderPage"></div>
+      </section>
+
+      <section class="card proposal-card">
+        <h2>Đề xuất phiên tới <span class="mut">của agent trader · danh mục mô phỏng A (100 tr giả định)</span></h2>
+        <p class="warn" style="margin:0 0 10px;padding:6px 8px;font-size:12px">Đây là sổ lệnh của agent trong thí nghiệm paper trading, được khóa trên git trước giờ mở cửa và chấm điểm bằng giá thật. <b>Không phải khuyến nghị đầu tư</b>; kết quả của agent xem ở tab Thi đấu (so với VNINDEX và bốc thăm).</p>
+        <div id="proposal"></div>
       </section>
 
       <section class="card">
