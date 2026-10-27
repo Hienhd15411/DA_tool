@@ -36,6 +36,8 @@ const db = {
     (r) => r.filter((x) => x.data_date === d && x.regime === 'Uptrend').sort((a, b) => b.trend_score - a.trend_score).slice(0, 10)),
   track: () => db.q('v_track_record', (t) => t.select('*'), (r) => r),
   trackDaily: () => db.q('v_track_daily', (t) => t.select('*').order('data_date'), (r) => r),
+  tickerPreds: (tk) => db.q('predictions_daily', (t) => t.select('data_date,close,p_up_5,rank_all,value_top30,tn07_pick,tn06r_signal,status,net').eq('ticker', tk).order('data_date', { ascending: false }).limit(120),
+    (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 120)),
   tickerScores: (tk) => db.q('scores_daily', (t) => t.select('data_date,p_up_5,rank_all,value_score,value_top30,regime,trend_score,close').eq('ticker', tk).order('data_date', { ascending: false }).limit(60),
     (r) => r.filter((x) => x.ticker === tk).sort((a, b) => b.data_date.localeCompare(a.data_date)).slice(0, 60)),
   tickerSignals: (tk) => db.q('signals', (t) => t.select('data_date,rank_sel,action,status,net,excess').eq('ticker', tk).order('data_date', { ascending: false }),
@@ -235,7 +237,7 @@ function sparkline(rows) {
   const v = pts.map((r) => r.p_up_5), lo = Math.min(...v), hi = Math.max(...v), span = Math.max(0.02, hi - lo);
   const x = (i) => P.l + (W - P.l - P.r) * i / (pts.length - 1), y = (p) => P.t + (H - P.t - P.b) * (1 - (p - lo) / span);
   const d = pts.map((r, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(r.p_up_5).toFixed(1)}`).join('');
-  const hits = pts.map((r, i) => `<rect x="${x(i) - 6}" y="${P.t}" width="12" height="${H - P.t - P.b}" fill="transparent" data-tip="${fmtDate(r.data_date)}: p_up_5 ${f3(r.p_up_5)} · hạng ${r.rank_all} · ${esc(r.regime)}"/>`).join('');
+  const hits = pts.map((r, i) => `<rect x="${x(i) - 6}" y="${P.t}" width="12" height="${H - P.t - P.b}" fill="transparent" data-tip="${fmtDate(r.data_date)}: p_up_5 ${f3(r.p_up_5)} · hạng ${r.rank_all}${r.status === 'settled' ? ` · thực tế 5p ${sgn(r.net)}` : ''}"/>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Diễn biến p_up_5"><g class="axis">
     <line x1="${P.l}" x2="${W - P.r}" y1="${y(hi)}" y2="${y(hi)}" stroke-dasharray="2 3"/><text x="${P.l - 4}" y="${y(hi) + 4}" text-anchor="end">${hi.toFixed(2)}</text>
     <line x1="${P.l}" x2="${W - P.r}" y1="${y(lo)}" y2="${y(lo)}" stroke-dasharray="2 3"/><text x="${P.l - 4}" y="${y(lo) + 4}" text-anchor="end">${lo.toFixed(2)}</text></g>
@@ -245,12 +247,19 @@ function sparkline(rows) {
 
 async function lookup(tk) {
   tk = tk.trim().toUpperCase(); if (!/^[A-Z0-9]{3}$/.test(tk)) return;
-  const [sc, sg] = await Promise.all([db.tickerScores(tk), db.tickerSignals(tk)]);
-  if (!sc.length) { $('lookup').innerHTML = `<p class="mut">${esc(tk)} không có trong universe đủ điều kiện ở các ngày đã chạy.</p>`; return; }
-  $('lookup').innerHTML = `<p><strong>${esc(tk)}</strong> — ${sc.length} ngày trong universe, ${sg.length} lần vào top 10.</p>${sparkline(sc)}
-    <div class="wrap"><table class="tbl"><tr><th>Ngày</th><th class="num">Giá</th><th class="num">p_up_5</th><th class="num">Hạng</th><th class="num">value</th><th>Pool</th><th>Regime</th><th class="num">trend</th></tr>
-    ${sc.slice(0, 20).map((r) => `<tr><td>${fmtDate(r.data_date)}</td><td class="num">${r.close?.toFixed(2) ?? '—'}</td><td class="num">${f3(r.p_up_5)}</td><td class="num">${r.rank_all}</td>
-      <td class="num">${r.value_score?.toFixed(2)}</td><td>${r.value_top30 ? '✓' : ''}</td><td>${esc(r.regime)}</td><td class="num">${r.trend_score?.toFixed(2)}</td></tr>`).join('')}</table></div>`;
+  // lịch sử điểm: snapshot dự báo hằng ngày (đủ mọi phiên); regime/trend/value chỉ có ở các ngày job đã publish scores_daily
+  const [pr, sc, sg] = await Promise.all([db.tickerPreds(tk), db.tickerScores(tk), db.tickerSignals(tk)]);
+  const extra = Object.fromEntries(sc.map((r) => [r.data_date, r]));
+  const rows = pr.length ? pr.map((r) => ({ ...extra[r.data_date], ...r })) : sc;
+  if (!rows.length) { $('lookup').innerHTML = `<p class="mut">${esc(tk)} không có trong universe đủ điều kiện ở các ngày đã chạy.</p>`; return; }
+  const settled = rows.filter((r) => r.status === 'settled');
+  const res = (r) => (r.status === 'settled' ? sgn(r.net) : r.status === 'unfilled_ceiling' ? 'trần' : r.status === 'open' ? '<span class="mut">chờ</span>' : '—');
+  $('lookup').innerHTML = `<p><strong>${esc(tk)}</strong> — ${rows.length} phiên trong universe, ${sg.length} lần vào top 10${settled.length ? ` · thực tế 5 phiên TB sau phí: ${sgn(mean(settled.map((r) => r.net)))}` : ''}.</p>${sparkline(rows)}
+    <div class="wrap"><table class="tbl"><tr><th>Ngày</th><th class="num">Giá</th><th class="num">p_up_5</th><th class="num">Hạng</th><th>Pool</th><th>Top 10</th><th>TN06-R</th><th class="num">Thực tế 5p</th><th>Regime</th><th class="num">trend</th></tr>
+    ${rows.slice(0, 30).map((r) => `<tr><td>${fmtDate(r.data_date)}</td><td class="num">${r.close?.toFixed(2) ?? '—'}</td><td class="num">${f3(r.p_up_5)}</td><td class="num">${r.rank_all ?? '—'}</td>
+      <td>${r.value_top30 ? '✓' : ''}</td><td>${r.tn07_pick ? '✓' : ''}</td><td>${r.tn06r_signal ? '✓' : ''}</td><td class="num">${res(r)}</td>
+      <td>${esc(r.regime ?? '—')}</td><td class="num">${r.trend_score?.toFixed(2) ?? '—'}</td></tr>`).join('')}</table></div>
+    ${rows.length > 30 ? `<p class="mut" style="font-size:12px">Bảng hiện 30 phiên gần nhất; biểu đồ hiện ${rows.length} phiên.</p>` : ''}`;
   $('lookup').querySelectorAll('[data-tip]').forEach((el) => { el.addEventListener('mousemove', (e) => showTip(e, esc(el.dataset.tip))); el.addEventListener('mouseleave', hideTip); });
 }
 
