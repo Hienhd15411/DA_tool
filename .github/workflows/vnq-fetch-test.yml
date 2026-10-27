@@ -32,6 +32,9 @@ jobs:
       - name: Kéo VCI cập nhật đến hôm nay (không upload)
         if: always()
         run: python tools/vci_update.py
+      - name: Kéo VCI toàn bộ lịch sử từ 2022 (artifact)
+        if: always()
+        run: python tools/vci_full.py
       - name: Verify VNDirect vs panel/Yahoo
         if: always()
         run: python tools/verify_vnd.py
@@ -45,5 +48,6 @@ jobs:
             tools/out/verify_vnd/
             tools/out/vci/
             tools/out/vci_update/
+            tools/out/vci_full/
             tools/out/raw/
           retention-days: 14
