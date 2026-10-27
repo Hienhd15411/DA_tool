@@ -20,7 +20,6 @@ def vnd(sym):
                      params={'resolution': 'D', 'symbol': sym, 'from': ts(START), 'to': ts(END) + 86400},
                      headers=UA, timeout=30).json()
     d = pd.DataFrame({'date': pd.to_datetime(j['t'], unit='s').normalize(), 'close_v': j['c']})
-    d['close_v'] = d['close_v'] / 1000.0 if sym != 'VNINDEX' else d['close_v']
     return d
 
 
