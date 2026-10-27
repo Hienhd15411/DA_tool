@@ -23,6 +23,9 @@ jobs:
       - name: Cross-check nguồn VN
         if: always()
         run: python tools/cross_check.py
+      - name: Kéo lịch sử giá thô Yahoo 2022→nay
+        if: always()
+        run: python tools/yf_raw_history.py
       - name: Verify VNDirect vs panel/Yahoo
         if: always()
         run: python tools/verify_vnd.py
@@ -34,4 +37,5 @@ jobs:
             tools/out/probe/
             tools/out/crosscheck/
             tools/out/verify_vnd/
+            tools/out/raw/
           retention-days: 14
