@@ -20,9 +20,14 @@ jobs:
       - name: Probe Yahoo VN-Index
         if: always()
         run: python tools/yf_index_probe.py
+      - name: Cross-check nguồn VN
+        if: always()
+        run: python tools/cross_check.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: yf-probe-${{ github.run_id }}
-          path: tools/out/probe/
+          path: |
+            tools/out/probe/
+            tools/out/crosscheck/
           retention-days: 14
