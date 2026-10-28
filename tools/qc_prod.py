@@ -40,7 +40,7 @@ def jwt_role(tok):
 
 def check_deploy():
     step(1, f'Bản web trên {PROD} khớp repo')
-    files = ['app.js', 'index.html', 'styles.css']
+    files = ['app.js', 'index.html', 'styles.css', 'theme.js']
     want = {f: h((ROOT / 'web' / f).read_bytes()) for f in files}
     for i in range(36):
         got = {}
