@@ -1,0 +1,70 @@
+{
+ "for_session": "2026-10-29",
+ "decided_at": "2026-10-28T19:55+07:00",
+ "market_view": "VNINDEX 1.766,65 (+0,27%) vừa lấy lại EMA50 (+0,23%) nhưng độ rộng yếu (117 tăng/167 giảm, 40% mã trên EMA50), khối ngoại bán ròng ~252 tỷ. Mùa KQKD quý III đang phân hóa: Masan, VIB, ACB tăng trưởng; DHG thấp nhất 15 năm.",
+ "risk_plan": "Rủi ro 1% NAV/lệnh, ≤15%/mã, tiền mặt ≥30%. Chỉ mua doanh nghiệp đầu ngành có KQKD xác nhận, đặt LO sát giá đóng cửa, không đuổi giá. Tránh nhóm tiện ích (đề xuất giảm giá điện từ 1/11) và dược (DHG lãi giảm 53%).",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "MSN",
+   "type": "LO",
+   "limit": 73.8,
+   "value_vnd": 15000000,
+   "stop_loss": 70.8,
+   "take_profit": 81.0,
+   "horizon_sessions": 40,
+   "confidence": "vừa",
+   "reason": "Lệnh LO 73,0 phiên 28/10 không khớp; MSN đóng 74,2 (+1,1%), Uptrend, RSI 60, trên EMA50/EMA200. CafeF: lãi 9 tháng gấp ~1,5 lần cả năm 2025. Đặt lại LO 73,8 (≈200 cp); cắt lỗ 70,8 (−4,1%, ≈2×ATR) → rủi ro ≈0,6% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)",
+    "https://cafef.vn/doanh-nghiep.chn (28/10 13:30: Từ lợi nhuận đến dòng tiền: Những yếu tố củng cố định giá Masan)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "TCB",
+   "stop_loss": 32.1,
+   "take_profit": 36.7,
+   "reason": "Mua 400 cp @33,40 phiên 28/10, đóng 33,50; Uptrend, trên EMA50 2,5%. Giữ nguyên cắt lỗ/chốt lời đã cam kết.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VIB",
+   "condition": "Điều chỉnh về 13,8–13,9 mà không thủng EMA50, hoặc vượt 14,4 với khối lượng ≥ 1,3× TB20",
+   "reason": "Lãi trước thuế 9 tháng ~7.600 tỷ (+8%), nhóm cổ đông nắm 8,6%; Uptrend nhưng đang ở 95% biên độ 20 phiên, chưa mua đuổi.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "ACB",
+   "condition": "Đóng cửa > 21,6 với khối lượng ≥ 1,3× TB20 (vượt vùng đỉnh 20 phiên)",
+   "reason": "LNTT quý III +9%; giá đi ngang quanh EMA50/EMA200, cần xác nhận xu hướng.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VCB",
+   "condition": "Đóng cửa > 58,5 và chuyển trạng thái khỏi Downtrend",
+   "reason": "Ngân hàng chất lượng nhất nhưng regime Downtrend; tăng 2,5% hôm nay với khối lượng 2,0× — chờ xác nhận.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "NT2",
+   "condition": "Có quyết định chính thức về giá điện và giá giữ trên 23,5",
+   "reason": "Uptrend, khối lượng 1,67× nhưng rủi ro chính sách giảm giá điện từ 1/11.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

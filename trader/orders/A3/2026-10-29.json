@@ -1,0 +1,80 @@
+{
+ "for_session": "2026-10-29",
+ "decided_at": "2026-10-28T19:55+07:00",
+ "market_view": "Chỉ số tăng nhẹ nhưng dòng tiền đầu cơ vẫn luân chuyển ở bất động sản khu công nghiệp và chứng khoán vừa. Tin vĩ mô hỗ trợ BĐS KCN/logistics: TP.HCM chấp thuận 12 dự án ~16 tỷ USD, VIFC-HCMC công bố thành viên.",
+ "risk_plan": "Rủi ro 3% NAV/lệnh, ≤25%/mã, tiền mặt ≥5%; cắt lỗ 1,5×ATR, chốt lời +8–9% hoặc sau 7 phiên. VNINDEX đã trên EMA50 nên nâng giải ngân tối đa lên ~75% NAV.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "SZC",
+   "type": "LO",
+   "limit": 20.25,
+   "value_vnd": 25000000,
+   "stop_loss": 19.3,
+   "take_profit": 22.0,
+   "horizon_sessions": 7,
+   "confidence": "vừa",
+   "reason": "BĐS KCN Uptrend, tăng 1,5% với khối lượng 1,67× TB20, 91% biên độ 20 phiên, ret20 +16%, RSI 72 — thế breakout có dòng tiền. LO 20,25 (≈1.200 cp), cắt lỗ 19,3 (−4,7%, ≈1,5×ATR) → rủi ro ≈1,1% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)",
+    "https://vnexpress.net/nha-dau-tu-cam-ket-rot-hon-16-ty-usd-vao-12-du-an-o-tp-hcm-5137947.html"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "TCH",
+   "stop_loss": 11.5,
+   "take_profit": 13.1,
+   "reason": "Mua 2.000 cp @12,15 phiên 28/10, đóng 12,10 (97% biên độ 20 phiên). Còn 6/7 phiên; giữ cắt lỗ 11,5.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "BSI",
+   "stop_loss": 26.6,
+   "take_profit": 30.2,
+   "reason": "Mua 800 cp @27,95 phiên 28/10, đóng 27,90; khối lượng vẫn 1,35× TB20. Còn 6/7 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "ORS",
+   "condition": "Vượt 15,6 với khối lượng ≥ 1,5× TB20 (giữ trên 14,8)",
+   "reason": "Uptrend, khối lượng 1,29× — chưa đạt điều kiện đặt hôm qua.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VPI",
+   "condition": "Vượt 59,0 với khối lượng ≥ 1,5× TB20",
+   "reason": "ret5 +7,4%, 86% biên độ, khối lượng 1,21×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "KBC",
+   "condition": "Vượt 27,5 với khối lượng ≥ 1,5× TB20",
+   "reason": "BĐS KCN cùng câu chuyện FDI; 88% biên độ, RSI 66.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "NVL",
+   "condition": "Đóng cửa > 11,0 với khối lượng ≥ 1,5× TB20",
+   "reason": "Người nhà Chủ tịch đăng ký mua 30 triệu cp, nhưng regime Downtrend (dưới EMA50 8,5%) — chỉ lướt khi giá xác nhận.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,71 @@
+{
+ "for_session": "2026-10-29",
+ "decided_at": "2026-10-28T19:55+07:00",
+ "market_view": "Thị trường tích lũy quanh EMA50, dòng tiền chọn lọc theo KQKD quý III. Bán lẻ có câu chuyện rõ nhất: MWG lãi quý III kỷ lục, 9 tháng vượt kế hoạch cả năm; DGW thì bị xả giảm sàn dù lãi gấp đôi (bán tin tốt).",
+ "risk_plan": "Rủi ro 2% NAV/lệnh, ≤20%/mã, tiền mặt ≥10%. Chỉ mua mã có tăng trưởng lợi nhuận xác nhận và xu hướng còn nguyên; không bắt dao rơi (DGW).",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "MWG",
+   "type": "LO",
+   "limit": 76.8,
+   "value_vnd": 15400000,
+   "stop_loss": 72.8,
+   "take_profit": 86.8,
+   "horizon_sessions": 30,
+   "confidence": "vừa",
+   "reason": "LO 75,5 phiên 28/10 không khớp; MWG đóng 76,0 với khối lượng 1,6× TB20 ngay trong ngày công bố lãi quý III kỷ lục (3.521 tỷ). LO 76,8 (≈200 cp), cắt lỗ 72,8 dưới EMA50 (−5,2%) → rủi ro ≈0,8% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)",
+    "https://vnexpress.net/the-gioi-di-dong-bao-lai-9-thang-vuot-ke-hoach-ca-nam (28/10 15:46)",
+    "https://cafef.vn (28/10 14:20: MWG lãi kỷ lục quý 3)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "CTD",
+   "stop_loss": 62.6,
+   "take_profit": 80.4,
+   "reason": "Mua 200 cp @67,0 phiên 28/10, đóng 68,0 (+1,5%); Uptrend, 96% biên độ 20 phiên. Giữ kế hoạch.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DGW",
+   "condition": "Hết dư bán sàn và đóng cửa ≥ 43,5 trong 2 phiên liên tiếp",
+   "reason": "Giảm sàn 6,9% dù doanh thu quý III kỷ lục (+49%) — bán tin tốt; chờ cân bằng.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VPL",
+   "condition": "Điều chỉnh về 85–86 với khối lượng giảm, hoặc vượt 90 với khối lượng ≥ 1,5×",
+   "reason": "Khối lượng 2,1×, 94% biên độ, RSI 70,7 — mạnh nhưng nóng.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GEX",
+   "condition": "Đóng cửa trên EMA50 (~23,8) với khối lượng ≥ 1,3× TB20",
+   "reason": "GELEX lãi 9 tháng 3.931 tỷ, vượt kế hoạch năm; giá còn dưới EMA50.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "FPT",
+   "condition": "RSI14 > 30 và đóng cửa > 56 sau khi khối ngoại ngừng bán ròng",
+   "reason": "RSI 21,8, khối ngoại bán ròng 16.500 tỷ từ đầu năm; tăng trưởng tốt nhưng xu hướng giảm chưa dừng.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

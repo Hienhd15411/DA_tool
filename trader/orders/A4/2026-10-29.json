@@ -1,0 +1,54 @@
+{
+ "for_session": "2026-10-29",
+ "decided_at": "2026-10-28T19:55+07:00",
+ "market_view": "VNINDEX đã trên EMA50 nên không còn bán tháo diện rộng — điều kiện bắt đáy của A4 yếu. Nhóm nguyên vật liệu phân hóa (thép/xi măng Uptrend; hóa chất, nhựa, cao su ở đáy 60 phiên). Đề xuất giảm thuế TTĐB xăng về 0% và giảm giá điện từ 1/11.",
+ "risk_plan": "Rủi ro 2% NAV/lệnh, ≤20%/mã, tiền mặt ≥20%. Chỉ bắt đáy khi có bán tháo (RSI < 30, khối lượng ≥ 1,5×) hoặc tín hiệu TN06-R; hôm nay không có mã nào đạt — đứng ngoài, giữ DGC.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "DGC",
+   "stop_loss": 31.2,
+   "take_profit": 36.8,
+   "reason": "Mua 400 cp @32,90 phiên 28/10, đóng 32,90; RSI 42,5, 10% biên độ 60 phiên. Còn 14/15 phiên; giữ cắt lỗ 31,2.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BMP",
+   "condition": "RSI14 < 30 hoặc nến rút chân với khối lượng ≥ 1,5× TB20 quanh 135",
+   "reason": "Ở 11% biên độ 60 phiên, RSI 37, khối lượng 1,54× hôm nay nhưng giá đi ngang.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DPM",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5× TB20, hoặc đóng cửa > 22,0",
+   "reason": "Phân bón ở 11% biên độ 60 phiên, RSI 40,8.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VTP",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5× TB20",
+   "reason": "Downtrend, −11,5% 20 phiên, RSI 38,6 — chưa bán tháo.",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GVR",
+   "condition": "Giữ trên 31,0 và đóng cửa > 32,5",
+   "reason": "Cao su ở 18% biên độ 20 phiên, RSI 44,9; có tên trong kế hoạch cơ cấu lại vốn nhà nước (VRG).",
+   "sources": [
+    "bảng ứng viên vnq-trader 28/10 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}
