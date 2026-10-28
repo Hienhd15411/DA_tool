@@ -20,3 +20,4 @@ tools/out/tn06r/
 tools/out/tn06r2/
 tools/out/trader/
 .ds-receipts/
+node_modules/
