@@ -154,13 +154,15 @@ def browser_smoke():
             else: ok('đăng nhập OK, không có dòng lỗi')
             checks = {'status': '#status .tile', 'gate': '#gate .checks li', 'plan': '#plan .tile, #plan p.mut',
                       'live': '#live .tile, #live p.mut', 'top10': '#sigTable tr', 'tn06r': '#tn06rTable tr',
-                      'uptrend': '#upTable tr', 'risk': 'footer .risk'}
+                      'uptrend': '#upTable tr', 'risk': 'footer .risk', 'proposal': '#proposal .agent, #proposal p.cap',
+                      'tabs': '.tabs a[data-tab]'}
             for k, sel in checks.items():
                 n = pg.locator(sel).count()
                 (ok if n else fail)(f'mục {k}: {n} phần tử')
             for sec in ('#plan', '#live'):
                 t = pg.locator(sec).inner_text()
                 if 'chưa được tạo' in t: fail(f'{sec}: {t[:150]}')
+            pg.click('.tabs a[data-tab="tra-cuu"]'); pg.wait_for_selector('#tickerIn', state='visible', timeout=5000)
             pg.fill('#tickerIn', 'HPG'); pg.click('#lookupForm button'); pg.wait_for_timeout(2500)
             lk = pg.locator('#lookup').inner_text()
             (ok if 'HPG' in lk else fail)(f'tra cứu HPG: {lk[:80]!r}')

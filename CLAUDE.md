@@ -33,6 +33,8 @@ engine/                 Python engine (pandas, LightGBM 4.7.0, scikit-learn 1.9.
   tests/mock_supabase.py, tests/e2e_cloud.sh   Supabase giả lập + test e2e
 supabase/migrations/    schema + RLS + bucket vnq-data
 web/                    dashboard tĩnh (vanilla JS + supabase-js@2.45.4 qua jsDelivr), demo-data.json
+design/uxui-kit/        bộ skill UX/UI (plugin87/ux-ui-agent-skills v3.0.0, MIT): token, taste, a11y, các gate đo — xem VENDORED.md
+.claude/skills/         26 skill của bộ kit (redesign, data-dashboard, a11y-audit, design-review, gate…), đường dẫn trỏ về design/uxui-kit
 scripts/write-config.mjs  Netlify build: sinh web/config.js từ env
 .github/workflows/vnq-daily.yml  cron 18:30 ICT thứ 2–6 → `python -m vnq cloud-run`
 research/tn07/          script nghiên cứu gốc + kết quả TN07 (tham chiếu, không deploy)
@@ -57,6 +59,12 @@ DSN="host=localhost port=5432 user=postgres" tests/e2e_cloud.sh
 - [ ] Netlify site từ repo, env `SUPABASE_URL`, `SUPABASE_ANON_KEY`; đăng nhập và đối chiếu số với `docs/05_ACCEPTANCE_TESTS.md`
 - [ ] Chốt nguồn dữ liệu hằng ngày với Hardy (`docs/04_OPEN_ITEMS.md` #1) — đây là điểm nghẽn duy nhất để chạy tự động thật
 - [ ] Cân nhắc: trang upload file vào `inbox/` cho Hardy (Storage policy riêng cho user đã đăng nhập), nếu Hardy chọn cách thả file tay
+
+## Sửa giao diện web/
+- Token màu/khoảng cách chỉ khai báo ở đầu `web/styles.css` (light + dark); không viết mã màu trong `app.js`. Màu danh mục thi đấu = `--agent-*`.
+- 4 tab (`Phiên tới`, `Thi đấu`, `Model`, `Tra cứu`): mỗi khối khai báo `data-tab` trong `index.html`; giữ nguyên các id mà `tools/qc_prod.py` dùng.
+- Kiểm tra trước khi push: `python3 design/uxui-kit/scripts/lint_hardcodes.py web` và các gate trình duyệt (`DS_CHROME_CHANNEL=bundled node design/uxui-kit/scripts/gate.mjs axe_audit.mjs <file>`),
+  chạy trên bản DOM đã render của chế độ demo (gate chỉ đọc file://).
 
 ## Đừng làm
 - Đừng chuyển engine sang JS/Edge Functions (LightGBM + pandas; Netlify/Supabase functions không chạy được Python).

@@ -6,16 +6,36 @@
   <title>VNQ Tín hiệu</title>
   <meta name="robots" content="noindex">
   <link rel="stylesheet" href="styles.css">
+  <script>try { const t = localStorage.getItem('vnq_theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) { /* storage bị chặn */ }</script>
   <script src="config.js"></script>
 </head>
 <body>
+  <svg width="0" height="0" class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7M12 19V5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-hold" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  </svg>
+
   <header class="top">
-    <div class="brand"><span class="logo">VNQ</span><span class="sub">Tín hiệu trend 5 phiên</span>
-      <nav class="tabs"><a href="#" class="on">Tổng quan</a><a href="#thi-dau">Thi đấu agent</a></nav></div>
-    <div class="controls">
-      <label class="sel">Ngày dữ liệu <select id="dateSel" aria-label="Chọn ngày dữ liệu"></select></label>
-      <span id="user" class="mut"></span>
-      <button id="logout" class="btn ghost" hidden>Đăng xuất</button>
+    <div class="top-in">
+      <a class="brand" href="#" aria-label="VNQ, về trang Phiên tới"><span class="logo">VNQ</span><span class="sub">Tín hiệu cổ phiếu VN</span></a>
+      <nav class="tabs" aria-label="Các trang">
+        <a href="#" data-tab="home">Phiên tới</a><a href="#thi-dau" data-tab="thi-dau">Thi đấu</a><a href="#model" data-tab="model">Model</a><a href="#tra-cuu" data-tab="tra-cuu">Tra cứu</a>
+      </nav>
+      <div class="controls">
+        <label class="sel"><span class="sel-k">Ngày dữ liệu</span> <select id="dateSel" aria-label="Chọn ngày dữ liệu"></select></label>
+        <button id="themeBtn" class="btn icon" type="button" aria-label="Đổi giao diện sáng/tối"><svg class="ic"><use href="#i-moon"/></svg></button>
+        <span id="user" class="mut user"></span>
+        <button id="logout" class="btn ghost" type="button" hidden>Đăng xuất</button>
+      </div>
     </div>
   </header>
 
@@ -24,100 +44,104 @@
       <h1>Đăng nhập</h1>
       <p class="mut">Chỉ tài khoản được cấp quyền mới xem được dữ liệu.</p>
       <form id="loginForm" class="authform">
-        <input id="email" type="email" required placeholder="email@domain.com" autocomplete="email">
-        <input id="password" type="password" required placeholder="Mật khẩu" autocomplete="current-password">
+        <label class="fld"><span>Email</span><input id="email" type="email" required placeholder="email@domain.com" autocomplete="email"></label>
+        <label class="fld"><span>Mật khẩu</span><input id="password" type="password" required autocomplete="current-password"></label>
         <button class="btn" type="submit">Đăng nhập</button>
         <button class="btn ghost" type="button" id="forgot">Quên mật khẩu?</button>
       </form>
-      <p id="loginMsg" class="mut"></p>
+      <p id="loginMsg" class="mut" role="status"></p>
     </section>
 
     <section id="setpw" class="card narrow" hidden>
       <h1>Đặt mật khẩu</h1>
       <p class="mut">Đặt mật khẩu cho tài khoản của bạn (tối thiểu 8 ký tự).</p>
       <form id="setpwForm" class="authform">
-        <input id="pw1" type="password" required minlength="8" placeholder="Mật khẩu mới" autocomplete="new-password">
-        <input id="pw2" type="password" required minlength="8" placeholder="Nhập lại mật khẩu" autocomplete="new-password">
+        <label class="fld"><span>Mật khẩu mới</span><input id="pw1" type="password" required minlength="8" autocomplete="new-password"></label>
+        <label class="fld"><span>Nhập lại mật khẩu</span><input id="pw2" type="password" required minlength="8" autocomplete="new-password"></label>
         <button class="btn" type="submit">Lưu mật khẩu</button>
       </form>
-      <p id="setpwMsg" class="mut"></p>
+      <p id="setpwMsg" class="mut" role="status"></p>
     </section>
 
     <div id="content" hidden>
-      <section id="status" class="band"></section>
-      <section id="warnings" class="card warn"></section>
+      <!-- ===== Phiên tới ===== -->
+      <section id="status" class="meta" data-tab="home model" aria-label="Trạng thái lần chạy"></section>
+      <section id="warnings" class="warnbox" data-tab="home model" hidden></section>
 
-      <section class="card tab-trader" hidden>
-        <h2>Báo cáo thi đấu agent <span class="mut">paper trading 100 triệu mỗi danh mục từ 28/10/2026</span></h2>
-        <p class="warn" style="margin:0 0 10px;padding:8px 10px;font-size:13px">Tiền giả định, <b>không phải khuyến nghị đầu tư</b>. A1–A4 = 4 agent (dữ liệu hệ thống + tin CafeF/VnExpress), mỗi agent một khẩu vị rủi ro và phạm vi ngành · B = luật TN06-R · C = mua & giữ VNINDEX · R1–R4 = bốc thăm ngẫu nhiên cùng phạm vi ngành, đối ứng từng lệnh của agent tương ứng. Khớp lệnh mô phỏng theo giá thật: trần/sàn, T+2, lô 100, phí 0,15%/chiều + thuế bán 0,1%. Luật: docs/09_TRADER_EXPERIMENT.md.</p>
-        <h3 style="font-size:15px;margin:0 0 6px">Đề xuất phiên tới của 4 agent</h3><div id="proposalT" style="margin-bottom:16px"></div>
-        <div id="traderPage"></div>
-      </section>
+      <div class="split" data-tab="home">
+        <section class="card lead">
+          <header class="card-h">
+            <h1>Đề xuất phiên tới</h1>
+            <p class="mut">4 agent trader, mỗi agent 100 tr giả định, khẩu vị và phạm vi ngành riêng. Sổ lệnh khóa trên git trước giờ mở cửa, chấm bằng giá thật.</p>
+          </header>
+          <p class="note"><svg class="ic"><use href="#i-info"/></svg><span>Thí nghiệm paper trading, <b>không phải khuyến nghị đầu tư</b>. Kết quả từng agent so với VNINDEX và bốc thăm ở trang Thi đấu.</span></p>
+          <div id="proposal"></div>
+        </section>
+        <aside class="card side">
+          <header class="card-h"><h2>Bảng xếp hạng</h2><p class="mut">100 tr mỗi danh mục từ 28/10/2026</p></header>
+          <div id="arena"></div>
+        </aside>
+      </div>
 
-      <section class="card proposal-card">
-        <h2>Đề xuất phiên tới <span class="mut">của 4 agent trader · mỗi agent 100 tr giả định, khẩu vị và ngành khác nhau</span></h2>
-        <p class="warn" style="margin:0 0 10px;padding:6px 8px;font-size:12px">Đây là sổ lệnh của agent trong thí nghiệm paper trading, được khóa trên git trước giờ mở cửa và chấm điểm bằng giá thật. <b>Không phải khuyến nghị đầu tư</b>; kết quả của agent xem ở tab Thi đấu (so với VNINDEX và bốc thăm).</p>
-        <div id="proposal"></div>
-      </section>
-
-      <section class="card">
-        <h2>Thi đấu agent <span class="mut">100 triệu giả định mỗi danh mục từ 28/10/2026 · khớp lệnh mô phỏng theo giá thật, T+2, phí + thuế</span></h2>
-        <p class="warn" style="margin:0 0 10px;padding:8px 10px;font-size:13px">Paper trading, <b>không phải tiền thật, không phải khuyến nghị</b>. A1–A4 = 4 agent với khẩu vị rủi ro và ngành khác nhau · B = luật TN06-R · C = mua & giữ VNINDEX · R1–R4 = bốc thăm đối ứng từng agent. Cần ≥ 3 tháng mới đánh giá được.</p>
-        <div id="arena"></div>
-      </section>
-
-      <section class="card">
-        <h2>Kế hoạch phiên tới <span class="mut" id="planSub"></span></h2>
-        <p class="warn" style="margin:0 0 10px;padding:8px 10px;font-size:13px">
-          <b>Danh mục mô phỏng (paper trading)</b> chạy tự động theo luật TN06-R:
-          <b>khi nào vào</b> = VNINDEX dưới EMA50 và mã bị bán tháo (RSI14 &lt; 30 ≥ 3 phiên, khối lượng ≥ 1,5× TB20);
-          <b>bao nhiêu</b> = 10% NAV/mã, tối đa 10 mã, ≤ 3 mã/ngành;
-          <b>bán gì, bao nhiêu</b> = bán 100% mỗi lệnh sau đúng 5 phiên, không cắt lỗ/chốt lời giữa chừng.
-          Hệ này <b>chưa đạt</b> tiêu chí kiểm định (OOS 07–10/2026: NO-GO) — đây là sổ lệnh mô phỏng để theo dõi, không phải khuyến nghị mua bán.
-        </p>
+      <section class="card" data-tab="home">
+        <header class="card-h"><h2>Luật máy TN06-R <span class="mut" id="planSub"></span></h2>
+          <p class="mut">Vào khi VNINDEX dưới EMA50 và mã bị bán tháo (RSI14 &lt; 30 ít nhất 3 phiên, khối lượng ≥ 1,5× TB20). 10% NAV mỗi mã, tối đa 10 mã, ≤ 3 mã/ngành. Bán 100% sau đúng 5 phiên.</p></header>
+        <p class="note"><svg class="ic"><use href="#i-alert"/></svg><span>Hệ này <b>chưa đạt</b> kiểm định (OOS 07–10/2026: NO-GO). Đây là sổ lệnh mô phỏng để theo dõi, không phải khuyến nghị mua bán.</span></p>
         <div id="plan"></div>
       </section>
 
-      <div class="grid2">
-        <section class="card"><h2>Gate mục 6 <span class="mut" id="gateSub"></span></h2><div id="gate"></div></section>
-        <section class="card"><h2>Theo dõi thực tế <span class="mut">paper trading, sau phí</span></h2><div id="track"></div></section>
-      </div>
+      <!-- ===== Thi đấu ===== -->
+      <section class="card" data-tab="thi-dau">
+        <header class="card-h"><h1>Thi đấu agent</h1>
+          <p class="mut">A1–A4 agent trader · B luật TN06-R · C mua và giữ VNINDEX · R1–R4 bốc thăm ngẫu nhiên cùng phạm vi ngành, đối ứng từng lệnh của agent tương ứng.</p></header>
+        <p class="note"><svg class="ic"><use href="#i-info"/></svg><span>Tiền giả định, <b>không phải khuyến nghị đầu tư</b>. Khớp lệnh mô phỏng theo giá thật: trần/sàn, T+2, lô 100, phí 0,15%/chiều và thuế bán 0,1%. Luật: docs/09_TRADER_EXPERIMENT.md.</span></p>
+        <div id="traderPage"></div>
+      </section>
 
-      <section class="card">
-        <h2>Dự báo vs thực tế <span class="mut">snapshot mỗi ngày, tự quyết toán sau 5 phiên, sau phí — so với thị trường và random</span></h2>
+      <!-- ===== Model ===== -->
+      <section class="card" data-tab="model">
+        <header class="card-h"><h1>Dự báo và thực tế</h1>
+          <p class="mut">Snapshot mỗi ngày, tự quyết toán sau 5 phiên, sau phí. So với thị trường và bốc ngẫu nhiên.</p></header>
+        <p class="note"><svg class="ic"><use href="#i-alert"/></svg><span>Tín hiệu thống kê để theo dõi, <b>không phải khuyến nghị</b>. Gate mục 6 chưa đạt thì mọi mã chỉ ở mức “theo dõi”.</span></p>
         <div id="live"></div>
       </section>
 
-      <section class="card">
-        <h2>TN06-R — capitulation <span class="mut">mua khi thị trường điều chỉnh + mã bị bán tháo; giữ 5 phiên; 10%/lệnh</span></h2>
-        <p class="warn" style="margin:0 0 8px;padding:6px 8px;font-size:12px">TN06-R chưa đạt tiêu chí (OOS 07–10/2026: NO-GO). Đây là tín hiệu paper trading để theo dõi, không phải khuyến nghị mua. <span id="tn06rState"></span></p>
+      <div class="grid2" data-tab="model">
+        <section class="card"><header class="card-h"><h2>Gate mục 6 <span class="mut" id="gateSub"></span></h2></header><div id="gate"></div></section>
+        <section class="card"><header class="card-h"><h2>Theo dõi thực tế <span class="mut">paper trading, sau phí</span></h2></header><div id="track"></div></section>
+      </div>
+
+      <section class="card" data-tab="model">
+        <header class="card-h"><h2>Tín hiệu TN06-R trong ngày</h2><p class="mut">Mua mở cửa phiên sau, giữ 5 phiên, 10%/lệnh. <span id="tn06rState"></span></p></header>
         <div class="wrap"><table id="tn06rTable" class="tbl"></table></div>
       </section>
 
-      <section class="card">
-        <h2>Top 10 <span class="mut">thanh khoản → value top 30% → xếp hạng p_up_5, ≤3 mã/ngành</span></h2>
+      <section class="card" data-tab="model">
+        <header class="card-h"><h2>Top 10 TN07</h2><p class="mut">Thanh khoản → value top 30% → xếp hạng p_up_5, ≤ 3 mã/ngành. Bấm một dòng để xem rủi ro.</p></header>
         <div class="wrap"><table id="sigTable" class="tbl"></table></div>
       </section>
 
-      <section class="card">
-        <h2>Top 10 đang uptrend <span class="mut">theo dõi trạng thái xu hướng, sắp theo độ mạnh trend — không phải khuyến nghị mua</span></h2>
-        <p class="warn" style="margin:0 0 8px;padding:6px 8px;font-size:12px">Gate mục 6 chưa đạt. Danh sách chỉ mô tả trạng thái kỹ thuật, không cho biết nên mua hay bán.</p>
+      <section class="card" data-tab="model">
+        <header class="card-h"><h2>Top 10 đang uptrend</h2><p class="mut">Mô tả trạng thái xu hướng, sắp theo độ mạnh trend. Không cho biết nên mua hay bán.</p></header>
         <div class="wrap"><table id="upTable" class="tbl"></table></div>
       </section>
 
-      <section class="card">
-        <h2>Tra cứu mã <span class="mut">lịch sử điểm trong universe</span></h2>
-        <form id="lookupForm" class="row"><input id="tickerIn" placeholder="VD: HPG" maxlength="3" autocomplete="off">
-          <button class="btn" type="submit">Xem</button></form>
+      <!-- ===== Tra cứu ===== -->
+      <section class="card" data-tab="tra-cuu">
+        <header class="card-h"><h1>Tra cứu mã</h1><p class="mut">Lịch sử điểm model, tín hiệu và kết quả thực tế của một mã trong universe.</p></header>
+        <form id="lookupForm" class="search" role="search">
+          <label class="fld"><span>Mã cổ phiếu</span><input id="tickerIn" placeholder="VD: HPG" maxlength="3" autocomplete="off" autocapitalize="characters"></label>
+          <button class="btn" type="submit"><svg class="ic"><use href="#i-search"/></svg>Xem</button>
+        </form>
         <div id="lookup"></div>
       </section>
 
       <footer class="foot">
+        <p class="risk"><svg class="ic"><use href="#i-alert"/></svg><span>Đây là tín hiệu thống kê để theo dõi và cân nhắc, không phải lệnh và không đảm bảo lợi nhuận. Quyết định và rủi ro thuộc về người dùng.</span></p>
         <p id="source" class="mut"></p>
-        <p class="risk">⚠️ Đây là tín hiệu thống kê, không phải khuyến nghị đảm bảo lợi nhuận. Đây là tín hiệu để theo dõi và cân nhắc, không phải lệnh. Quyết định và rủi ro thuộc về người dùng.</p>
       </footer>
     </div>
-    <p id="err" class="err" hidden></p>
+    <p id="err" class="err" role="alert" hidden></p>
   </main>
   <div id="tip" class="tip" role="tooltip" hidden></div>
   <script type="module" src="app.js"></script>
