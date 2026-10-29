@@ -1,0 +1,64 @@
+{
+ "for_session": "2026-10-30",
+ "decided_at": "2026-10-29T19:50+07:00",
+ "market_view": "Thị trường điều chỉnh, dòng tiền rút khỏi nhóm vừa và nhỏ; nhóm bán lẻ vẫn có KQKD tốt (MWG, FRT doanh thu 9 tháng +33%). Không phải lúc gia tăng vị thế.",
+ "risk_plan": "Rủi ro 2% NAV/lệnh, ≤20%/mã, tiền mặt ≥10% (hiện ~72%). Đứng ngoài lệnh mới đến khi VNINDEX lấy lại EMA50; giữ 2 vị thế với cắt lỗ đã cam kết.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "CTD",
+   "stop_loss": 62.6,
+   "take_profit": 80.4,
+   "reason": "Đóng 64,70 (−4,9% phiên 29/10, khối lượng 1,79×) — phiên xấu nhưng chưa chạm cắt lỗ 62,6; vẫn Uptrend, trên EMA50 2,8%. Giữ, không nới cắt lỗ.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "MWG",
+   "stop_loss": 72.8,
+   "take_profit": 86.8,
+   "reason": "Khớp 200 cp @76,00, đóng 75,80; giữ luận điểm KQKD quý III kỷ lục.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "FRT",
+   "condition": "Đóng cửa > 150 với khối lượng ≥ 1,3× TB20 sau khi VNINDEX lấy lại EMA50",
+   "reason": "Doanh thu 9 tháng 48.273 tỷ (+33%), 4 quý liên tiếp tăng ~30%.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VPL",
+   "condition": "Vượt 91 với khối lượng ≥ 1,5× TB20",
+   "reason": "Uptrend, 95% biên độ, RSI 72,6 — vượt 90 nhưng khối lượng chỉ 1,14×; Vinpearl lãi 9 tháng gấp 6,6 lần.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "FPT",
+   "condition": "RSI14 > 30 và đóng cửa > 55",
+   "reason": "RSI 19, có tín hiệu TN06-R; xu hướng giảm và khối ngoại còn bán — chờ đảo chiều.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DGW",
+   "condition": "Đóng cửa ≥ 43,5 trong 2 phiên liên tiếp",
+   "reason": "Đã hết giảm sàn (+0,4%), chưa xác nhận.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

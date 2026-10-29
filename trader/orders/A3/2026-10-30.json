@@ -1,0 +1,66 @@
+{
+ "for_session": "2026-10-30",
+ "decided_at": "2026-10-29T19:50+07:00",
+ "market_view": "VNINDEX thủng EMA50, nhóm chứng khoán và BĐS bị bán (SZC −3,5%, ORS −3,6%, BSI −2,2%). Pha điều chỉnh không hợp lướt sóng breakout.",
+ "risk_plan": "Theo kế hoạch đã cam kết: VNINDEX dưới EMA50 → giải ngân ≤ 50% NAV (hiện ~70%). Hạ tỷ trọng bằng cách bán BSI (yếu nhất trong các mã bán được theo T+2); SZC mua 29/10 chưa bán được — giữ với cắt lỗ 19,3.",
+ "orders": [
+  {
+   "side": "SELL",
+   "ticker": "BSI",
+   "type": "ATC",
+   "qty": "all",
+   "reason": "Hạ giải ngân xuống ≤ 50% NAV theo kế hoạch rủi ro khi VNINDEX dưới EMA50. BSI −2,3% so với giá vốn 27,95, nhóm chứng khoán đồng loạt yếu (HCM, TCX, VDS giảm). Đã đủ T+2 nên bán ATC phiên 30/10.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 29/10 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "TCH",
+   "stop_loss": 11.5,
+   "take_profit": 13.1,
+   "reason": "Mã khỏe nhất danh mục: đóng 12,20 (+0,8%) ở đỉnh 20 phiên ngược thị trường. Còn 5/7 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "SZC",
+   "stop_loss": 19.3,
+   "take_profit": 22.0,
+   "reason": "Khớp 1.200 cp @20,20, đóng 19,40 (−4%) — sát cắt lỗ 19,3. Chưa bán được theo T+2 ở phiên 30/10; nếu đóng cửa ≤ 19,3 thì bán ngay phiên đầu tiên được phép.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VPI",
+   "condition": "Vượt 59,0 với khối lượng ≥ 1,5× TB20 và VNINDEX trên EMA50",
+   "reason": "Vẫn đi ngang mạnh hơn nhóm.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VIC",
+   "condition": "Vượt 245 với khối lượng ≥ 1,2× TB20",
+   "reason": "95% biên độ 20 phiên, Vinpearl/Vincom Retail báo lãi lớn.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "ORS",
+   "condition": "Giữ trên 14,5 và vượt 15,6 với khối lượng ≥ 1,5×",
+   "reason": "Giảm 3,6% phiên 29/10 — breakout thất bại, chờ lại.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

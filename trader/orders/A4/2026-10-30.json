@@ -1,0 +1,70 @@
+{
+ "for_session": "2026-10-30",
+ "decided_at": "2026-10-29T19:50+07:00",
+ "market_view": "Tầng 1 TN06-R BẬT: VNINDEX dưới EMA50, thị trường vào pha điều chỉnh — vùng hoạt động của A4. Dầu khí bị xả (PVT giảm sàn) theo giá dầu; thép có KQKD đảo chiều chu kỳ (Hòa Phát lãi quý III +106%).",
+ "risk_plan": "Rủi ro 2% NAV/lệnh, ≤20%/mã, tiền mặt ≥20%. Mua chu kỳ khi có xác nhận lợi nhuận và giá còn dưới EMA200; chưa bắt đáy dầu khí/phân bón khi RSI chưa < 30.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "HPG",
+   "type": "LO",
+   "limit": 21.2,
+   "value_vnd": 19100000,
+   "stop_loss": 20.3,
+   "take_profit": 23.7,
+   "horizon_sessions": 20,
+   "confidence": "vừa",
+   "reason": "Ngành thép ở đáy chu kỳ (dưới EMA200 5,2%, ret60 −6%) nhưng lợi nhuận quý III 8.265 tỷ (+106%), doanh thu +70%; giá tăng 2,2% với khối lượng 1,91× TB20 ngày thị trường giảm. LO 21,2 (≈900 cp), cắt lỗ 20,3 (−4,2%, ≈2×ATR) → rủi ro ≈0,8% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)",
+    "https://cafef.vn (29/10 10:01: Hòa Phát lãi 8.265 tỷ đồng, tăng 106% trong quý 3/2026)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "DGC",
+   "stop_loss": 31.2,
+   "take_profit": 36.8,
+   "reason": "Đóng 33,30 (+1,2%), +1,2% so với giá vốn; còn 13/15 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BMP",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5× TB20",
+   "reason": "RSI 32,2, ở 3% biên độ 60 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DPM",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5× TB20, hoặc đóng cửa > 22,0",
+   "reason": "RSI 35,5, ở 2% biên độ 60 phiên, khối lượng 1,38×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GMD",
+   "condition": "Nến rút chân về 50–51 với khối lượng ≥ 1,5× TB20",
+   "reason": "−9,4% 5 phiên, cảng biển chịu áp lực cùng nhóm vận tải dầu khí.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VOS",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5× TB20",
+   "reason": "−5,1% phiên 29/10, khối lượng 1,69× cùng nhịp xả vận tải dầu khí.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

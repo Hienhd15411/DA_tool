@@ -1,0 +1,64 @@
+{
+ "for_session": "2026-10-30",
+ "decided_at": "2026-10-29T19:50+07:00",
+ "market_view": "VNINDEX −0,62% về 1.755,61, thủng EMA50 (−0,38%) và sát EMA200; độ rộng xấu (89 tăng/206 giảm, 35% mã trên EMA50), khối ngoại bán ròng 459 tỷ trên HoSE. Thị trường chuyển sang pha điều chỉnh.",
+ "risk_plan": "Rủi ro 1% NAV/lệnh, ≤15%/mã, tiền mặt ≥30% (hiện ~72%). Pha điều chỉnh: không mở vị thế mới, giữ 2 mã đang có với cắt lỗ đã cam kết. TCB chia thưởng 2:1 — quy đổi cắt lỗ/chốt lời theo giá điều chỉnh ÷1,5.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "TCB",
+   "stop_loss": 21.4,
+   "take_profit": 24.45,
+   "reason": "600 cp sau chia thưởng (giá điều chỉnh 22,35). Cắt lỗ/chốt lời cũ 32,1/36,7 quy đổi ÷1,5 = 21,4/24,45 — không phải nới cắt lỗ. Uptrend, trên EMA50 2,5%.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "MSN",
+   "stop_loss": 70.8,
+   "take_profit": 81.0,
+   "reason": "Khớp 200 cp @73,80 phiên 29/10, đóng 72,10 (−2,3%) theo nhịp giảm chung; vẫn Uptrend, trên EMA50 1,4%. Giữ cắt lỗ 70,8.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VIB",
+   "condition": "Về 13,8–13,9 rồi đóng cửa tăng trở lại với khối lượng ≥ 1,2× TB20",
+   "reason": "Uptrend, đang điều chỉnh (14,00); KQKD 9 tháng +8%.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "ACB",
+   "condition": "Đóng cửa > 21,6 với khối lượng ≥ 1,3× TB20",
+   "reason": "LNTT quý III +9%; vừa chuyển Downtrend nhẹ (−0,1% dưới EMA50).",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VCB",
+   "condition": "VNINDEX lấy lại EMA50 và VCB đóng cửa > 58,5",
+   "reason": "Nhà nước tiếp tục cơ cấu vốn; regime Downtrend.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BID",
+   "condition": "Khối lượng ≥ 1,5× TB20 và đóng cửa trên 34,5",
+   "reason": "Khối lượng 1,89× hôm nay, giá đi ngang ở 31% biên độ 20 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 29/10 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}
