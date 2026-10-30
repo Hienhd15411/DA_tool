@@ -27,10 +27,22 @@ ts = lambda d: int(dt.datetime(d.year, d.month, d.day, tzinfo=dt.timezone.utc).t
 
 def vci(sym, start: dt.date):
     n = len(pd.bdate_range(start, TODAY)) + 5
-    r = requests.post('https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart', headers=VH, timeout=60,
-                      json={'timeFrame': 'ONE_DAY', 'symbols': [sym], 'to': ts(TODAY) + 86400, 'countBack': n})
-    if r.status_code != 200:
-        raise RuntimeError(f'HTTP {r.status_code}')
+    # VCI trả 418/429 khi bị gọi dồn (30/10/2026: chết cả job ở mã thứ N) → lùi 15/45/90 s rồi thử lại
+    for wait in (15, 45, 90, None):
+        try:
+            r = requests.post('https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart', headers=VH, timeout=30,
+                              json={'timeFrame': 'ONE_DAY', 'symbols': [sym], 'to': ts(TODAY) + 86400, 'countBack': n})
+            if r.status_code == 200:
+                break
+            err = f'HTTP {r.status_code}'
+            if r.status_code not in (418, 429) and r.status_code < 500:
+                raise RuntimeError(err)
+        except requests.RequestException as e:
+            err = type(e).__name__
+        if wait is None:
+            raise RuntimeError(err)
+        print(f'  {sym}: {err}, thử lại sau {wait}s', flush=True)
+        time.sleep(wait)
     x = r.json(); x = x[0] if isinstance(x, list) else x['data'][0]
     d = pd.DataFrame({'t': x['t'], 'open': x['o'], 'high': x['h'], 'low': x['l'], 'close': x['c'], 'volume': x['v']})
     d['date'] = pd.to_datetime(d['t'].astype('int64'), unit='s').dt.normalize()
@@ -63,7 +75,7 @@ def main():
         try:
             recent = vci(t, TODAY - dt.timedelta(days=30))
         except Exception as e:
-            failed.append(f'{t}:{str(e)[:60]}'); time.sleep(0.3); continue
+            failed.append(f'{t}:{str(e)[:60]}'); continue
         if not SESSION_CLOSED:   # phiên hôm nay chưa đóng → không lấy nến dở
             recent = recent[recent.date.dt.date < TODAY]
         ref = idx if t == 'VNINDEX' else panel[panel.ticker == t]
@@ -92,7 +104,7 @@ def main():
                     panel = panel[~((panel.ticker == t) & panel.date.isin(add.date))]
                     panel = pd.concat([panel, add.assign(ticker=t, gt_khop=lambda x: x.close * x.volume * 1000)])
                 appended.append(f'{t}+{len(add)}')
-        time.sleep(0.3)
+        time.sleep(0.6)   # giãn nhịp gọi VCI để tránh 418
     if failed:
         sys.exit(f'Dừng: không lấy được {failed}')
     panel = panel.sort_values(['ticker', 'date']).reset_index(drop=True)
