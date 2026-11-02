@@ -1,0 +1,64 @@
+{
+ "for_session": "2026-11-03",
+ "decided_at": "2026-11-02T20:05+07:00",
+ "market_view": "Phiên call margin: VNINDEX −1,77% về 1.710,72 (có lúc −50 điểm), dưới EMA50 2,8% và EMA200 2,5%; 42 tăng/265 giảm, 20% mã trên EMA50; khối ngoại bán ròng 453 tỷ (20 phiên liên tiếp), 4 mã ngân hàng bị xả 560 tỷ.",
+ "risk_plan": "Kỷ luật trước tiên: TCB và MSN đóng cửa ≤ cắt lỗ → bán ATO. Sau phiên này về 100% tiền mặt; chỉ quay lại ngân hàng đầu ngành khi có phiên cầu bắt đáy rõ (VNINDEX tăng, độ rộng > 60% mã tăng).",
+ "orders": [
+  {
+   "side": "SELL",
+   "ticker": "TCB",
+   "type": "ATO",
+   "qty": "all",
+   "reason": "Đóng cửa 21,40 ≤ cắt lỗ 21,4 (đã quy đổi sau chia thưởng). Chạm cắt lỗ đã cam kết → bán theo kỷ luật, không dời cắt lỗ.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "SELL",
+   "ticker": "MSN",
+   "type": "ATO",
+   "qty": "all",
+   "reason": "Đóng cửa 69,40 < cắt lỗ 70,8. Chạm cắt lỗ đã cam kết → bán theo kỷ luật, không dời cắt lỗ.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VCB",
+   "condition": "Phiên VNINDEX tăng với độ rộng > 60% mã tăng và VCB đóng cửa > 55,0",
+   "reason": "RSI 30,3, khối lượng 3,67× TB20 — bán tháo; ngân hàng chất lượng nhất.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BID",
+   "condition": "Đóng cửa > 33,0 sau phiên rút chân",
+   "reason": "RSI 28, khối lượng 2,58×, 5% biên độ 60 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "ACB",
+   "condition": "Đóng cửa > 21,0 với khối lượng ≥ 1,3×",
+   "reason": "KQKD quý III +9%; RSI 37, khối lượng 1,78× phiên giảm.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VNM",
+   "condition": "Đóng cửa > 57,5",
+   "reason": "Sắp trả cổ tức 5.200 tỷ cuối tháng 11; RSI 33,6, 5% biên độ 60 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,71 @@
+{
+ "for_session": "2026-11-03",
+ "decided_at": "2026-11-02T20:05+07:00",
+ "market_view": "Bán tháo diện rộng nhưng một số mã vừa đi ngược thị trường với khối lượng lớn (HDC +6,7% khối lượng 3,3×, BSI +4,7% khối lượng 2,5×) — dòng tiền đầu cơ chọn lọc.",
+ "risk_plan": "SZC chạm cắt lỗ → bán ATO. VNINDEX dưới EMA50 → giải ngân ≤ 50% NAV: giữ TCH (~24%) + 1 vị thế mới tối đa 25%, độ tin cậy thấp, cắt lỗ 1,5×ATR.",
+ "orders": [
+  {
+   "side": "SELL",
+   "ticker": "SZC",
+   "type": "ATO",
+   "qty": "all",
+   "reason": "Đóng cửa 19,00 < cắt lỗ 19,3. Chạm cắt lỗ đã cam kết → bán theo kỷ luật, không dời cắt lỗ.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "BUY",
+   "ticker": "HDC",
+   "type": "LO",
+   "limit": 12.1,
+   "value_vnd": 24000000,
+   "stop_loss": 11.4,
+   "take_profit": 13.1,
+   "horizon_sessions": 7,
+   "confidence": "thấp",
+   "reason": "Mạnh ngược thị trường: +6,7% với khối lượng 3,29× TB20 ngày VNINDEX −1,8%, RSI 65,8, 76% biên độ 60 phiên; Hodeco báo lãi quý III ~70 tỷ. LO 12,1 (≈2.000 cp), cắt lỗ 11,4 (−5,8%) → rủi ro ≈1,4% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)",
+    "https://cafef.vn (28/10 18:50: Cập nhật BCTC quý 3 — Hodeco báo lãi 70 tỷ)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "TCH",
+   "stop_loss": 11.5,
+   "take_profit": 13.1,
+   "reason": "Đóng 11,85 (đứng giá ngày thị trường sập, khối lượng 1,53×); còn 3/7 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BSI",
+   "condition": "Đóng cửa > 28,5 với khối lượng ≥ 1,5×",
+   "reason": "+4,7% khối lượng 2,51× — vừa bán ngày 30/10, chờ xác nhận để mua lại.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "SSI",
+   "condition": "Phiên VNINDEX tăng > 1% và SSI đóng cửa > 19,5",
+   "reason": "RSI 34; nhóm chứng khoán hưởng lợi đầu tiên khi thị trường hồi.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "CTS",
+   "condition": "Vượt 22,0 với khối lượng ≥ 1,5×",
+   "reason": "+1,4% khối lượng 1,63× ngày thị trường giảm.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

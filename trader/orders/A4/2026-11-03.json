@@ -1,0 +1,72 @@
+{
+ "for_session": "2026-11-03",
+ "decided_at": "2026-11-02T20:05+07:00",
+ "market_view": "Tầng 1 TN06-R BẬT, phiên bán tháo do call margin: độ rộng 42/265, thanh khoản 1,31× TB20 — đúng bối cảnh bắt đáy. Nhóm cao su (PHR, GVR −6,9%) và phân bón (DPM −5,1%) bị xả mạnh; giá dầu −4%.",
+ "risk_plan": "Rủi ro 2% NAV/lệnh, ≤20%/mã, tiền mặt ≥20%, ≤3 mã/ngành (Nguyên vật liệu đã có DGC, HPG → chỉ thêm 1). Chọn mã bán tháo rõ nhất: RSI < 30 + khối lượng ≥ 1,5× + đáy 60 phiên.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "PHR",
+   "type": "LO",
+   "limit": 28.9,
+   "value_vnd": 17400000,
+   "stop_loss": 27.4,
+   "take_profit": 32.0,
+   "horizon_sessions": 10,
+   "confidence": "vừa",
+   "reason": "Bán tháo điển hình: −6,9% (sát sàn) với khối lượng 4,48× TB20, RSI 21,6, ở đáy 60 phiên (pos60 0,00); cao su + quỹ đất KCN. LO 28,9 (≈600 cp), cắt lỗ 27,4 (−5,2%) → rủi ro ≈0,9% NAV; mục tiêu hồi về 32,0.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 02/11 (tools/agent_brief.py)",
+    "https://vnexpress.net (02/11 16:19: VN-Index giảm hơn 30 điểm — áp lực call margin)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "HPG",
+   "stop_loss": 20.3,
+   "take_profit": 23.7,
+   "reason": "Khớp 900 cp @21,20 phiên 30/10, đóng 20,40 — sát cắt lỗ 20,3; luận điểm KQKD (+106%) còn nguyên. Giữ, không nới cắt lỗ.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "DGC",
+   "stop_loss": 31.2,
+   "take_profit": 36.8,
+   "reason": "Đóng 32,70, trên cắt lỗ; còn 11/15 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DPM",
+   "condition": "Khi có slot ngành (bán DGC/HPG) và RSI14 < 30 còn khối lượng ≥ 1,5×",
+   "reason": "RSI 22,5, khối lượng 2,31×, −10,8% 5 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GVR",
+   "condition": "Khi có slot ngành và RSI14 < 30",
+   "reason": "−6,9% khối lượng 1,81×, RSI 30,2.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GMD",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5×",
+   "reason": "Vận tải (khác ngành): RSI 39,3, khối lượng 1,56×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 02/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}
