@@ -1,0 +1,55 @@
+{
+ "for_session": "2026-11-04",
+ "decided_at": "2026-11-03T19:50+07:00",
+ "market_view": "VNINDEX −0,65% về 1.699,62 (thủng 1.700, −67 điểm sau 4 phiên), dưới EMA50 3,3%; độ rộng cải thiện (147 tăng/134 giảm) và thanh khoản giảm còn 0,84× TB20 — lực bán yếu đi nhưng chưa có phiên cầu bắt đáy; khối ngoại bán ròng ~496 tỷ.",
+ "risk_plan": "Giữ CTD (đang hồi, +2,7%). Không mở mới đến khi VNINDEX lấy lại EMA50.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "CTD",
+   "stop_loss": 62.6,
+   "take_profit": 80.4,
+   "reason": "Đóng 65,50 (+2,7%, khối lượng 1,39×), Uptrend, trên EMA50 3,8%. Giữ kế hoạch.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 03/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MWG",
+   "condition": "Đóng cửa > 76 với khối lượng ≥ 1,3×",
+   "reason": "Vừa cắt lỗ ở 72,60; KQKD kỷ lục còn nguyên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "FPT",
+   "condition": "RSI14 > 30 và đóng cửa > 53",
+   "reason": "RSI 16,4 — quá bán cực độ.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DGW",
+   "condition": "Đóng cửa > 41",
+   "reason": "RSI 28,1, −15,6% 5 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "FRT",
+   "condition": "Đóng cửa > 145",
+   "reason": "Doanh thu 9 tháng +33%, giá đi ngang 138.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

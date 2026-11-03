@@ -1,0 +1,57 @@
+{
+ "for_session": "2026-11-04",
+ "decided_at": "2026-11-03T19:50+07:00",
+ "market_view": "VNINDEX −0,65% về 1.699,62 (thủng 1.700, −67 điểm sau 4 phiên), dưới EMA50 3,3%; độ rộng cải thiện (147 tăng/134 giảm) và thanh khoản giảm còn 0,84× TB20 — lực bán yếu đi nhưng chưa có phiên cầu bắt đáy; khối ngoại bán ròng ~496 tỷ.",
+ "risk_plan": "Giải ngân ~48% (TCH + HDC) — đã chạm trần 50% khi VNINDEX dưới EMA50, không mua thêm. TCH thoát theo thời gian sau 7 phiên (ATC 05/11) nếu không chạm chốt lời/cắt lỗ trước.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "TCH",
+   "stop_loss": 11.5,
+   "take_profit": 13.1,
+   "reason": "Đóng 11,95; đã giữ 5/7 phiên — phiên 05/11 là phiên thứ 7, bán ATC theo kế hoạch nếu chưa chạm mức nào.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 03/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "HDC",
+   "stop_loss": 11.4,
+   "take_profit": 13.1,
+   "reason": "Khớp 1.900 cp @12,10, đóng 11,80 (−2,5%); trên cắt lỗ 11,4. Còn 6/7 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 03/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BSI",
+   "condition": "Đóng cửa > 28,5 với khối lượng ≥ 1,5×",
+   "reason": "Giữ được nền 27,7 khi thị trường giảm.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VCI",
+   "condition": "Đóng cửa > 19,5 với khối lượng ≥ 1,5×",
+   "reason": "+2,7% khối lượng 1,52× ngày thị trường giảm.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "SSI",
+   "condition": "Phiên VNINDEX tăng > 1% và SSI > 19,5",
+   "reason": "Chứng khoán hưởng lợi đầu tiên khi thị trường hồi.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

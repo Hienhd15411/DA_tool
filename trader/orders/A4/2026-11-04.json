@@ -1,0 +1,68 @@
+{
+ "for_session": "2026-11-04",
+ "decided_at": "2026-11-03T19:50+07:00",
+ "market_view": "VNINDEX −0,65% về 1.699,62 (thủng 1.700, −67 điểm sau 4 phiên), dưới EMA50 3,3%; độ rộng cải thiện (147 tăng/134 giảm) và thanh khoản giảm còn 0,84× TB20 — lực bán yếu đi nhưng chưa có phiên cầu bắt đáy; khối ngoại bán ròng ~496 tỷ.",
+ "risk_plan": "Nguyên vật liệu đã đủ 3 mã (DGC, HPG, PHR) — không thêm mã cùng ngành. Tiền mặt ~50%. Vận tải chưa có mã đạt điều kiện bán tháo (RSI < 30 + khối lượng ≥ 1,5×).",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "PHR",
+   "stop_loss": 27.4,
+   "take_profit": 32.0,
+   "reason": "Khớp 600 cp @28,90, đóng 29,05 (+0,5%); RSI 24 — giữ chờ hồi.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 03/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "HPG",
+   "stop_loss": 20.3,
+   "take_profit": 23.7,
+   "reason": "Đóng 21,25 (+4,2%, khối lượng 1,71×) — bật khỏi vùng cắt lỗ, luận điểm KQKD được xác nhận.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 03/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "DGC",
+   "stop_loss": 31.2,
+   "take_profit": 36.8,
+   "reason": "Đóng 32,85; còn 10/15 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 03/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GMD",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5×",
+   "reason": "Vận tải (còn suất ngành): RSI 36,4, khối lượng 1,31×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VTP",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5×",
+   "reason": "Vận tải, Downtrend.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DPM",
+   "condition": "Khi có suất ngành và RSI14 < 25",
+   "reason": "RSI 22, −9,8% 5 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

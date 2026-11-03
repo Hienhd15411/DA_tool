@@ -1,0 +1,44 @@
+{
+ "for_session": "2026-11-04",
+ "decided_at": "2026-11-03T19:50+07:00",
+ "market_view": "VNINDEX −0,65% về 1.699,62 (thủng 1.700, −67 điểm sau 4 phiên), dưới EMA50 3,3%; độ rộng cải thiện (147 tăng/134 giảm) và thanh khoản giảm còn 0,84× TB20 — lực bán yếu đi nhưng chưa có phiên cầu bắt đáy; khối ngoại bán ròng ~496 tỷ.",
+ "risk_plan": "100% tiền mặt sau khi cắt lỗ TCB, MSN. Chỉ mua lại khi có phiên xác nhận đáy (VNINDEX tăng, > 60% mã tăng) — hôm nay chưa có.",
+ "orders": [
+  {
+   "side": "WATCH",
+   "ticker": "VCB",
+   "condition": "Phiên VNINDEX tăng với > 60% mã tăng và VCB đóng cửa > 55,0",
+   "reason": "RSI 30, khối lượng 2,21× phiên thứ hai liên tiếp — có dấu hiệu bán cạn nhưng chưa xác nhận.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BID",
+   "condition": "Đóng cửa > 33,0",
+   "reason": "RSI 26,3, 2% biên độ 60 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MBB",
+   "condition": "Đóng cửa > 19,5 với khối lượng ≥ 1,5×",
+   "reason": "+0,8% với khối lượng 1,68× ngày thị trường giảm.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "TCB",
+   "condition": "Đóng cửa lại > 22,5",
+   "reason": "Vừa cắt lỗ ở 21,45; mua lại chỉ khi giá xác nhận.",
+   "sources": [
+    "bảng ứng viên vnq-trader 03/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}
