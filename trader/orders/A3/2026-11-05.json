@@ -1,0 +1,71 @@
+{
+ "for_session": "2026-11-05",
+ "decided_at": "2026-11-04T19:45+07:00",
+ "market_view": "VNINDEX hồi mạnh +1,97% lên 1.733,02 với độ rộng 256 tăng/62 giảm (~80% mã tăng) và thanh khoản 1,27× TB20 — phiên cầu bắt đáy rõ sau 4 phiên giảm (−67 điểm); vẫn dưới EMA50 1,3%. Nhóm chứng khoán dẫn sóng hồi (CTS, VCI, VND, VIX, SSI +6,5–7%, khối lượng 2–3×).",
+ "risk_plan": "TCH hết 7 phiên → bán ATC theo kế hoạch (lãi tạm tính +4,9%). VNINDEX còn dưới EMA50 → cuối phiên giải ngân ≤ 50%: HDC + 1 mã chứng khoán mới.",
+ "orders": [
+  {
+   "side": "SELL",
+   "ticker": "TCH",
+   "type": "ATC",
+   "qty": "all",
+   "reason": "Đã giữ đủ 7 phiên (từ 28/10) — thoát theo thời gian như kế hoạch; đóng 12,75, chưa chạm chốt lời 13,1.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "BUY",
+   "ticker": "VCI",
+   "type": "LO",
+   "limit": 20.3,
+   "value_vnd": 24400000,
+   "stop_loss": 19.35,
+   "take_profit": 22.1,
+   "horizon_sessions": 7,
+   "confidence": "vừa",
+   "reason": "Chứng khoán dẫn sóng hồi: +6,9% với khối lượng 2,57× TB20, đỉnh 20 phiên (pos20 1,00), RSI 61 (chưa quá nóng), thanh khoản 162 tỷ/phiên. LO 20,3 (≈1.200 cp), cắt lỗ 19,35 (−4,7%, ≈1,5×ATR) → rủi ro ≈1,1% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 04/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "HDC",
+   "stop_loss": 11.4,
+   "take_profit": 13.1,
+   "reason": "Đóng 12,60 (+6,8%, khối lượng 2,28×), +4,1% so với giá vốn; còn 5/7 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "BSI",
+   "condition": "Giữ trên 28,5 và vượt 30,0",
+   "reason": "+6,1% khối lượng 2,32×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "CTS",
+   "condition": "Điều chỉnh về 22,0–22,5 với khối lượng giảm",
+   "reason": "+7% khối lượng 2,36× — đã chạy, chờ nhịp lùi.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "SSI",
+   "condition": "Vượt 21,0 với khối lượng ≥ 1,5×",
+   "reason": "+6,5% khối lượng 2,46×, thanh khoản 375 tỷ.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

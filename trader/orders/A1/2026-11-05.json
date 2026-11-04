@@ -1,0 +1,60 @@
+{
+ "for_session": "2026-11-05",
+ "decided_at": "2026-11-04T19:45+07:00",
+ "market_view": "VNINDEX hồi mạnh +1,97% lên 1.733,02 với độ rộng 256 tăng/62 giảm (~80% mã tăng) và thanh khoản 1,27× TB20 — phiên cầu bắt đáy rõ sau 4 phiên giảm (−67 điểm); vẫn dưới EMA50 1,3%.",
+ "risk_plan": "Điều kiện thị trường đã đặt (VNINDEX tăng, > 60% mã tăng) đã xuất hiện. Quay lại từng bước: 1 mã ngân hàng mạnh nhất, ≤15% NAV, rủi ro ≤ 1% NAV; tiền mặt vẫn ~87%.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "CTG",
+   "type": "LO",
+   "limit": 31.0,
+   "value_vnd": 12400000,
+   "stop_loss": 29.8,
+   "take_profit": 34.0,
+   "horizon_sessions": 40,
+   "confidence": "vừa",
+   "reason": "Ngân hàng mạnh nhất nhóm sau đợt giảm: 98% biên độ 20 phiên, trên EMA50 1,6%, RSI 58, khối lượng 1,45× trong phiên cầu bắt đáy (+3,3%). LO 31,0 (≈400 cp), cắt lỗ 29,8 (−3,9%, ≈2×ATR) → rủi ro ≈0,5% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 04/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VCB",
+   "condition": "Đóng cửa > 55,0",
+   "reason": "54,80 (+2,4%) — sát ngưỡng đã đặt.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MBB",
+   "condition": "Đóng cửa > 19,5 với khối lượng ≥ 1,5×",
+   "reason": "19,25, khối lượng 1,53× — giá chưa vượt.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MSN",
+   "condition": "Đóng cửa > 74,0",
+   "reason": "Hồi +4,2% về 72,30 sau khi cắt lỗ ở 69,00; KQKD 9 tháng tốt.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "TCB",
+   "condition": "Đóng cửa > 22,5",
+   "reason": "21,85 (+2,1%), khối lượng thấp 0,66×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

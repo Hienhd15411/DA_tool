@@ -1,0 +1,65 @@
+{
+ "for_session": "2026-11-05",
+ "decided_at": "2026-11-04T19:45+07:00",
+ "market_view": "VNINDEX hồi mạnh +1,97% lên 1.733,02 với độ rộng 256 tăng/62 giảm (~80% mã tăng) và thanh khoản 1,27× TB20 — phiên cầu bắt đáy rõ sau 4 phiên giảm (−67 điểm); vẫn dưới EMA50 1,3%. Ba mã bắt đáy (DGC, HPG, PHR) đều đã lên trên giá vốn.",
+ "risk_plan": "Giữ 3 vị thế nguyên vật liệu với cắt lỗ cũ; không đuổi theo phiên hồi. Nhóm vận tải không có mã bán tháo — đứng ngoài.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "HPG",
+   "stop_loss": 20.3,
+   "take_profit": 23.7,
+   "reason": "Đóng 21,70 (+2,1%), đỉnh 20 phiên, khối lượng 1,9×; +2,4% so với giá vốn.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "PHR",
+   "stop_loss": 27.4,
+   "take_profit": 32.0,
+   "reason": "Đóng 29,90 (+2,9%), +3,5% so với giá vốn; RSI 34 — còn dư địa hồi.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "DGC",
+   "stop_loss": 31.2,
+   "take_profit": 36.8,
+   "reason": "Đóng 33,45 (+1,8%); còn 9/15 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GMD",
+   "condition": "Đóng cửa > 53 với khối lượng ≥ 1,3×",
+   "reason": "+4% phiên hồi, vẫn dưới EMA50.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VTP",
+   "condition": "Vượt EMA50 (~48,9) với khối lượng ≥ 1,3×",
+   "reason": "+4,3% khối lượng 1,34×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DPM",
+   "condition": "Khi có suất ngành và RSI14 < 30 trở lại",
+   "reason": "Hồi +2,9%, RSI 32.",
+   "sources": [
+    "bảng ứng viên vnq-trader 04/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}
