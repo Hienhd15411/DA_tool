@@ -1,0 +1,55 @@
+{
+ "for_session": "2026-11-06",
+ "decided_at": "2026-11-05T19:45+07:00",
+ "market_view": "VNINDEX +0,44% lên 1.740,73 (phiên tăng thứ hai, cổ phiếu trụ dẫn dắt), còn dưới EMA50 0,8%; độ rộng 155 tăng/130 giảm, thanh khoản 1,12× TB20; khối ngoại vẫn bán ròng nhưng gom mạnh một mã chứng khoán.",
+ "risk_plan": "Giữ CTD và FPT với cắt lỗ đã cam kết; tiền mặt ~70%. Chỉ thêm khi VNINDEX lấy lại EMA50.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "CTD",
+   "stop_loss": 62.6,
+   "take_profit": 80.4,
+   "reason": "Đóng 68,30, +1,9% so với giá vốn, Uptrend.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "FPT",
+   "stop_loss": 51.0,
+   "take_profit": 60.0,
+   "reason": "Khớp 300 cp @54,00, đóng 52,90 (−2%); trên cắt lỗ 51,0. Giữ, không nới.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MWG",
+   "condition": "Đóng cửa > 76 với khối lượng ≥ 1,3×",
+   "reason": "75,00, khối lượng 1,55× — sát ngưỡng.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MSH",
+   "condition": "Vượt 36,5 với khối lượng ≥ 1,5×",
+   "reason": "Uptrend, trên EMA50 9,4%.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VPL",
+   "condition": "Điều chỉnh về 88–89",
+   "reason": "RSI 76 — quá nóng để mua đuổi.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

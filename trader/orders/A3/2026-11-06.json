@@ -1,0 +1,55 @@
+{
+ "for_session": "2026-11-06",
+ "decided_at": "2026-11-05T19:45+07:00",
+ "market_view": "VNINDEX +0,44% lên 1.740,73 (phiên tăng thứ hai, cổ phiếu trụ dẫn dắt), còn dưới EMA50 0,8%; độ rộng 155 tăng/130 giảm, thanh khoản 1,12× TB20; khối ngoại vẫn bán ròng nhưng gom mạnh một mã chứng khoán. Thanh khoản nhóm chứng khoán đột biến (>100 triệu cp sang tay).",
+ "risk_plan": "Giải ngân ~49% (HDC + VCI), đúng trần 50% khi VNINDEX dưới EMA50 — không mua thêm. HDC sát chốt lời 13,1.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "HDC",
+   "stop_loss": 11.4,
+   "take_profit": 13.1,
+   "reason": "Đóng 13,00 (+7,4% so với giá vốn), khối lượng 2,47×; còn 4/7 phiên — đóng cửa ≥ 13,1 thì bán phiên sau theo chốt lời đã cam kết.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "VCI",
+   "stop_loss": 19.35,
+   "take_profit": 22.1,
+   "reason": "Khớp 1.200 cp @20,30, đóng 20,05 (−1,2%); còn 6/7 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VIX",
+   "condition": "Giữ trên 12,8 và vượt 13,5 với khối lượng ≥ 2×",
+   "reason": "+4% khối lượng 2,95×, thanh khoản ~380 tỷ.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "TCH",
+   "condition": "Điều chỉnh về 12,4–12,5",
+   "reason": "Vừa bán ở 13,00 (+7%); Uptrend, RSI 73 — không mua đuổi.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "SSI",
+   "condition": "Vượt 21,0 với khối lượng ≥ 1,5×",
+   "reason": "Đi ngang 20,4, khối lượng 1,58×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

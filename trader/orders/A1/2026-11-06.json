@@ -1,0 +1,60 @@
+{
+ "for_session": "2026-11-06",
+ "decided_at": "2026-11-05T19:45+07:00",
+ "market_view": "VNINDEX +0,44% lên 1.740,73 (phiên tăng thứ hai, cổ phiếu trụ dẫn dắt), còn dưới EMA50 0,8%; độ rộng 155 tăng/130 giảm, thanh khoản 1,12× TB20; khối ngoại vẫn bán ròng nhưng gom mạnh một mã chứng khoán.",
+ "risk_plan": "Quay lại từng bước, 1 mã ngân hàng ≤15% NAV, rủi ro ≤1% NAV. LO 31,0 hôm nay không khớp vì CTG mở cửa cao hơn — nâng giá vào sát giá đóng cửa, không đuổi quá 0,5%.",
+ "orders": [
+  {
+   "side": "BUY",
+   "ticker": "CTG",
+   "type": "LO",
+   "limit": 31.7,
+   "value_vnd": 12700000,
+   "stop_loss": 30.4,
+   "take_profit": 34.5,
+   "horizon_sessions": 40,
+   "confidence": "vừa",
+   "reason": "Lệnh LO 31,0 phiên 05/11 không khớp; CTG đóng 31,60 (+1,8%) ở đỉnh 20 phiên với khối lượng 2,17×, trên EMA50 3,3%, RSI 63 — ngân hàng dẫn dắt nhịp hồi. LO 31,7 (≈400 cp), cắt lỗ 30,4 (−4,1%) → rủi ro ≈0,5% NAV.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)",
+    "bản tin thị trường vnq-trader 05/11 (tools/agent_brief.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MBB",
+   "condition": "Đóng cửa > 19,5 với khối lượng ≥ 1,5×",
+   "reason": "Đóng đúng 19,50 nhưng khối lượng 0,91× — chưa đạt.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "HDB",
+   "condition": "Vượt 23,0 với khối lượng ≥ 1,3×",
+   "reason": "Trên EMA50 3,1%, đi ngang.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VCB",
+   "condition": "Đóng cửa > 55,0",
+   "reason": "Yếu hơn nhóm (−1,1%), Downtrend.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MSN",
+   "condition": "Đóng cửa > 74,0",
+   "reason": "Đi ngang quanh 71–72.",
+   "sources": [
+    "bảng ứng viên vnq-trader 05/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}
