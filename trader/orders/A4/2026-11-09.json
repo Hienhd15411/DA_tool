@@ -1,0 +1,65 @@
+{
+ "for_session": "2026-11-09",
+ "decided_at": "2026-11-06T19:45+07:00",
+ "market_view": "VNINDEX −0,88% về 1.725,36 sau 2 phiên hồi, dưới EMA50 1,7%; độ rộng xấu lại (95 tăng/199 giảm), thanh khoản 1,22× TB20. Nhóm chứng khoán vẫn mạnh ngược thị trường (VND +5,3%, TCH +3,8%).",
+ "risk_plan": "Giữ 3 vị thế nguyên vật liệu với cắt lỗ cũ. Vận tải: VTP giảm 2,5% khối lượng 1,95× nhưng RSI 41,8 chưa bán tháo — đứng ngoài.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "PHR",
+   "stop_loss": 27.4,
+   "take_profit": 32.0,
+   "reason": "Đóng 29,70 (+2,8% so với giá vốn).",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "HPG",
+   "stop_loss": 20.3,
+   "take_profit": 23.7,
+   "reason": "Đóng 21,20, bằng giá vốn.",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "DGC",
+   "stop_loss": 31.2,
+   "take_profit": 36.8,
+   "reason": "Đóng 33,00; còn 7/15 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VTP",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5×",
+   "reason": "−2,5% khối lượng 1,95×, RSI 41,8.",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GVR",
+   "condition": "Khi có suất ngành và RSI14 < 30",
+   "reason": "RSI 35, 5% biên độ 20 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GMD",
+   "condition": "Đóng cửa > 53,5 với khối lượng ≥ 1,3×",
+   "reason": "Đi ngang quanh EMA50.",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

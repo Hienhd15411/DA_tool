@@ -1,0 +1,45 @@
+{
+ "for_session": "2026-11-09",
+ "decided_at": "2026-11-06T19:45+07:00",
+ "market_view": "VNINDEX −0,88% về 1.725,36 sau 2 phiên hồi, dưới EMA50 1,7%; độ rộng xấu lại (95 tăng/199 giảm), thanh khoản 1,22× TB20. Nhóm chứng khoán vẫn mạnh ngược thị trường (VND +5,3%, TCH +3,8%).",
+ "risk_plan": "Giữ CTG (đang lãi) với cắt lỗ đã cam kết; không thêm mã khi thị trường giảm lại. Tiền mặt ~87%.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "CTG",
+   "stop_loss": 30.4,
+   "take_profit": 34.5,
+   "reason": "Khớp 400 cp @31,15 phiên 06/11, đóng 31,85 (+2,2%) ở đỉnh 20 phiên ngày thị trường giảm.",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "MSN",
+   "condition": "Đóng cửa > 74,0",
+   "reason": "+2% lên 73,0, khối lượng 1,32×.",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "HDB",
+   "condition": "Vượt 23,0 với khối lượng ≥ 1,3×",
+   "reason": "Trên EMA50 3,2%, giữ giá tốt.",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VCB",
+   "condition": "Đóng cửa > 55,0",
+   "reason": "Vẫn yếu (RSI 35, Downtrend).",
+   "sources": [
+    "bảng ứng viên vnq-trader 06/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}
