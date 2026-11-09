@@ -1,8 +1,8 @@
 name: vnq-daily
 # 18:30 giờ VN (UTC+7) thứ 2–6. GitHub cron có thể trễ 5–30 phút.
 on:
-  schedule:
-    - cron: '30 11 * * 1-5'
+  # schedule: (tạm dừng 09/11/2026 theo yêu cầu)
+  #   - cron: '30 11 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:

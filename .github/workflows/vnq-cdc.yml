@@ -1,8 +1,8 @@
 name: vnq-cdc
 # CDC mỗi ngày một lần sau phiên (17:00 ICT, thứ 2–6), rồi chạy daily.
 on:
-  schedule:
-    - cron: '0 10 * * 1-5'
+  # schedule: (tạm dừng 09/11/2026 theo yêu cầu)
+  #   - cron: '0 10 * * 1-5'
   workflow_dispatch:
   push:
     paths:
