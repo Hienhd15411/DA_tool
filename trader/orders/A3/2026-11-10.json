@@ -1,0 +1,55 @@
+{
+ "for_session": "2026-11-10",
+ "decided_at": "2026-11-09T19:45+07:00",
+ "market_view": "VNINDEX −0,64% về 1.714,32, dưới EMA50 2,2%; độ rộng 116 tăng/173 giảm, thanh khoản thấp 0,81× TB20 — thị trường lình xình, chưa có lực cầu mới; nhóm chứng khoán điều chỉnh sau tuần tăng mạnh.",
+ "risk_plan": "HDC chạm chốt lời đã cam kết → bán ATO. Giữ VCI với cắt lỗ 19,35. Nhóm chứng khoán đang điều chỉnh — không mở mới phiên này.",
+ "orders": [
+  {
+   "side": "SELL",
+   "ticker": "HDC",
+   "type": "ATO",
+   "qty": "all",
+   "reason": "Đóng 13,30 ≥ chốt lời 13,1 đã cam kết (+9,9% so với giá vốn 12,10) → chốt lời theo kỷ luật.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "VCI",
+   "stop_loss": 19.35,
+   "take_profit": 22.1,
+   "reason": "Đóng 19,70 (−2,5%), còn trên cắt lỗ 19,35; còn 4/7 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "TCH",
+   "condition": "Điều chỉnh về 12,8–13,0",
+   "reason": "Uptrend, RSI 71.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VND",
+   "condition": "Giữ trên 14,2 và vượt 15,0 với khối lượng ≥ 1,5×",
+   "reason": "−3,3% sau tuần +10%.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "CTS",
+   "condition": "Điều chỉnh về 22,5 với khối lượng giảm",
+   "reason": "+8,2% 5 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}

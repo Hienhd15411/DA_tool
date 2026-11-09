@@ -1,0 +1,65 @@
+{
+ "for_session": "2026-11-10",
+ "decided_at": "2026-11-09T19:45+07:00",
+ "market_view": "VNINDEX −0,64% về 1.714,32, dưới EMA50 2,2%; độ rộng 116 tăng/173 giảm, thanh khoản thấp 0,81× TB20 — thị trường lình xình, chưa có lực cầu mới; nhóm chứng khoán điều chỉnh sau tuần tăng mạnh.",
+ "risk_plan": "Giữ 3 vị thế nguyên vật liệu với cắt lỗ cũ. DPM RSI 28,1 nhưng khối lượng 0,84× — chưa phải bán tháo, và không còn suất ngành.",
+ "orders": [
+  {
+   "side": "HOLD",
+   "ticker": "PHR",
+   "stop_loss": 27.4,
+   "take_profit": 32.0,
+   "reason": "Đóng 29,65 (+2,6% so với giá vốn).",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "HPG",
+   "stop_loss": 20.3,
+   "take_profit": 23.7,
+   "reason": "Đóng 20,90 (−1,4%), trên cắt lỗ 20,3.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "HOLD",
+   "ticker": "DGC",
+   "stop_loss": 31.2,
+   "take_profit": 36.8,
+   "reason": "Đóng 32,80; còn 6/15 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "DPM",
+   "condition": "Khi có suất ngành và RSI14 < 30 với khối lượng ≥ 1,5×",
+   "reason": "RSI 28,1, 8% biên độ 20 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "GVR",
+   "condition": "Khi có suất ngành và RSI14 < 30",
+   "reason": "RSI 34,9, 3% biên độ 20 phiên.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  },
+  {
+   "side": "WATCH",
+   "ticker": "VTP",
+   "condition": "RSI14 < 30 với khối lượng ≥ 1,5×",
+   "reason": "Vận tải, RSI 40,7.",
+   "sources": [
+    "bảng ứng viên vnq-trader 09/11 (tools/agent_candidates.py)"
+   ]
+  }
+ ]
+}
